@@ -54,6 +54,52 @@ namespace Atmosphere
         
     }
 
+    //removes the need for individual particles/meshrenderers etc
+    //creates one mesh with all the particle positions which then gets passed to a geometry shader which then generates particle quads from the vertices
+    class CloudMesh
+    {
+        GameObject cloudMesh;
+        public CloudMesh(Material cloudParticleMaterial, Vector2 size, Transform parent, float magnitude, HexSeg hexGeometry) //size should be passed to material as a parameter, to control quad generation
+        {
+            cloudMesh = new GameObject();
+
+            cloudMesh.transform.parent = parent;
+            cloudMesh.transform.localPosition = Vector3.zero;
+            
+            //Vector3 worldUp = cloudMesh.transform.position - parent.parent.position;
+            //cloudMesh.transform.up = worldUp.normalized;
+
+            cloudMesh.transform.localRotation = Quaternion.Euler(0, 0, 0);
+
+            cloudMesh.transform.localScale = Vector3.one;
+
+            cloudMesh.layer = (int)Tools.Layer.Local;
+
+            //Vector3 up = cloudMesh.transform.InverseTransformDirection(worldUp);
+            //Quad.Create(cloudMesh, (int)size.x, Color.white, up, size.y);
+            
+            MeshFilter filter = cloudMesh.AddComponent<MeshFilter>();
+            filter.mesh = hexGeometry.BuildPointsMesh();
+            filter.mesh.RecalculateBounds();
+
+
+            //Debug.Log("vertices.Count() " + vertices.Count());
+
+            MeshRenderer mr = cloudMesh.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = cloudParticleMaterial;
+
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            mr.receiveShadows = false;
+            mr.enabled = true;
+        }
+
+
+        internal void Destroy()
+        {
+            GameObject.DestroyImmediate(cloudMesh);
+        }
+    }
+
     class VolumeSection
     {
         
@@ -63,6 +109,8 @@ namespace Atmosphere
         float magnitude;
         float xComp, zComp;
         List<CloudParticle> Particles = new List<CloudParticle>();
+        CloudMesh cloudMesh;
+
         float radius, divisions;
 
         public Vector3 Center { get { return segment.transform.localPosition; } }
@@ -81,11 +129,7 @@ namespace Atmosphere
             segment.transform.localPosition = pos;
             Reassign(pos, magnitude, parent);
 
-            List<Vector3> positions = hexGeometry.GetPoints();
-            foreach (Vector3 position in positions)
-            {
-                Particles.Add(new CloudParticle(cloudParticleMaterial, size, segment.transform, position, magnitude));
-            }
+            cloudMesh = new CloudMesh(cloudParticleMaterial, size, segment.transform, magnitude, hexGeometry);
         }
 
         public void Reassign(Vector3 pos, float magnitude = -1, Transform parent = null)

@@ -24,6 +24,8 @@ namespace Atmosphere
         [ConfigItem]
         float _Opacity = 1.05f;
 
+        float _QuadSize;
+        public float QuadSize { set { _QuadSize = value; } }
         float _MaxScale;
         public float MaxScale { set { _MaxScale = value; } }
         Vector3 _MaxTrans;
@@ -84,6 +86,7 @@ namespace Atmosphere
         public void Apply(CloudsMaterial material, float radius, Transform parent)
         {
             Remove();
+            particleMaterial.QuadSize = size.x;
             particleMaterial.MaxScale = size.y;
             particleMaterial.MaxTrans = maxTranslation;
             particleMaterial.NoiseScale =  new Vector3(noiseScale.x, noiseScale.y, noiseScale.z / radius);

@@ -1,7 +1,4 @@
-﻿// Upgrade NOTE: commented out 'float4x4 _CameraToWorld', a built-in variable
-// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
-
-Shader "EVE/CloudVolumeParticle" {
+﻿Shader "EVE/CloudVolumeParticle" {
 	Properties {
 		_Tex("Particle Texture", 2D) = "white" {}
 		_MainTex("Main (RGB)", 2D) = "white" {}
@@ -30,7 +27,10 @@ Shader "EVE/CloudVolumeParticle" {
 		Fog { Mode Global}
 		AlphaTest Greater 0
 		ColorMask RGB
-		Cull Back Lighting On ZWrite Off
+		//Cull Back
+		Cull Off
+		Lighting On
+		ZWrite Off
 
 		SubShader {
 			Pass {
@@ -40,10 +40,11 @@ Shader "EVE/CloudVolumeParticle" {
 
 				CGPROGRAM
 				#include "EVEUtils.cginc"
-				#pragma target 3.0
+				#pragma target 4.0
 				#pragma glsl
 				#pragma vertex vert
 				#pragma fragment frag
+				#pragma geometry geom
 				#define MAG_ONE 1.4142135623730950488016887242097
 				#pragma fragmentoption ARB_precision_hint_fastest
 				#pragma multi_compile_fwdbase
@@ -73,6 +74,7 @@ Shader "EVE/CloudVolumeParticle" {
 				float _Opacity;
 				float _InvFade;
 				float _Rotation;
+				float _QuadSize;
 				float _MaxScale;
 				float4 _NoiseScale;
 				float3 _MaxTrans;
@@ -89,7 +91,67 @@ Shader "EVE/CloudVolumeParticle" {
 					float2 texcoord : TEXCOORD0;
 				};
 
-				struct v2f {
+				struct v2g {
+					float4 pos : SV_POSITION;
+					fixed4 color : COLOR;
+					float3 hashVect : TEXCOORD0;
+					float4 localOrigin : TEXCOORD1;
+					float4 origin : TEXCOORD2;
+					float viewDirFade : TEXCOORD3;
+					float3 planetPos : TEXCOORD4;
+				};
+
+				//vertex function, called for every point on our hexSeg, each vertex corresponding to the origin of a particle/quad
+				v2g vert (appdata_t v)
+				{
+					v2g o;
+					UNITY_INITIALIZE_OUTPUT(v2g, o);
+
+					v.vertex.xyz/=v.vertex.w;
+					float4 origin = mul(unity_ObjectToWorld, v.vertex); //origin of the quad in worldSpace
+
+					float4 planet_pos = mul(_PosRotation, origin);
+					//these two operations we can make directly in one op by doing mul(_PosRotation, Object2World) on CPU
+					//still the vertex shader cost of this shader is negligible in front of the fragment shader so these things aren't really necessary
+
+					float3 normalized = _NoiseScale.z*(planet_pos.xyz);
+					float3 hashVect =  .5*(float3(snoise(normalized), snoise(_NoiseScale.x*normalized), snoise(_NoiseScale.y*normalized))+1);  //unique hash of the particle based on planet pos
+
+					o.hashVect = hashVect;
+
+					float4 localOrigin;
+					localOrigin.xyz = (2*hashVect-1)*_MaxTrans;   //offset to localOrigin based on hash above
+					localOrigin.w = 1;
+
+					//localOrigin.xyz+=v.vertex.xyz;			    //here this is wrong, in the original shader, local origin is added to the quad in it's space and gets transformed with it'w own M matrix with no issues
+																	//here as we add this to the space of the hex, transforming later with M matrix can cause additional rotation, we can add this in worldSpace instead
+
+					origin.xyz+=localOrigin;					//the particle transforms are originally oriented same as in world space, therefore we can do this offset directly in worldSpace in our case
+					o.origin = origin;
+
+					localOrigin = mul (unity_WorldToObject, origin);	//transform back to find the new localOrigin
+					o.localOrigin = localOrigin;
+
+					planet_pos = mul(_MainRotation, origin);   //new planet pos based on offset origin
+					o.planetPos = planet_pos.xyz;
+																											
+					float3 detail_pos = mul(_DetailRotation, planet_pos).xyz;
+					o.color = VERT_GET_NO_LOD_CUBE_MAP_1(_MainTex, planet_pos.xyz);
+					o.color.rgba *= GetCubeDetailMapNoLOD(_DetailTex, detail_pos, _DetailScale);
+
+					o.viewDirFade = GetDistanceFade(distance(origin, _WorldSpaceCameraPos), _DistFade, _DistFadeVert);
+					o.color.a *= o.viewDirFade;
+
+					float4 mvCenter = mul(UNITY_MATRIX_MV, float4(localOrigin.xyz,1.0));  //offset quad origin in viewspace
+					o.pos=mvCenter;
+					o.pos = o.color.a > (1.0/255.0) ? o.pos : float4(2.0, 2.0, 2.0, 1.0); //cull vertex if low alpha, pos outside clipspace
+
+					return o;
+				}
+
+
+				struct g2f
+				{
 					float4 pos : SV_POSITION;
 					fixed4 color : COLOR;
 					half4 viewDir : TEXCOORD0;
@@ -101,55 +163,43 @@ Shader "EVE/CloudVolumeParticle" {
 					float3 planetPos : TEXCOORD6;
 					float3 viewDirT : TEXCOORD7;
 					float3 lightDirT : TEXCOORD8;
+					float4 localOrigin : TEXCOORD9;
 				};
 
-				v2f vert (appdata_t v)
+				//this function builds a quad corner vertex from the data passed to it, it will be called by the geometry shader
+				g2f buildQuadVertex(v2g originPoint, float3 vertexPosition, float2 vertexUV, float3 viewDir, float4x4 mvMatrix, float localScale)
 				{
-					v2f o;
-					UNITY_INITIALIZE_OUTPUT(v2f, o);
+					g2f tri;
+					UNITY_INITIALIZE_OUTPUT(g2f, tri);
 
-					float4 origin = mul(unity_ObjectToWorld, float4(0,0,0,1));
+					float3 mvCenter = originPoint.pos.xyz/originPoint.pos.w;
+					tri.pos = float4(mvCenter + _QuadSize * localScale * vertexPosition,1.0);    //position in view space of quad corner
 
-					float4 planet_pos = mul(_PosRotation, origin);
-					
+#ifdef SOFT_DEPTH_ON
+					float eyedepth = -tri.pos.z;
+#endif
 
-					float3 normalized = _NoiseScale.z*(planet_pos.xyz);
-					float3 hashVect =  .5*(float3(snoise(normalized), snoise(_NoiseScale.x*normalized), snoise(_NoiseScale.y*normalized))+1);
+					tri.pos = mul (UNITY_MATRIX_P, tri.pos);
 
-					float4 localOrigin;
-					localOrigin.xyz = (2*hashVect-1)*_MaxTrans;
-					localOrigin.w = 1;
-					float localScale = (hashVect.x*(_MaxScale - 1)) + 1;
+#ifdef SOFT_DEPTH_ON
+					tri.projPos = ComputeScreenPos (tri.pos);
+					//COMPUTE_EYEDEPTH(tri.projPos.z);
 
-					origin = mul(unity_ObjectToWorld, localOrigin);
+					//we replace COMPUTE_EYEDEPTH with it's definition as it's only designed for the vertex shader input
+					//tri.projPos.z = -UnityObjectToViewPos( v.vertex ).z
+					tri.projPos.z = eyedepth;
+#endif
 
-					planet_pos = mul(_MainRotation, origin);
-					float3 detail_pos = mul(_DetailRotation, planet_pos).xyz;
-					o.planetPos = planet_pos.xyz;
-					o.color = VERT_GET_NO_LOD_CUBE_MAP_1(_MainTex, planet_pos.xyz);
+    				
 
-					o.color.rgba *= GetCubeDetailMapNoLOD(_DetailTex, detail_pos, _DetailScale);
+					//pass these values we need for the fragment shader
+					tri.viewDir.xyz = abs(viewDir).xyz;
+					tri.viewDir.w = originPoint.viewDirFade;
+					tri.planetPos = originPoint.planetPos;
+					tri.color = originPoint.color;
 
-					o.viewDir.w = GetDistanceFade(distance(origin, _WorldSpaceCameraPos), _DistFade, _DistFadeVert);
-					o.color.a *= o.viewDir.w;
-					
-					float4x4 M = rand_rotation(
-					(float3(frac(_Rotation),0,0))+hashVect,
-					localScale,
-					localOrigin.xyz);
-					float4x4 mvMatrix = mul(mul(UNITY_MATRIX_V, unity_ObjectToWorld), M);
-
-					float3 viewDir = normalize(mvMatrix[2].xyz);
-					o.viewDir.xyz = abs(viewDir).xyz;
-
-
-					float4 mvCenter = mul(UNITY_MATRIX_MV, localOrigin);
-					
-					o.pos = mul(UNITY_MATRIX_P,mvCenter+ float4(v.vertex.xyz*localScale,v.vertex.w));
-					o.pos = o.color.a > (1.0/255.0) ? o.pos : float4(2.0, 2.0, 2.0, 1.0); //cull vertex if low alpha, pos outside clipspace
-					
-					float2 texcoodOffsetxy = ((2*v.texcoord)- 1);
-					float4 texcoordOffset = float4(texcoodOffsetxy.x, texcoodOffsetxy.y, 0, v.vertex.w);
+					float2 texcoodOffsetxy = ((2*vertexUV)- 1);
+					float4 texcoordOffset = float4(texcoodOffsetxy.x, texcoodOffsetxy.y, 0, 1.0);   //would 1.0 work here???? let's find out
 
 					float4 ZYv = texcoordOffset.zyxw;
 					float4 XZv = texcoordOffset.xzyw;
@@ -158,7 +208,7 @@ Shader "EVE/CloudVolumeParticle" {
 					ZYv.z*=sign(-viewDir.x);
 					XZv.x*=sign(-viewDir.y);
 					XYv.x*=sign(viewDir.z);
-
+					
 					ZYv.x += sign(-viewDir.x)*sign(ZYv.z)*(viewDir.z);
 					XZv.y += sign(-viewDir.y)*sign(XZv.x)*(viewDir.x);
 					XYv.z += sign(-viewDir.z)*sign(XYv.x)*(viewDir.x);
@@ -171,35 +221,66 @@ Shader "EVE/CloudVolumeParticle" {
 					float2 XZ = mul(mvMatrix, XZv).xy - mvCenter.xy;
 					float2 XY = mul(mvMatrix, XYv).xy - mvCenter.xy;
 
-					o.texcoordZY = half2(.5 ,.5) + .6*(ZY);
-					o.texcoordXZ = half2(.5 ,.5) + .6*(XZ);
-					o.texcoordXY = half2(.5 ,.5) + .6*(XY);
+					tri.texcoordZY = half2(.5 ,.5) + .6*(ZY);
+					tri.texcoordXZ = half2(.5 ,.5) + .6*(XZ);
+					tri.texcoordXY = half2(.5 ,.5) + .6*(XY);
 
+					viewDir = normalize(originPoint.origin - _WorldSpaceCameraPos); 	//worldSpaceView dir to center of quad not to fragment, why? maybe to frag would be better?
 
-					float3 worldNormal = normalize(mul( unity_ObjectToWorld, float4( v.normal, 0.0 ) ).xyz);
-					viewDir = normalize(origin - _WorldSpaceCameraPos);
-					//o.color.rgb *= MultiBodyShadow(origin, _SunRadius, _SunPos, _ShadowBodies);
-					//o.color.rgb *= Terminator(_WorldSpaceLightPos0, worldNormal);
-
-
-#ifdef SOFT_DEPTH_ON
-					o.projPos = ComputeScreenPos (o.pos);
-					COMPUTE_EYEDEPTH(o.projPos.z);
-#endif
-					//WorldSpaceViewDir(origin).xyz
 					half3 normal = normalize(-viewDir);
 					float3 tangent = UNITY_MATRIX_V[0].xyz;
 					float3 binormal = -cross(normal, normalize(tangent));
 					float3x3 rotation = float3x3(tangent.xyz, binormal, normal);
 
-					o.lightDirT = normalize(mul(rotation, _WorldSpaceLightPos0.xyz));
-					o.viewDirT = normalize(mul(rotation, viewDir));
+					tri.lightDirT = normalize(mul(rotation, _WorldSpaceLightPos0.xyz));
+					tri.viewDirT = normalize(mul(rotation, viewDir));
 
-					o.uv = v.texcoord;
-					return o;
+					tri.uv = vertexUV;   //quad UV
+					tri.localOrigin = originPoint.localOrigin;
+
+    				return tri;
 				}
 
-				fixed4 frag (v2f IN) : COLOR
+				//geometry shader
+				//for every vertex from the vertex shader it will create a particle quad of 4 vertexes and 2 triangles
+				[maxvertexcount(4)]
+    			void geom(point v2g input[1], inout TriangleStream<g2f> outStream)
+    			{
+    				g2f tri;
+
+    				//if alpha is alread zero discard the quad to save on geometry and fragment shaders
+    				if (input[0].color.a > 0.0)
+    				{
+    					//common values for all the quad
+						float localScale = (input[0].hashVect.x*(_MaxScale - 1)) + 1;
+
+						float4x4 M = rand_rotation(
+						(float3(frac(_Rotation),0,0))+input[0].hashVect,
+						localScale,
+						input[0].localOrigin.xyz/input[0].localOrigin.w);
+
+						float4x4 mvMatrix = mul(mul(UNITY_MATRIX_V, unity_ObjectToWorld), M);
+						float3 viewDir = normalize(mvMatrix[2].xyz); //cameraSpace viewDir I think
+
+						//build our quad
+    					tri = buildQuadVertex(input[0],float3(-0.5,-0.5,0.0),float2(0.0,0.0),viewDir,mvMatrix,localScale);
+    					outStream.Append(tri);
+
+    					tri = buildQuadVertex(input[0],float3(-0.5,0.5,0.0),float2(0.0,1.0),viewDir,mvMatrix,localScale);
+    					outStream.Append(tri);
+
+    					tri = buildQuadVertex(input[0],float3(0.5,-0.5,0.0),float2(1.0,0.0),viewDir,mvMatrix,localScale);
+    					outStream.Append(tri);
+
+						tri = buildQuadVertex(input[0],float3(0.5,0.5,0.0),float2(1.0,1.0),viewDir,mvMatrix,localScale);
+    					outStream.Append(tri);
+
+    				}
+
+					outStream.RestartStrip();
+    			}
+
+				float4 frag (g2f IN) : COLOR
 				{
 
 					half4 tex;
@@ -220,6 +301,9 @@ Shader "EVE/CloudVolumeParticle" {
 
 					color *= _Color * IN.color;
 
+					color.a *= tex.a;
+					tex.a = IN.viewDir.w*tex.a;
+
 					
 					//half3 normT = UnpackNormal(tex2D(_BumpMap, IN.uv));
 					half3 normT;
@@ -231,8 +315,7 @@ Shader "EVE/CloudVolumeParticle" {
 					//color.rg = IN.uv;
 
 
-					color.a *= tex.a;
-					tex.a = IN.viewDir.w*tex.a;
+
 					color.rgb *= ScatterColorLight(IN.lightDirT, IN.viewDirT, normT, tex, _MinScatter, _Opacity, 1).rgb;
 
 #ifdef SOFT_DEPTH_ON
