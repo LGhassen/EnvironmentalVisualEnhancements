@@ -151,7 +151,9 @@ Shader "EVE/Cloud" {
 
 				struct fout {
 					half4 color : COLOR;
+#if !SHADER_API_D3D11
 					float depth : DEPTH;
+#endif
 				};
 
 				fout frag(v2f IN)
@@ -222,7 +224,11 @@ Shader "EVE/Cloud" {
 					depthWithOffset *= _DepthPull;
 					OUT.color.a *= step(0, dot(IN.viewDir, worldNormal));
 #endif
+
+#if !SHADER_API_D3D11 //fixes clouds fading into the planet when zooming out
 					OUT.depth = (1.0 - depthWithOffset * _ZBufferParams.w) / (depthWithOffset * _ZBufferParams.z);
+#endif
+
 					return OUT;
 				}
 				ENDCG
