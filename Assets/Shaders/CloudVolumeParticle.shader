@@ -40,8 +40,6 @@
 
 				CGPROGRAM
 				#include "EVEUtils.cginc"
-				#pragma target 4.0
-				#pragma glsl
 				#pragma vertex vert
 				#pragma fragment frag
 				#pragma geometry geom
