@@ -118,19 +118,19 @@
 					o.hashVect = hashVect;
 
 					float4 localOrigin;
-					localOrigin.xyz = (2*hashVect-1)*_MaxTrans;   //offset to localOrigin based on hash above
+					localOrigin.xyz = (2*hashVect-1)*_MaxTrans;   		//offset to localOrigin based on hash above
 					localOrigin.w = 1;
 
-					//localOrigin.xyz+=v.vertex.xyz;			    //here this is wrong, in the original shader, local origin is added to the quad in it's space and gets transformed with it'w own M matrix with no issues
-																	//here as we add this to the space of the hex, transforming later with M matrix can cause additional rotation, we can add this in worldSpace instead
+					//localOrigin.xyz+=v.vertex.xyz;			//here this is wrong, in the original shader, local origin is added to the quad in it's space and gets transformed with it'w own M matrix with no issues
+												//here as we add this to the space of the hex, transforming later with M matrix can cause additional rotation, we can add this in worldSpace instead
 
-					origin.xyz+=localOrigin;					//the particle transforms are originally oriented same as in world space, therefore we can do this offset directly in worldSpace in our case
+					origin.xyz+=localOrigin;				//the particle transforms are originally oriented same as in world space, therefore we can do this offset directly in worldSpace in our case
 					o.origin = origin;
 
 					localOrigin = mul (unity_WorldToObject, origin);	//transform back to find the new localOrigin
 					o.localOrigin = localOrigin;
 
-					planet_pos = mul(_MainRotation, origin);   //new planet pos based on offset origin
+					planet_pos = mul(_MainRotation, origin);   		//new planet pos based on offset origin
 					o.planetPos = planet_pos.xyz;
 																											
 					float3 detail_pos = mul(_DetailRotation, planet_pos).xyz;
@@ -246,34 +246,30 @@
     			{
     				g2f tri;
 
-    				//if alpha is alread zero discard the quad to save on geometry and fragment shaders
-    				if (input[0].color.a > 0.0)
-    				{
-    					//common values for all the quad
-						float localScale = (input[0].hashVect.x*(_MaxScale - 1)) + 1;
 
-						float4x4 M = rand_rotation(
+					//common values for all the quad
+					float localScale = (input[0].hashVect.x*(_MaxScale - 1)) + 1;
+
+					float4x4 M = rand_rotation(
 						(float3(frac(_Rotation),0,0))+input[0].hashVect,
 						localScale,
 						input[0].localOrigin.xyz/input[0].localOrigin.w);
 
-						float4x4 mvMatrix = mul(mul(UNITY_MATRIX_V, unity_ObjectToWorld), M);
-						float3 viewDir = normalize(mvMatrix[2].xyz); //cameraSpace viewDir I think
+					float4x4 mvMatrix = mul(mul(UNITY_MATRIX_V, unity_ObjectToWorld), M);
+					float3 viewDir = normalize(mvMatrix[2].xyz); //cameraSpace viewDir I think
 
-						//build our quad
-    					tri = buildQuadVertex(input[0],float3(-0.5,-0.5,0.0),float2(0.0,0.0),viewDir,mvMatrix,localScale);
-    					outStream.Append(tri);
+					//build our quad
+					tri = buildQuadVertex(input[0],float3(-0.5,-0.5,0.0),float2(0.0,0.0),viewDir,mvMatrix,localScale);
+					outStream.Append(tri);
 
-    					tri = buildQuadVertex(input[0],float3(-0.5,0.5,0.0),float2(0.0,1.0),viewDir,mvMatrix,localScale);
-    					outStream.Append(tri);
+					tri = buildQuadVertex(input[0],float3(-0.5,0.5,0.0),float2(0.0,1.0),viewDir,mvMatrix,localScale);
+					outStream.Append(tri);
 
-    					tri = buildQuadVertex(input[0],float3(0.5,-0.5,0.0),float2(1.0,0.0),viewDir,mvMatrix,localScale);
-    					outStream.Append(tri);
+					tri = buildQuadVertex(input[0],float3(0.5,-0.5,0.0),float2(1.0,0.0),viewDir,mvMatrix,localScale);
+					outStream.Append(tri);
 
-						tri = buildQuadVertex(input[0],float3(0.5,0.5,0.0),float2(1.0,1.0),viewDir,mvMatrix,localScale);
-    					outStream.Append(tri);
-
-    				}
+					tri = buildQuadVertex(input[0],float3(0.5,0.5,0.0),float2(1.0,1.0),viewDir,mvMatrix,localScale);
+					outStream.Append(tri);
 
 					outStream.RestartStrip();
     			}
