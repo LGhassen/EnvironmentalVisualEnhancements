@@ -66,7 +66,7 @@ namespace Atmosphere
             {
                 if (particleCloudShader == null)
                 {
-                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/CloudVolumeParticle");
+                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticle");
                 } return particleCloudShader;
             }
         }

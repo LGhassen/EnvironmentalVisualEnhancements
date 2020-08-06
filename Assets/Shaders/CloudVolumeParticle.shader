@@ -1,4 +1,8 @@
-﻿Shader "EVE/CloudVolumeParticle" {
+﻿// Instead of having one draw call per particle quad like in original EVE
+// Here we have a single draw call passing a points mesh to the GPU
+// This shader then builds all the quads from the mesh using a geometry shader
+// This saves a ton of draw calls
+Shader "EVE/GeometryCloudVolumeParticle" {
 	Properties {
 		_Tex("Particle Texture", 2D) = "white" {}
 		_MainTex("Main (RGB)", 2D) = "white" {}
@@ -307,8 +311,6 @@
 					//normT.xy = sin(PI*(IN.uv-.5));
 					//normT.z = 1;
 					//color.rg = IN.uv;
-
-
 
 					color.rgb *= ScatterColorLight(IN.lightDirT, IN.viewDirT, normT, tex, _MinScatter, _Opacity, 1).rgb;
 
