@@ -28,7 +28,6 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 		Tags{ "Queue" = "Geometry+500" "IgnoreProjector" = "True" "RenderType" = "Transparent" }
 		Pass {
 			Blend Zero SrcColor //multiplicative
-			//Blend SrcAlpha OneMinusSrcAlpha // Traditional transparency
 			ZWrite Off
 			Offset 0, 0
 			CGPROGRAM
@@ -79,8 +78,11 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			v2f vert(appdata_t v)
 			{
 				v2f o;
-				v.vertex.y = v.vertex.y *_ProjectionParams.x;
-				o.pos = float4(v.vertex.xy, 1.0, 1.0);
+#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
+				o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, -1.0 , 1.0);
+#else
+				o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, 1.0 , 1.0);
+#endif
 				o.uv = ComputeScreenPos(o.pos);
 
 				return o;
@@ -117,15 +119,14 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				//saturate((step(d, sphereRadius)*step(0.0, tc))+
 				//(step(originDist, sphereRadius)));
 				float tlc = sqrt((sphereRadius*sphereRadius) - d2);
+
 				float sphereDist = lerp(lerp(tlc - td, tc - tlc, step(0.0, tc)),
 					lerp(tlc - td, tc + tlc, step(0.0, tc)), step(originDist, sphereRadius));
+				
 				float4 planetPos = vertexPos + (-_SunDir*sphereDist);
 				planetPos = (mul(_MainRotation, planetPos));
 				float3 mainPos = planetPos.xyz;
-				float3 detailPos = (mul(_DetailRotation, planetPos)).xyz;			
-
-				//Ocean filter //this thing kills the precision, stock ocean writes to dbuffer anyway
-				//shadowCheck *= saturate(.2*((originDist + 5) - _PlanetRadius));
+				float3 detailPos = (mul(_DetailRotation, planetPos)).xyz;
 
 				half4 main = GET_CUBE_MAP_P(_MainTex, mainPos, _UVNoiseTex, _UVNoiseScale, _UVNoiseStrength, _UVNoiseAnimation);
 				main = ALPHA_COLOR_1(main);
@@ -138,7 +139,16 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
-				return lerp(1, color, shadowCheck);
+
+				float fadeout = 1.0;
+#ifdef SHADER_API_D3D11
+				float camDistance = length(camPos.xyz/camPos.w);
+				fadeout = 1.0 - smoothstep (40000.0, 60000.0, camDistance);	//fade out the shadows to hide artifacts from insufficient depth precision in dx11
+#else
+				fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes on ogl since we have 2 cameras
+#endif
+
+				return lerp(1, color, shadowCheck*fadeout);
 			}
 
 			ENDCG
