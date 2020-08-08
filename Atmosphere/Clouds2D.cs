@@ -46,7 +46,10 @@ namespace Atmosphere
         Projector ShadowProjector = null;
         GameObject ShadowProjectorGO = null;
         CloudsMaterial cloudsMat = null;
-        
+
+        CloudsScreenSpaceShadow screenSpaceShadow;
+        GameObject screenSpaceShadowGO = null;
+
         [ConfigItem]
         Clouds2DMaterial macroCloudMaterial = null;
         [ConfigItem, Optional]
@@ -133,6 +136,19 @@ namespace Atmosphere
             }
         }
 
+        private static Shader screenSpaceCloudShadowShader = null;
+        private static Shader ScreenSpaceCloudShadowShader
+        {
+            get
+            {
+                if (screenSpaceCloudShadowShader == null)
+                {
+                    screenSpaceCloudShadowShader = ShaderLoaderClass.FindShader("EVE/ScreenSpaceCloudShadow");
+                }
+                return screenSpaceCloudShadowShader;
+            }
+        }
+
         private bool _enabled = true;
 
         public bool enabled { get {return _enabled; }
@@ -147,7 +163,12 @@ namespace Atmosphere
                 {
                     ShadowProjector.enabled = value;
                 }
-            } }
+                if (screenSpaceShadowGO != null)
+                {
+                    screenSpaceShadowGO.SetActive(value);
+                }
+            }
+        }
 
         internal void Apply(CelestialBody celestialBody, Transform scaledCelestialTransform, CloudsMaterial cloudsMaterial, string name, float radius, float arc, Tools.Layer layer = Tools.Layer.Scaled)
         {
@@ -187,6 +208,14 @@ namespace Atmosphere
                 // Workaround Unity bug (Case 841236) 
                 ShadowProjector.enabled = false;
                 ShadowProjector.enabled = true;
+
+                // Here create the screenSpaceShadowMaterialStuff
+                screenSpaceShadowGO = new GameObject("EVE ScreenSpaceShadow");
+                screenSpaceShadowGO.transform.parent = celestialBody.transform;
+                screenSpaceShadow = screenSpaceShadowGO.AddComponent<CloudsScreenSpaceShadow>(); //can this be a single class that will handle the mesh, and meshrenderer and everything?
+                screenSpaceShadow.material = new Material(ScreenSpaceCloudShadowShader);
+                shadowMaterial.ApplyMaterialProperties(screenSpaceShadow.material); 
+                screenSpaceShadow.Init();
             }
 
 
@@ -261,22 +290,24 @@ namespace Atmosphere
                 ShadowProjector.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius*worldScale);
                 ShadowProjector.transform.parent = parent;
 
-                ShadowProjectorGO.layer = (int)layer;
-                if (layer == Tools.Layer.Local)
-                {
-                    ShadowProjector.ignoreLayers = ~(Tools.Layer.Default.Mask() | // Note: *NOT* TransparentFX, otherwise landing gear lights etc. look terrible.
-                                                     Tools.Layer.Water.Mask() |
-                                                     Tools.Layer.Local.Mask() |
-                                                     Tools.Layer.Kerbals.Mask() |
-                                                     Tools.Layer.Parts.Mask());
-                    ShadowProjector.material.EnableKeyword("WORLD_SPACE_ON");
-                }
-                else
+                ShadowProjectorGO.layer = (int)Tools.Layer.Scaled; //move these to init since no longer need to change
+                if (layer == Tools.Layer.Scaled)
                 {
                     ShadowProjector.ignoreLayers = ~layer.Mask();
                     ShadowProjector.material.DisableKeyword("WORLD_SPACE_ON");
                 }
-                
+
+                if (screenSpaceShadowGO != null)
+                {
+                    macroCloudMaterial.ApplyMaterialProperties(screenSpaceShadow.material, worldScale);
+                    cloudsMat.ApplyMaterialProperties(screenSpaceShadow.material, worldScale);
+
+                    screenSpaceShadow.material.SetFloat("_Radius", (float)radiusScaleLocal);
+                    screenSpaceShadow.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius * worldScale);
+
+                    screenSpaceShadowGO.SetActive(layer == Tools.Layer.Local);
+
+                }
             }
         }
 
@@ -297,6 +328,13 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(ShadowProjectorGO);
                 ShadowProjector = null;
                 ShadowProjectorGO = null;
+            }
+
+            if (screenSpaceShadowGO != null)
+            {
+                screenSpaceShadowGO.transform.parent = null;
+                GameObject.DestroyImmediate(screenSpaceShadowGO);
+                screenSpaceShadowGO = null;
             }
         }
 
@@ -328,9 +366,9 @@ namespace Atmosphere
                     {
                         ShadowProjector.material.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunDirection); 
                     }
-                    else
+                    else if (screenSpaceShadowGO != null)
                     {
-                        ShadowProjector.material.SetVector(ShaderProperties.SUNDIR_PROPERTY, worldSunDir);
+                        screenSpaceShadow.material.SetVector(ShaderProperties.SUNDIR_PROPERTY, worldSunDir);
                     }
 
                 }
@@ -360,10 +398,13 @@ namespace Atmosphere
                 {
                     ShadowProjector.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation);
                 }
-                else
+                else if (screenSpaceShadowGO != null)
                 {
-                    ShadowProjector.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation * ShadowProjector.transform.parent.worldToLocalMatrix);
-                    ShadowProjector.material.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, ShadowProjector.transform.parent.position);
+                    screenSpaceShadow.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation * screenSpaceShadowGO.transform.parent.worldToLocalMatrix);
+                    screenSpaceShadow.material.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, screenSpaceShadowGO.transform.parent.position);
+
+                    screenSpaceShadow.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
+                    screenSpaceShadow.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
                 }
                 ShadowProjector.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
                 ShadowProjector.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
