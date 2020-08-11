@@ -22,6 +22,7 @@ namespace Terrain
         GameObject OceanBacking = null;
         Material OceanBackingMaterial;
         Material OceanSurfaceMaterial;
+        private Material pqsSurfaceMaterial;
 
         public override void OnSphereActive()
         {
@@ -43,9 +44,9 @@ namespace Terrain
             if (this.sphere.isActiveAndEnabled && celestialBody != null)
             {
                 Vector3 sunDir = this.celestialBody.transform.InverseTransformDirection(Sun.Instance.sunDirection);
-                this.celestialBody.pqsController.surfaceMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunDir);
+                pqsSurfaceMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunDir);
                 Vector3 planetOrigin = this.celestialBody.transform.position;
-                this.celestialBody.pqsController.surfaceMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, planetOrigin);
+                pqsSurfaceMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, planetOrigin);
                 if (OceanBackingMaterial != null)
                 {
                     OceanBackingMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, planetOrigin);
@@ -63,6 +64,7 @@ namespace Terrain
             if (celestialBody != null && celestialBody.pqsController != null)
             {
                 pqs = celestialBody.pqsController;
+                pqsSurfaceMaterial = GetPQSSurfaceMaterial(pqs);
             }
             else
             {
@@ -93,38 +95,47 @@ namespace Terrain
                     TerrainManager.Log("planet shader: " + r.material.shader);
                     r.sharedMaterial.shader = TerrainManager.PlanetShader;
                     terrainMaterial.ApplyMaterialProperties(r.sharedMaterial);
-
+					// terrainMaterial doesn't work anyway [1/3]
+					if (pqs.ChildSpheres.Length != 0)
+					{
+						r.sharedMaterial.EnableKeyword("OCEAN_ON");
+					} else {
+						r.sharedMaterial.DisableKeyword("OCEAN_ON");
+					}
                 }
 
-                terrainMaterial.SaveTextures(pqs.surfaceMaterial);
-                originalTerrainShader = pqs.surfaceMaterial.shader;
+				// terrainMaterial doesn't work anyway [2/3]
+				//terrainMaterial = null;
+				//originalTerrainShader = null;
+
+                terrainMaterial.SaveTextures(pqsSurfaceMaterial);
+                originalTerrainShader = pqsSurfaceMaterial.shader;
                 TerrainManager.Log("Terrain Shader Name: " + originalTerrainShader.name);
-                String[] keywords = pqs.surfaceMaterial.shaderKeywords;
-                pqs.surfaceMaterial.shader = TerrainManager.TerrainShader;
-                /*    foreach (String keyword in keywords)
-                    {
-                        pqs.surfaceMaterial.EnableKeyword(keyword);
-                    }
-                    */
-                terrainMaterial.ApplyMaterialProperties(pqs.surfaceMaterial);
+                String[] keywords = pqsSurfaceMaterial.shaderKeywords;
+                pqsSurfaceMaterial.shader = TerrainManager.TerrainShader;
+            //    foreach (String keyword in keywords)
+            //    {
+            //        pqs.surfaceMaterial.EnableKeyword(keyword);
+            //    }
+                terrainMaterial.ApplyMaterialProperties(pqsSurfaceMaterial);
 
                 if (oceanMaterial != null && pqs.ChildSpheres.Length > 0)
                 {
                     PQS ocean = pqs.ChildSpheres[0];
-                    OceanSurfaceMaterial = ocean.surfaceMaterial;
+                    OceanSurfaceMaterial = GetPQSSurfaceMaterial(ocean);
 
-                    pqs.surfaceMaterial.EnableKeyword("OCEAN_ON");
+                    pqsSurfaceMaterial.EnableKeyword("OCEAN_ON");
                     r.sharedMaterial.EnableKeyword("OCEAN_ON");
 
                     keywords = OceanSurfaceMaterial.shaderKeywords;
                     originalOceanShader = OceanSurfaceMaterial.shader;
                     TerrainManager.Log("Ocean Shader Name: " + originalOceanShader.name);
                     OceanSurfaceMaterial.shader = TerrainManager.OceanShader;
-                  /*  foreach (String keyword in keywords)
-                    {
-                        OceanSurfaceMaterial.EnableKeyword(keyword);
-                    }
-                    */
+                //    foreach (String keyword in keywords)
+                //    {
+                //        OceanSurfaceMaterial.EnableKeyword(keyword);
+                //    }
+                    
                     terrainMaterial.ApplyMaterialProperties(OceanSurfaceMaterial);
                     oceanMaterial.ApplyMaterialProperties(OceanSurfaceMaterial);
 
@@ -142,18 +153,12 @@ namespace Terrain
                             }
                         }
 
-                        /*
-
                     
-                PQS ocean =
-                sphere.ChildSpheres[0];
-                GameObject go = new GameObject();
-                FakeOceanPQS fakeOcean = go.AddComponent<FakeOceanPQS>();
-                fakeOcean.Apply(ocean);
-
-
-                        */
-
+            //    PQS ocean =
+            //    sphere.ChildSpheres[0];
+            //    GameObject go = new GameObject();
+            //    FakeOceanPQS fakeOcean = go.AddComponent<FakeOceanPQS>();
+            //    fakeOcean.Apply(ocean);
 
 
                     }
@@ -170,20 +175,21 @@ namespace Terrain
                 }
                 else
                 {
-                    pqs.surfaceMaterial.DisableKeyword("OCEAN_ON");
-                    r.sharedMaterial.DisableKeyword("OCEAN_ON");
+                    pqsSurfaceMaterial.DisableKeyword("OCEAN_ON");
+                    //r.sharedMaterial.DisableKeyword("OCEAN_ON"); // terrainMaterial doesn't work anyway [3/3]
                 }
+
 
                 PQSMod_CelestialBodyTransform cbt = (PQSMod_CelestialBodyTransform)pqs.transform.GetComponentInChildren(typeof(PQSMod_CelestialBodyTransform));
                 if (cbt != null)
                 {
-                    pqs.surfaceMaterial.SetFloat("_MainTexHandoverDist", (float)(1f / cbt.deactivateAltitude));
+                    pqsSurfaceMaterial.SetFloat("_MainTexHandoverDist", (float)(1f / cbt.deactivateAltitude));
                     if (oceanMaterial != null && pqs.ChildSpheres.Length > 0)
                     {
                         PQS ocean = pqs.ChildSpheres[0];
                         OceanSurfaceMaterial.SetFloat("_MainTexHandoverDist", (float)(1f / cbt.deactivateAltitude));
                     }
-                    pqs.surfaceMaterial.SetFloat("_OceanRadius", (float)celestialBody.Radius);
+                    pqsSurfaceMaterial.SetFloat("_OceanRadius", (float)celestialBody.Radius);
                 }
 
             }
@@ -204,5 +210,32 @@ namespace Terrain
                 OceanBacking = null;
             }
         }
+
+        private static Material GetPQSSurfaceMaterial(PQS pqs)
+        {
+            switch (GameSettings.TERRAIN_SHADER_QUALITY)
+            {
+                case 0:
+                    if (pqs.lowQualitySurfaceMaterial != null)
+                    {
+                        return pqs.lowQualitySurfaceMaterial;
+                    }
+                    break;
+                case 1:
+                    if (pqs.mediumQualitySurfaceMaterial != null)
+                    {
+                        return pqs.mediumQualitySurfaceMaterial;
+                    }
+                    break;
+                case 2:
+                    if (pqs.highQualitySurfaceMaterial != null)
+                    {
+                        return pqs.highQualitySurfaceMaterial;
+                    }
+                    break;
+            }
+            return pqs.surfaceMaterial;
+        }
+
     }
 }

@@ -32,9 +32,13 @@ namespace Terrain
         [ConfigItem]
         float _DetailDist = 0.00875f;
         [ConfigItem]
+		float _DetailOpacityMin = 0.1f;
+        [ConfigItem]
+		float _DetailOpacityMax = 1.0f;
+        [ConfigItem]
         float _MinLight = 0f;
         [ConfigItem]
-        Color _SpecularColor = Color.grey;
+        Color _SpecularColor = 256 * Color.grey;
         [ConfigItem]
         float _SpecularPower = 51.2f;
         [ConfigItem]

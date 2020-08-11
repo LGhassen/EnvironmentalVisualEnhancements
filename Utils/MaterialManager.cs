@@ -258,10 +258,10 @@ namespace Utils
         public void SaveTextures(Material material)
         {
             Cache();
-            List<String> keys = cache.Keys.Select(x=>(string)x).ToList();
-            foreach (String key in keys)
+            List<object> keys = cache.Keys.Select(x=>(object)x).ToList();
+            foreach (object key in keys)
             {
-                String name = key;
+                String name = key.ToString();
                 object obj = cache[key];
                
                 if ( obj == null )
