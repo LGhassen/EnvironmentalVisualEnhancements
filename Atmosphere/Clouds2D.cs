@@ -47,7 +47,7 @@ namespace Atmosphere
         GameObject ShadowProjectorGO = null;
         CloudsMaterial cloudsMat = null;
 
-        CloudsScreenSpaceShadow screenSpaceShadow;
+        ScreenSpaceShadow screenSpaceShadow;
         GameObject screenSpaceShadowGO = null;
 
         [ConfigItem]
@@ -212,7 +212,7 @@ namespace Atmosphere
                 // Here create the screenSpaceShadowMaterialStuff
                 screenSpaceShadowGO = new GameObject("EVE ScreenSpaceShadow");
                 screenSpaceShadowGO.transform.parent = celestialBody.transform;
-                screenSpaceShadow = screenSpaceShadowGO.AddComponent<CloudsScreenSpaceShadow>(); //can this be a single class that will handle the mesh, and meshrenderer and everything?
+                screenSpaceShadow = screenSpaceShadowGO.AddComponent<ScreenSpaceShadow>(); //can this be a single class that will handle the mesh, and meshrenderer and everything?
                 screenSpaceShadow.material = new Material(ScreenSpaceCloudShadowShader);
                 shadowMaterial.ApplyMaterialProperties(screenSpaceShadow.material); 
                 screenSpaceShadow.Init();

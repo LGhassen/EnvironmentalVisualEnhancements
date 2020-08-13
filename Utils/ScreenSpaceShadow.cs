@@ -4,13 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using ShaderLoader;
 using UnityEngine;
-using Utils;
 
-namespace Atmosphere
+namespace Utils
 {
-    class CloudsScreenSpaceShadow : MonoBehaviour
+    public class ScreenSpaceShadow : MonoBehaviour
     {
         public Material material;
 

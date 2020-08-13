@@ -137,6 +137,7 @@
       <Link>Properties\AssemblyVersionInfo.cs</Link>
     </Compile>
     <Compile Include="ClassExtensions.cs" />
+    <Compile Include="ScreenSpaceShadow.cs" />
     <Compile Include="ConfigHelper.cs" />
     <Compile Include="HalfSphere.cs" />
     <Compile Include="MaterialPQS.cs" />

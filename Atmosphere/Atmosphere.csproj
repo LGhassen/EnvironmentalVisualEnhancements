@@ -132,7 +132,6 @@
     <Compile Include="AtmosphereObject.cs" />
     <Compile Include="AtmosphereVolume.cs" />
     <Compile Include="Clouds2D.cs" />
-    <Compile Include="CloudsScreenSpaceShadow.cs" />
     <Compile Include="CloudsVolume.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VolumeManager.cs" />
