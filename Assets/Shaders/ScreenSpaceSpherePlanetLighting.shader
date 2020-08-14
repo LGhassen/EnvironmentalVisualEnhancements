@@ -95,11 +95,7 @@ Shader "EVE/ScreenSpacePlanetLight" {
 					color.rgb = MultiBodyShadow(worldPos.xyz, _SunRadius, _SunPos, _ShadowBodies);
 
 
-#ifdef SHADER_API_D3D11
-					float fadeout = 1.0;
-#else
-					float fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes on ogl since we have 2 cameras
-#endif
+					float fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes
 
 					color.rgb = lerp(1.0,color.rgb,fadeout);
 
