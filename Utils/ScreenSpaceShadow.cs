@@ -12,11 +12,13 @@ namespace Utils
     {
         public Material material;
 
+        MeshRenderer shadowMR;
+
         public void Init()
         {
             Quad.Create(gameObject, 2, Color.white, Vector3.up, Mathf.Infinity);
 
-            MeshRenderer shadowMR = gameObject.AddComponent<MeshRenderer>();
+            shadowMR = gameObject.AddComponent<MeshRenderer>();
             material.SetOverrideTag("IgnoreProjector", "True");
             shadowMR.sharedMaterial = material;
 
@@ -25,7 +27,11 @@ namespace Utils
             shadowMR.enabled = true;
 
             gameObject.layer = (int)Tools.Layer.Local;
+        }
 
+        public void SetActive(bool active)
+        {
+            shadowMR.enabled = active;
         }
 
         void OnWillRenderObject()

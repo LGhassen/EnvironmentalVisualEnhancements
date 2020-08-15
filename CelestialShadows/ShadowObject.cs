@@ -65,13 +65,15 @@ namespace CelestialShadows
         List<CelestialBody> shadowList;
         public String GUID { get { return shadowMat.name; } }
         GameObject screenSpaceShadowGO;
+        ScreenSpaceShadow screenSpaceShadow;
 
-        internal void Apply(Material mat, CelestialBody cb, List<CelestialBody> list, GameObject go)
+        internal void Apply(Material mat, CelestialBody cb, List<CelestialBody> list, GameObject go, ScreenSpaceShadow scShadow)
         {
             shadowMat = mat;
             body = cb;
             shadowList = list;
             screenSpaceShadowGO = go;
+            screenSpaceShadow = scShadow;
         }
 
         internal void OnPreCull()
@@ -95,6 +97,7 @@ namespace CelestialShadows
                 }
 
                 screenSpaceShadowGO.SetActive(body.pqsController.isActive);
+                screenSpaceShadow.SetActive(body.pqsController.isActive);
             }
         }
     }
@@ -180,6 +183,7 @@ namespace CelestialShadows
                     screenSpaceShadow.material = localShadowMat;
                     screenSpaceShadow.Init();
                     screenSpaceShadowGO.SetActive(false);
+                    screenSpaceShadow.SetActive(false);
 
                     shadowMat.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(ScaledSpace.InverseScaleFactor * Sun.Instance.sun.Radius));
                     localShadowMat.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(Sun.Instance.sun.Radius));
@@ -205,7 +209,7 @@ namespace CelestialShadows
                     }
                 }
                 sc.Apply(shadowMat, celestialBody, casters);
-                lsc.Apply(localShadowMat, celestialBody, casters, screenSpaceShadowGO);
+                lsc.Apply(localShadowMat, celestialBody, casters, screenSpaceShadowGO, screenSpaceShadow);
             }
 
             ApplyToMainMenu();

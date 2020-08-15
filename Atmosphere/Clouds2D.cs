@@ -216,6 +216,8 @@ namespace Atmosphere
                 screenSpaceShadow.material = new Material(ScreenSpaceCloudShadowShader);
                 shadowMaterial.ApplyMaterialProperties(screenSpaceShadow.material); 
                 screenSpaceShadow.Init();
+                screenSpaceShadowGO.SetActive(false);
+                screenSpaceShadow.SetActive(false);
             }
 
 
@@ -306,7 +308,7 @@ namespace Atmosphere
                     screenSpaceShadow.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius * worldScale);
 
                     screenSpaceShadowGO.SetActive(layer == Tools.Layer.Local);
-
+                    screenSpaceShadow.SetActive(layer == Tools.Layer.Local);
                 }
             }
         }
