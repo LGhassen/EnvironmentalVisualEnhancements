@@ -2,7 +2,7 @@
 // Here we have a single draw call passing a points mesh to the GPU
 // This shader then builds all the quads from the mesh using a geometry shader
 // This saves a ton of draw calls
-Shader "EVE/GeometryCloudVolumeParticle" {
+Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 	Properties {
 		_Tex("Particle Texture", 2D) = "white" {}
 		_MainTex("Main (RGB)", 2D) = "white" {}
@@ -27,10 +27,11 @@ Shader "EVE/GeometryCloudVolumeParticle" {
 	Category {
 
 		Tags { "Queue"="Transparent+2" "IgnoreProjector"="True" "RenderType"="Transparent" "DisableBatching"="True" }
-		Blend SrcAlpha OneMinusSrcAlpha
+		//Blend SrcAlpha OneMinusSrcAlpha
+		Blend SrcAlpha OneMinusSrcAlpha, Zero OneMinusSrcAlpha   //traditional alpha blending for colors, multiply by (1-alpha) for alpha to store in texture
 		Fog { Mode Global}
 		AlphaTest Greater 0
-		ColorMask RGB
+		ColorMask RGBA
 		//Cull Back
 		Cull Off
 		Lighting On

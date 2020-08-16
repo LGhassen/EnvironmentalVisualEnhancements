@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using EVEManager;
+using ShaderLoader;
 
 namespace Atmosphere
 {
@@ -86,13 +87,29 @@ namespace Atmosphere
             //Debug.Log("vertices.Count() " + vertices.Count());
 
             MeshRenderer mr = cloudMesh.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = cloudParticleMaterial;
+            //mr.sharedMaterial = cloudParticleMaterial;
+            mr.sharedMaterial = new Material(InvisibleShader); //this may throw off scatterer's integration though, so check that
 
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             mr.enabled = true;
+
+            DeferredRendererNotifier notifier = cloudMesh.AddComponent<DeferredRendererNotifier>();
+            notifier.mat = cloudParticleMaterial;
         }
 
+        private static Shader invisibleShader = null;
+        private static Shader InvisibleShader
+        {
+            get
+            {
+                if (invisibleShader == null)
+                {
+                    invisibleShader = ShaderLoaderClass.FindShader("EVE/Invisible");
+                }
+                return invisibleShader;
+            }
+        }
 
         internal void Destroy()
         {
