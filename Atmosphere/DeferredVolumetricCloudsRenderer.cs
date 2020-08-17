@@ -6,6 +6,8 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using ShaderLoader;
 using Utils;
+using System.Collections;
+
 
 namespace Atmosphere
 {
@@ -49,6 +51,10 @@ namespace Atmosphere
         private RenderTexture targetRT;             //target RT, 1/4 screen res to save performance
         private RenderTexture downscaledDepthRT;
         Material downscaleDepthMaterial;
+        CommandBuffer clearTextureBuffer;
+
+        // pairs of volumetric clouds renderers and their materials, sorted by distance, for rendering farthest to closest        
+        SortedList<float, Tuple<Renderer, Material>> renderersAdded = new SortedList<float, Tuple<Renderer, Material>>();
 
         public DeferredVolumetricCloudsRenderer()
         {
@@ -81,6 +87,10 @@ namespace Atmosphere
 
                 downscaleDepthMaterial = new Material(ShaderLoaderClass.FindShader("EVE/DownscaleDepth"));
 
+                clearTextureBuffer = new CommandBuffer();
+                clearTextureBuffer.SetRenderTarget(targetRT);
+                clearTextureBuffer.ClearRenderTarget(false, true, Color.black);
+
                 isInitialized = true;
             }
         }
@@ -89,10 +99,12 @@ namespace Atmosphere
         {
             if (isInitialized)
             {
-                CommandBuffer cb = new CommandBuffer();
-                
                 if (!renderingEnabled)
                 {
+                    targetCamera.RemoveCommandBuffer (CameraEvent.AfterForwardOpaque, clearTextureBuffer);
+
+                    CommandBuffer cb = new CommandBuffer();
+
                     DeferredRendererToScreen.SetActive(true);
                     DeferredRendererToScreen.SetRenderTexture(targetRT);
 
@@ -104,12 +116,35 @@ namespace Atmosphere
                     //clear target rendertexture
                     cb.SetRenderTarget(targetRT);
                     cb.ClearRenderTarget(false, true, Color.black);
+
+                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+
+                    commandBuffersAdded.Add(cb);
                 }
 
-                cb.DrawRenderer(mr, mat);
-                targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
-                commandBuffersAdded.Add(cb);
+                renderersAdded.Add(mr.gameObject.transform.position.magnitude, new Tuple<Renderer, Material>(mr, mat));
+
+
                 renderingEnabled = true;
+            }
+        }
+
+        void OnPreRender()
+        {
+            //sort cloud layers by decreasing distance to camera and render them farthest to closest
+            if (renderingEnabled)
+            {
+                foreach (var elt in renderersAdded.Reverse())
+                {
+                    CommandBuffer cb = new CommandBuffer();
+
+                    cb.SetRenderTarget(targetRT);
+                    cb.DrawRenderer(elt.Value.Item1, elt.Value.Item2);
+
+                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+
+                    commandBuffersAdded.Add(cb);
+                }
             }
         }
 
@@ -128,13 +163,13 @@ namespace Atmosphere
                         targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
                     }
                     commandBuffersAdded.Clear();
+                    renderersAdded.Clear();
+
+                    //add a clear texture buffer, remove it when we restart rendering
+                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, clearTextureBuffer);
+
                     renderingEnabled = false;
                 }
-                //else
-                //{
-                //    //if rendering was disabled for this frame set deferred copier to disabled
-                //    //DeferredRendererToScreen.SetActive(false); //doesn't work, causes flickering, why? doesn't work because OnPostRender is not called if there is no rendering
-                //}
             }
 
         }
