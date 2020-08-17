@@ -9,7 +9,7 @@ using Utils;
 
 namespace Atmosphere
 {
-    class DeferredVolumetricCloudsRenderer : MonoBehaviour //maybe rename this class
+    class DeferredVolumetricCloudsRenderer : MonoBehaviour
     {
         private static Dictionary<Camera, DeferredVolumetricCloudsRenderer> CameraToDeferredVolumetricCloudsRenderer = new Dictionary<Camera, DeferredVolumetricCloudsRenderer>();
 
@@ -33,10 +33,7 @@ namespace Atmosphere
             {
                 if(deferredRendererToScreen == null)
                 {
-                    Debug.Log("Ghassen  Creating deferredRendererToScreen");
-                    //here create it and init it
                     GameObject deferredRendererToScreenGO = new GameObject("EVE deferredRendererToScreen");
-                    //deferredRendererToScreenGO.transform.parent = Camera.current.gameObject.transform;
                     deferredRendererToScreen = deferredRendererToScreenGO.AddComponent<DeferredRendererToScreen>();
                     deferredRendererToScreen.Init();
                 }
@@ -49,15 +46,9 @@ namespace Atmosphere
 
         private Camera targetCamera;
         private List<CommandBuffer> commandBuffersAdded = new List<CommandBuffer>();
-        private RenderTexture targetRT; //target RT, 1/4 screen res to save performance
-
-        
-
-        //private CommandBuffer copyToScreenCommandBuffer; //commandBuffer to composite the results to screen, won't work because we don't control the renderqueue there
-
-        //just add a static quad in this class, and enable it's meshrenderer when rendering is requested? (even if that reacts after 1 frame it's fine)
-
-        //disable it onPostRender
+        private RenderTexture targetRT;             //target RT, 1/4 screen res to save performance
+        private RenderTexture downscaledDepthRT;
+        Material downscaleDepthMaterial;
 
         public DeferredVolumetricCloudsRenderer()
         {
@@ -73,12 +64,24 @@ namespace Atmosphere
                 targetRT.anisoLevel = 1;
                 targetRT.antiAliasing = 1;
                 targetRT.volumeDepth = 0;
-                targetRT.useMipMap = true;
+                targetRT.useMipMap = false;
                 targetRT.autoGenerateMips = false;
                 targetRT.Create();
+                targetRT.filterMode = FilterMode.Point; //might need a way to access both point and bilinear
+
+                downscaledDepthRT = new RenderTexture(targetCamera.activeTexture.width / 2, targetCamera.activeTexture.height / 2, 0, RenderTextureFormat.RFloat);
+                downscaledDepthRT.anisoLevel = 1;
+                downscaledDepthRT.antiAliasing = 1;
+                downscaledDepthRT.volumeDepth = 0;
+                downscaledDepthRT.useMipMap = false;
+                downscaledDepthRT.autoGenerateMips = false;
+                downscaledDepthRT.Create();
+
+                downscaledDepthRT.filterMode = FilterMode.Point;
+
+                downscaleDepthMaterial = new Material(ShaderLoaderClass.FindShader("EVE/DownscaleDepth"));
 
                 isInitialized = true;
-                Debug.Log("DeferredVolumetricCloudsRenderer initialized successfully!!!");
             }
         }
 
@@ -87,16 +90,23 @@ namespace Atmosphere
             if (isInitialized)
             {
                 CommandBuffer cb = new CommandBuffer();
-                cb.SetRenderTarget(targetRT);
+                
                 if (!renderingEnabled)
                 {
-                    //clear texture
-                    cb.ClearRenderTarget(false, true, Color.black);
-
                     DeferredRendererToScreen.SetActive(true);
                     DeferredRendererToScreen.SetRenderTexture(targetRT);
+
+                    //downscale depth
+                    cb.Blit(null, downscaledDepthRT, downscaleDepthMaterial);
+                    cb.SetGlobalTexture("EVEDownscaledDepth", downscaledDepthRT);
+                    DeferredRendererToScreen.SetDepthTexture(downscaledDepthRT);
+
+                    //clear target rendertexture
+                    cb.SetRenderTarget(targetRT);
+                    cb.ClearRenderTarget(false, true, Color.black);
                 }
-                cb.DrawRenderer(mr, mat); //does this still draw it with the active camera's stuff? yes, shader already takes into account depth buffer and all without any more work needed on my side
+
+                cb.DrawRenderer(mr, mat);
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
                 commandBuffersAdded.Add(cb);
                 renderingEnabled = true;
@@ -123,7 +133,7 @@ namespace Atmosphere
                 //else
                 //{
                 //    //if rendering was disabled for this frame set deferred copier to disabled
-                //    //DeferredRendererToScreen.SetActive(false); //doesn't work, causes flickering, why?
+                //    //DeferredRendererToScreen.SetActive(false); //doesn't work, causes flickering, why? doesn't work because OnPostRender is not called if there is no rendering
                 //}
             }
 
@@ -131,7 +141,6 @@ namespace Atmosphere
 
         public void OnDestroy()
         {
-            Debug.Log("OnDestroy called on ScreenCopyCommandBuffer");
             if (!ReferenceEquals(targetCamera, null))
             {
                 targetRT.Release();
@@ -192,15 +201,19 @@ namespace Atmosphere
             material.SetTexture("cloudTexture", RT);
         }
 
+        public void SetDepthTexture(RenderTexture RT)
+        {
+            material.SetTexture("EVEDownscaledDepth", RT);
+        }
+
         public void SetActive(bool active)
         {
-            //Debug.Log("Ghassen DeferredRendererToScreen SetActive "+active.ToString());
             shadowMR.enabled = active;
         }
 
         public void OnWillRenderObject()
         {
-            //Debug.Log("Ghassen DeferredRendererToScreen on will renderObject");
+            
         }
     }
 }

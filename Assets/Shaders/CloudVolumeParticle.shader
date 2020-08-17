@@ -82,9 +82,7 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 				float4 _NoiseScale;
 				float3 _MaxTrans;
 
-				sampler2D _CameraDepthTexture;
-
-				// float4x4 _CameraToWorld;
+				sampler2D EVEDownscaledDepth;
 
 				struct appdata_t {
 					float4 vertex : POSITION;
@@ -316,7 +314,8 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					color.rgb *= ScatterColorLight(IN.lightDirT, IN.viewDirT, normT, tex, _MinScatter, _Opacity, 1).rgb;
 
 #ifdef SOFT_DEPTH_ON
-					float depth = UNITY_SAMPLE_DEPTH(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(IN.projPos)));
+					//float depth = UNITY_SAMPLE_DEPTH(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(IN.projPos)));
+					float depth = UNITY_SAMPLE_DEPTH(tex2Dlod(EVEDownscaledDepth, float4(IN.projPos.xy/IN.projPos.w,0.0,0.0))); //to be sure we are reading a single point/using point filtering
 					depth = LinearEyeDepth (depth);
 					float partZ = IN.projPos.z;
 					float fade = saturate (_InvFade * (depth-partZ));
