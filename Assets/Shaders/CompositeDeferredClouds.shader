@@ -5,7 +5,7 @@ Shader "EVE/CompositeDeferredClouds" {
 	}
 
 	SubShader{
-		Tags { "Queue"="Transparent+2" "IgnoreProjector"="True" "RenderType"="Transparent"}
+		Tags { "Queue"="Transparent-1" "IgnoreProjector"="True" "RenderType"="Transparent"}
 		Pass {
 			Blend SrcAlpha OneMinusSrcAlpha
 			ZWrite Off
