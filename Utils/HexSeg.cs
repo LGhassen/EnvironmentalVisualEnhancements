@@ -158,6 +158,13 @@ namespace Utils
         {
             List<Vector3> pointList = GetPoints();
 
+            // Sort points by distance from the center of the mesh
+            // Since we snap the mesh to always be around the camera when it moves
+            // and we are using a geometry shader which process vertices in the order they are defined
+            // This effectively gives us free back to front sorting for the transparencies
+            pointList.Sort((vec1, vec2) => vec1.magnitude.CompareTo(vec2.magnitude));
+            pointList.Reverse();
+
             int[] indices = new int[pointList.Count];
 
             for (int i = 0; i < indices.Length; i++)
