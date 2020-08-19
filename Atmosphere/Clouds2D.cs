@@ -256,7 +256,7 @@ namespace Atmosphere
                 CloudMaterial.SetFloat("_OceanRadius", (float)celestialBody.Radius * worldScale);
                 CloudMaterial.EnableKeyword("WORLD_SPACE_ON");
                 CloudMaterial.EnableKeyword("SOFT_DEPTH_ON");
-                CloudMaterial.renderQueue = (int)Tools.Queue.Transparent + 2;
+                CloudMaterial.renderQueue = (int)Tools.Queue.Transparent - 1;
             }
             else
             {
