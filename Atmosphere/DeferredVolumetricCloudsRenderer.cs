@@ -115,7 +115,7 @@ namespace Atmosphere
 
                     //clear target rendertexture
                     cb.SetRenderTarget(targetRT);
-                    cb.ClearRenderTarget(false, true, Color.black);
+                    cb.ClearRenderTarget(false, true, Color.gray);
 
                     targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
 
