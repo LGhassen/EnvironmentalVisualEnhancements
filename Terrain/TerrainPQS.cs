@@ -22,7 +22,7 @@ namespace Terrain
         GameObject OceanBacking = null;
         Material OceanBackingMaterial;
         Material OceanSurfaceMaterial;
-        private Material pqsSurfaceMaterial;
+        Material pqsSurfaceMaterial;
 
         public override void OnSphereActive()
         {
@@ -231,6 +231,13 @@ namespace Terrain
                     if (pqs.highQualitySurfaceMaterial != null)
                     {
                         return pqs.highQualitySurfaceMaterial;
+                    }
+                    break;
+                // ultraQualitySurfaceMaterial support for 1.9
+                case 3:
+                    if (pqs.ultraQualitySurfaceMaterial != null)
+                    {
+                        return pqs.ultraQualitySurfaceMaterial;
                     }
                     break;
             }
