@@ -7,9 +7,11 @@ class BuildABs {
     {
         // Put the bundles in a folder called "ABs" within the
         // Assets folder.
-        var outDir = "ContentEVE/GameData/EnvironmentalVisualEnhancements";
-        var opts = BuildAssetBundleOptions.DeterministicAssetBundle
-            | BuildAssetBundleOptions.ForceRebuildAssetBundle;
+		var outDir = "C:/Steam/steamapps/common/Kerbal Space Program/GameData/EnvironmentalVisualEnhancements";
+//        var opts = BuildAssetBundleOptions.DeterministicAssetBundle
+//            | BuildAssetBundleOptions.ForceRebuildAssetBundle;
+
+		var opts = BuildAssetBundleOptions.None;
 
         /* We've made sure all graphics APIs are present for StandaloneWindows, so no need for separate versions (for now).
          * 
