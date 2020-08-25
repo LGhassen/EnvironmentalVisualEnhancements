@@ -86,16 +86,23 @@ namespace Atmosphere
 
             //Debug.Log("vertices.Count() " + vertices.Count());
 
-            MeshRenderer mr = cloudMesh.AddComponent<MeshRenderer>();
-            //mr.sharedMaterial = cloudParticleMaterial;
-            mr.sharedMaterial = new Material(InvisibleShader); //this may throw off scatterer's integration though, so check that
+            
+            MeshRenderer mr = cloudMesh.AddComponent<MeshRenderer>();            
+
+            if (Tools.IsUnifiedCameraMode())
+            {
+                mr.sharedMaterial = new Material(InvisibleShader);
+                DeferredRendererNotifier notifier = cloudMesh.AddComponent<DeferredRendererNotifier>();
+                notifier.mat = cloudParticleMaterial;
+            }
+            else
+            {
+                mr.sharedMaterial = cloudParticleMaterial;
+            }
 
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             mr.enabled = true;
-
-            DeferredRendererNotifier notifier = cloudMesh.AddComponent<DeferredRendererNotifier>();
-            notifier.mat = cloudParticleMaterial;
         }
 
         private static Shader invisibleShader = null;

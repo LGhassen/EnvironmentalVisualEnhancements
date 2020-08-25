@@ -66,8 +66,21 @@ namespace Atmosphere
             {
                 if (particleCloudShader == null)
                 {
-                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticleToTexture");
-                } return particleCloudShader;
+                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticle");
+                }
+                return particleCloudShader;
+            }
+        }
+
+        private static Shader particleCloudToTextureShader = null;
+        private static Shader ParticleCloudToTextureShader
+        {
+            get
+            {
+                if (particleCloudToTextureShader == null)
+                {
+                    particleCloudToTextureShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticleToTexture");
+                } return particleCloudToTextureShader;
             }
         }
 
@@ -90,7 +103,16 @@ namespace Atmosphere
             particleMaterial.MaxScale = size.y;
             particleMaterial.MaxTrans = maxTranslation;
             particleMaterial.NoiseScale =  new Vector3(noiseScale.x, noiseScale.y, noiseScale.z / radius);
-            ParticleMaterial = new Material(ParticleCloudShader);
+
+            if (Tools.IsUnifiedCameraMode())
+            {
+                ParticleMaterial = new Material(ParticleCloudToTextureShader);
+            }
+            else
+            {
+                ParticleMaterial = new Material(ParticleCloudShader);
+            }
+
             particleMaterial.ApplyMaterialProperties(ParticleMaterial);
             material.ApplyMaterialProperties(ParticleMaterial);
             ParticleMaterial.EnableKeyword("SOFT_DEPTH_ON");
