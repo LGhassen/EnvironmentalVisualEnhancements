@@ -26,6 +26,7 @@ Shader "EVE/CompositeDeferredClouds" {
 			uniform sampler2D EVEDownscaledDepth;
 			float4 EVEDownscaledDepth_TexelSize;
 
+			uniform float rendererEnabled;
 
 			struct appdata_t {
 				float4 vertex : POSITION;
@@ -45,6 +46,9 @@ Shader "EVE/CompositeDeferredClouds" {
 #else
 				o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, 1.0 , 1.0);
 #endif
+
+				o.pos = rendererEnabled > 0.0 ? o.pos : float4(2.0, 2.0, 2.0, 1.0);
+
 				o.uv = ComputeScreenPos(o.pos);
 
 				return o;

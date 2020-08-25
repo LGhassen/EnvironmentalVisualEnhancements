@@ -46,6 +46,9 @@ namespace Utils
         public static int _UniveralTime_PROPERTY { get { return _UniversalTime; } }
         private static int _UniversalTime;
 
+        public static int rendererEnabled_PROPERTY { get { return _rendererEnabled; } }
+        private static int _rendererEnabled;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -68,6 +71,8 @@ namespace Utils
             _ShadowBodies = Shader.PropertyToID("_ShadowBodies");
 
             _UniversalTime = Shader.PropertyToID("_UniversalTime");
+
+            _rendererEnabled = Shader.PropertyToID("rendererEnabled");
         }
     }
 }

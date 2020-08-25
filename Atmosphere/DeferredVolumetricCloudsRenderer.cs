@@ -51,7 +51,6 @@ namespace Atmosphere
         private RenderTexture targetRT;             //target RT, 1/4 screen res to save performance
         private RenderTexture downscaledDepthRT;
         Material downscaleDepthMaterial;
-        CommandBuffer clearTextureBuffer;
 
         // pairs of volumetric clouds renderers and their materials, sorted by distance, for rendering farthest to closest        
         SortedList<float, Tuple<Renderer, Material>> renderersAdded = new SortedList<float, Tuple<Renderer, Material>>();
@@ -87,10 +86,6 @@ namespace Atmosphere
 
                 downscaleDepthMaterial = new Material(ShaderLoaderClass.FindShader("EVE/DownscaleDepth"));
 
-                clearTextureBuffer = new CommandBuffer();
-                clearTextureBuffer.SetRenderTarget(targetRT);
-                clearTextureBuffer.ClearRenderTarget(false, true, Color.black);
-
                 isInitialized = true;
             }
         }
@@ -101,8 +96,6 @@ namespace Atmosphere
             {
                 if (!renderingEnabled)
                 {
-                    targetCamera.RemoveCommandBuffer (CameraEvent.AfterForwardOpaque, clearTextureBuffer);
-
                     CommandBuffer cb = new CommandBuffer();
 
                     DeferredRendererToScreen.SetActive(true);
@@ -124,17 +117,15 @@ namespace Atmosphere
 
                 renderersAdded.Add(mr.gameObject.transform.position.magnitude, new Tuple<Renderer, Material>(mr, mat));
 
-
                 renderingEnabled = true;
             }
         }
 
         void OnPreRender()
         {
-            //sort cloud layers by decreasing distance to camera and render them farthest to closest
             if (renderingEnabled)
             {
-                foreach (var elt in renderersAdded.Reverse())
+                foreach (var elt in renderersAdded.Reverse())           //sort cloud layers by decreasing distance to camera and render them farthest to closest
                 {
                     CommandBuffer cb = new CommandBuffer();
 
@@ -165,9 +156,7 @@ namespace Atmosphere
                     commandBuffersAdded.Clear();
                     renderersAdded.Clear();
 
-                    //add a clear texture buffer, remove it when we restart rendering
-                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, clearTextureBuffer);
-
+                    DeferredRendererToScreen.SetActive(false);
                     renderingEnabled = false;
                 }
             }
@@ -227,6 +216,7 @@ namespace Atmosphere
             shadowMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             shadowMR.receiveShadows = false;
             shadowMR.enabled = true;
+            material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, 0f);
 
             gameObject.layer = (int)Tools.Layer.Local;
         }
@@ -243,7 +233,7 @@ namespace Atmosphere
 
         public void SetActive(bool active)
         {
-            shadowMR.enabled = active;
+            material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
         }
 
         public void OnWillRenderObject()
