@@ -100,6 +100,7 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					float4 origin : TEXCOORD2;
 					float viewDirFade : TEXCOORD3;
 					float3 planetPos : TEXCOORD4;
+					float particleFade: TEXCOORD5;
 				};
 
 				//vertex function, called for every point on our hexSeg, each vertex corresponding to the origin of a particle/quad
@@ -147,6 +148,9 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					o.pos=mvCenter;
 					o.pos = o.color.a > (1.0/255.0) ? o.pos : float4(2.0, 2.0, 2.0, 1.0); //cull vertex if low alpha, pos outside clipspace
 
+					float fadeOut = (-mvCenter.z/mvCenter.w) * 0.004;
+					o.particleFade = smoothstep(0.0,1.0,fadeOut);
+
 					return o;
 				}
 
@@ -159,7 +163,7 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					float2 texcoordZY : TEXCOORD1;
 					float2 texcoordXZ : TEXCOORD2;
 					float2 texcoordXY : TEXCOORD3;
-					float2 uv : TEXCOORD4;
+					float3 uv : TEXCOORD4;		//x and y UVs, z is particleFade
 					float4 projPos : TEXCOORD5;
 					float3 planetPos : TEXCOORD6;
 					float3 viewDirT : TEXCOORD7;
@@ -236,7 +240,7 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					tri.lightDirT = normalize(mul(rotation, _WorldSpaceLightPos0.xyz));
 					tri.viewDirT = normalize(mul(rotation, viewDir));
 
-					tri.uv = vertexUV;   //quad UV
+					tri.uv = float3(vertexUV, originPoint.particleFade);   			//x and y quad UV, z particleFade
 					tri.localOrigin = originPoint.localOrigin;
 
     				return tri;
@@ -304,7 +308,7 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					
 					//half3 normT = UnpackNormal(tex2D(_BumpMap, IN.uv));
 					half3 normT;
-					normT.xy = ((2*IN.uv)-1);
+					normT.xy = ((2*IN.uv.xy)-1);
 					normT.z = sqrt(1 - saturate(dot(normT.xy, normT.xy)));
 					//normT.xy = 2 * INV_PI*asin((2 * IN.uv) - 1) ;
 					//normT.xy = sin(PI*(IN.uv-.5));
@@ -318,9 +322,11 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 					float depth = UNITY_SAMPLE_DEPTH(tex2Dlod(EVEDownscaledDepth, float4(IN.projPos.xy/IN.projPos.w,0.0,0.0))); //to be sure we are reading a single point/using point filtering
 					depth = LinearEyeDepth (depth);
 					float partZ = IN.projPos.z;
-					float fade = saturate (_InvFade * (depth-partZ));
+					float fade = depth >= (0.99 * _ProjectionParams.z) ? 1.0 : saturate (_InvFade * (depth-partZ));	//fade near objects but don't fade on far plane (max depth value)
 					color.a *= fade;
 #endif
+
+					color.a *= IN.uv.z;		//particle fade as they approach camera
 
 					return color;
 				}
