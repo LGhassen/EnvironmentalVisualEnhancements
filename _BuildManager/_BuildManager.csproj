@@ -175,11 +175,6 @@
       PostBuildMacros;
     </PostBuildEventDependsOn>
     <PostBuildEvent>xcopy  $(TargetFileName) "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
-
-call "C:\Program Files (x86)\Mono\bin\pdb2mdb.bat" $(TargetFileName)
-xcopy  $(TargetName).pdb "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
-xcopy  $(TargetFileName).mdb "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
-
 echo "Copying to KSP install (set in LocalSetup.csproj)..."
 
 xcopy "$(SolutionDir)ContentConfigs\GameData" "$(KSPDir)\GameData" /eyir

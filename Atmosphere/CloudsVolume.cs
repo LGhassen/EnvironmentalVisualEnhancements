@@ -24,6 +24,8 @@ namespace Atmosphere
         [ConfigItem]
         float _Opacity = 1.05f;
 
+        float _QuadSize;
+        public float QuadSize { set { _QuadSize = value; } }
         float _MaxScale;
         public float MaxScale { set { _MaxScale = value; } }
         Vector3 _MaxTrans;
@@ -64,8 +66,21 @@ namespace Atmosphere
             {
                 if (particleCloudShader == null)
                 {
-                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/CloudVolumeParticle");
-                } return particleCloudShader;
+                    particleCloudShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticle");
+                }
+                return particleCloudShader;
+            }
+        }
+
+        private static Shader particleCloudToTextureShader = null;
+        private static Shader ParticleCloudToTextureShader
+        {
+            get
+            {
+                if (particleCloudToTextureShader == null)
+                {
+                    particleCloudToTextureShader = ShaderLoaderClass.FindShader("EVE/GeometryCloudVolumeParticleToTexture");
+                } return particleCloudToTextureShader;
             }
         }
 
@@ -84,10 +99,20 @@ namespace Atmosphere
         public void Apply(CloudsMaterial material, float radius, Transform parent)
         {
             Remove();
+            particleMaterial.QuadSize = size.x;
             particleMaterial.MaxScale = size.y;
             particleMaterial.MaxTrans = maxTranslation;
             particleMaterial.NoiseScale =  new Vector3(noiseScale.x, noiseScale.y, noiseScale.z / radius);
-            ParticleMaterial = new Material(ParticleCloudShader);
+
+            if (Tools.IsUnifiedCameraMode())
+            {
+                ParticleMaterial = new Material(ParticleCloudToTextureShader);
+            }
+            else
+            {
+                ParticleMaterial = new Material(ParticleCloudShader);
+            }
+
             particleMaterial.ApplyMaterialProperties(ParticleMaterial);
             material.ApplyMaterialProperties(ParticleMaterial);
             ParticleMaterial.EnableKeyword("SOFT_DEPTH_ON");

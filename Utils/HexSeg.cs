@@ -70,6 +70,28 @@ namespace Utils
                 }
             }
         }
+
+        internal void AppendTrianglesAndPoints(List<int> indiceList, List<Vector3> pointList)
+        {
+            if (Subs != null)
+            {
+                foreach (Triangle sub in Subs)
+                {
+                    sub.AppendTrianglesAndPoints(indiceList,pointList);
+                }
+            }
+            else  //we are at the lowest subdivision level
+            {
+                foreach (Vector3 point in Points)
+                {
+                    if (!pointList.Contains(point))
+                    {
+                        pointList.Add(point);
+                    }
+                    indiceList.Add(pointList.IndexOf(point));
+                }
+            }
+        }
     }
 
     public class HexSeg
@@ -113,6 +135,48 @@ namespace Utils
                 triangle.AppendPoints(pointList);
             }
             return pointList;
+        }
+
+        public Mesh BuildMesh()
+        {
+            List<Vector3> pointList = new List<Vector3>();
+            List<int> indiceList = new List<int>();
+
+            foreach (Triangle triangle in Triangles)
+            {
+                triangle.AppendTrianglesAndPoints(indiceList, pointList);
+            }
+
+            Mesh hexSegMesh = new Mesh();
+            hexSegMesh.vertices = pointList.ToArray();
+            hexSegMesh.triangles = indiceList.ToArray();
+
+            return hexSegMesh;
+        }
+
+        public Mesh BuildPointsMesh()
+        {
+            List<Vector3> pointList = GetPoints();
+
+            // Sort points by distance from the center of the mesh
+            // Since we snap the mesh to always be around the camera when it moves
+            // and we are using a geometry shader which process vertices in the order they are defined
+            // This effectively gives us free back to front sorting for the transparencies
+            pointList.Sort((vec1, vec2) => vec1.magnitude.CompareTo(vec2.magnitude));
+            pointList.Reverse();
+
+            int[] indices = new int[pointList.Count];
+
+            for (int i = 0; i < indices.Length; i++)
+            {
+                indices[i] = i;
+            }
+
+            Mesh hexSegMesh = new Mesh();
+            hexSegMesh.SetVertices(pointList);
+            hexSegMesh.SetIndices(indices, MeshTopology.Points, 0);
+
+            return hexSegMesh;
         }
     }
 }

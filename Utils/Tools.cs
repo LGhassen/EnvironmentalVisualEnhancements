@@ -149,5 +149,10 @@ namespace Utils
             }
             return fallback;
         }
+
+        public static bool IsUnifiedCameraMode()
+        {
+            return SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
+        }
     }
 }

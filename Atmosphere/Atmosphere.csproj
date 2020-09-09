@@ -133,6 +133,7 @@
     <Compile Include="AtmosphereVolume.cs" />
     <Compile Include="Clouds2D.cs" />
     <Compile Include="CloudsVolume.cs" />
+    <Compile Include="DeferredVolumetricCloudsRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VolumeManager.cs" />
     <Compile Include="VolumeSection.cs" />
@@ -161,10 +162,6 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy  $(TargetFileName) "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
-
-call "C:\Program Files (x86)\Mono\bin\pdb2mdb.bat" $(TargetFileName)
-xcopy  $(TargetName).pdb "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
-xcopy  $(TargetFileName).mdb "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
 </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

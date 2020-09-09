@@ -2,5 +2,7 @@
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 <PropertyGroup>
     <KSPDir>C:\KSP\KSP_1.8</KSPDir>
+    <KSPDir>C:\Program Files\Kerbal Space Program</KSPDir>
+    <KSPDir>C:\Steam\steamapps\common\Kerbal Space Program</KSPDir>
 </PropertyGroup>
 </Project>
