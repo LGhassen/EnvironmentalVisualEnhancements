@@ -143,7 +143,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				float fadeout = 1.0;
 #ifdef SHADER_API_D3D11
 				float camDistance = length(camPos.xyz/camPos.w);
-				fadeout = 1.0 - smoothstep (40000.0, 60000.0, camDistance);	//fade out the shadows to hide artifacts from insufficient depth precision in dx11
+				fadeout = 1.0 - smoothstep (12000.0, 20000.0, camDistance);	//fade out the shadows to hide artifacts from insufficient depth precision in dx11
 #else
 				fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes on ogl since we have 2 cameras
 #endif
