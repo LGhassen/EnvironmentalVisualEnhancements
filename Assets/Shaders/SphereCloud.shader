@@ -210,10 +210,22 @@ Shader "EVE/Cloud" {
 					scolor *= Terminator(normalize(_WorldSpaceLightPos0), worldNormal);
 					scolor.a = transparency;
 #ifdef SOFT_DEPTH_ON
-					float depth = UNITY_SAMPLE_DEPTH(tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(IN.projPos)));
-					depth = LinearEyeDepth(depth);
 					float partZ = IN.projPos.z;
-					float fade = saturate(_InvFade * (depth - partZ));
+
+					float2 depthUV = IN.projPos.xy/IN.projPos.w;
+					float zdepth = tex2Dlod(_CameraDepthTexture, float4(depthUV,0,0));
+
+	#ifdef SHADER_API_D3D11  //#if defined(UNITY_REVERSED_Z)
+					zdepth = 1 - zdepth;
+	#endif
+					float4 clipPos = float4(depthUV, zdepth, 1.0);
+					clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
+					float4 viewPos = mul(unity_CameraInvProjection, clipPos);
+
+					float fade = saturate(_InvFade * (-viewPos.z/viewPos.w - partZ));
+	#ifdef SHADER_API_D3D11
+					fade = lerp(fade,1.0, smoothstep (5000.0, 10000.0, -viewPos.z/viewPos.w));	//fade out soft depth to hide artifacts from insufficient depth precision in dx11
+	#endif
 					scolor.a *= fade;
 #endif
 					scolor.rgb *= MultiBodyShadow(IN.worldVert, _SunRadius, _SunPos, _ShadowBodies);
