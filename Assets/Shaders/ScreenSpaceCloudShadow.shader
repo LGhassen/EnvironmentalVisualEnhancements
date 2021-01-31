@@ -92,6 +92,12 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			{
 				float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
 
+			#if SHADER_API_D3D11
+				if (zdepth == 0.0) {discard;}
+			#else
+				if (zdepth == 1.0) {discard;}
+			#endif
+
 				float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth, CameraToWorld);
 
 				float4 vertexPos = float4(worldPos,1.0);
@@ -132,10 +138,6 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
 
-#if !defined(SHADER_API_D3D11)
-				//don't render anything at or near clipping planes on ogl since we have 2 cameras
-				fadeout*= (zdepth == 1.0) ? 0.0 : 1.0;
-#endif
 				return lerp(1, color, shadowCheck*fadeout);
 			}
 

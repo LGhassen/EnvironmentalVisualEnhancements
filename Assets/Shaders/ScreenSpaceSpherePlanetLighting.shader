@@ -80,13 +80,15 @@ Shader "EVE/ScreenSpacePlanetLight" {
 
 					float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
 
+				#if SHADER_API_D3D11
+					if (zdepth == 0.0) {discard;}
+				#else
+					if (zdepth == 1.0) {discard;}
+				#endif
+
 					float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth, CameraToWorld);
 
 					color.rgb = MultiBodyShadow(worldPos.xyz, _SunRadius, _SunPos, _ShadowBodies);
-
-					float fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes
-
-					color.rgb = lerp(1.0,color.rgb,fadeout);
 
 					return color;
 				}
