@@ -193,4 +193,53 @@
 		half d = BodyShadow(v, R, m[3].w, P, m[3].xyz);
 		return min(min(a, b), min(c, d));
 	}
+
+	//hybrid method using the depth from the ray method and the direction from the invprojection method
+	//from scatterer
+	float3 getPreciseWorldPosFromDepth(float2 uv, float zdepth, float4x4 CameraToWorld)
+	{
+		float depth = Linear01Depth(zdepth);
+
+	#ifdef SHADER_API_D3D11
+	zdepth = 1 - zdepth;
+	#endif
+
+		float4 clipPos = float4(uv, zdepth, 1.0);
+		clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
+		float4 camPos = mul(unity_CameraInvProjection, clipPos);
+		camPos.xyz /= camPos.w;
+
+		float3 rayDirection = normalize(camPos.xyz);
+
+		float3 cameraForwardDir = float3(0,0,-1);
+		float aa = dot(rayDirection, cameraForwardDir);
+
+		camPos.xyz = rayDirection * depth/aa * _ProjectionParams.z;
+
+		float4 worldPos = mul(CameraToWorld,float4(camPos.xyz,1.0));
+		return (worldPos.xyz/worldPos.w);
+	}
+
+	float3 getPreciseViewPosFromDepth(float2 uv, float zdepth)
+	{
+		float depth = Linear01Depth(zdepth);
+
+	#ifdef SHADER_API_D3D11
+		zdepth = 1 - zdepth;
+	#endif
+
+		float4 clipPos = float4(uv, zdepth, 1.0);
+		clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
+		float4 camPos = mul(unity_CameraInvProjection, clipPos);
+		camPos.xyz /= camPos.w;
+
+		float3 rayDirection = normalize(camPos.xyz);
+
+		float3 cameraForwardDir = float3(0,0,-1);
+		float aa = dot(rayDirection, cameraForwardDir);
+
+		camPos.xyz = rayDirection * depth/aa * _ProjectionParams.z;
+
+		return camPos.xyz;
+	}
 #endif

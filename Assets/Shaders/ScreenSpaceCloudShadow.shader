@@ -92,19 +92,9 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			{
 				float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
 
+				float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth, CameraToWorld);
 
-#ifdef SHADER_API_D3D11  //#if defined(UNITY_REVERSED_Z)
-				zdepth = 1 - zdepth;
-#endif
-
-				float4 clipPos = float4(IN.uv, zdepth, 1.0);
-				clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
-				float4 camPos = mul(unity_CameraInvProjection, clipPos);
-
-				float4 worldPos = mul(CameraToWorld,camPos);
-				worldPos/=worldPos.w;
-
-				float4 vertexPos = worldPos;
+				float4 vertexPos = float4(worldPos,1.0);
 				float3 worldOrigin = _PlanetOrigin;
 
 				float3 L = worldOrigin - vertexPos.xyz;
@@ -133,21 +123,19 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				half4 detail = GetCubeDetailMap(_DetailTex, detailPos, _DetailScale);
 
-				float viewDist = distance(worldPos.xyz,_WorldSpaceCameraPos);
+				float viewDist = distance(worldPos,_WorldSpaceCameraPos);
 				half detailLevel = saturate(2 * _DetailDist*viewDist);
 				fixed4 color = _Color * main.rgba * lerp(detail.rgba, 1, detailLevel);
 
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
 
-				float fadeout = 1.0;
-#ifdef SHADER_API_D3D11
-				float camDistance = length(camPos.xyz/camPos.w);
-				fadeout = 1.0 - smoothstep (12000.0, 20000.0, camDistance);	//fade out the shadows to hide artifacts from insufficient depth precision in dx11
-#else
-				fadeout = (zdepth == 1.0) ? 0.0 : 1.0;				//don't render anything at or near clipping planes on ogl since we have 2 cameras
-#endif
+				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
 
+#if !defined(SHADER_API_D3D11)
+				//don't render anything at or near clipping planes on ogl since we have 2 cameras
+				fadeout*= (zdepth == 1.0) ? 0.0 : 1.0;
+#endif
 				return lerp(1, color, shadowCheck*fadeout);
 			}
 

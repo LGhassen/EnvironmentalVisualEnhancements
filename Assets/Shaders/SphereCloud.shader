@@ -187,7 +187,6 @@ Shader "EVE/Cloud" {
 
 					color.a = lerp(0, color.a, distAlpha);
 
-
 #ifdef WORLD_SPACE_ON
 					half3 worldDir = normalize(IN.worldVert - _WorldSpaceCameraPos.xyz);
 					float tc = dot(IN.L, worldDir);
@@ -215,17 +214,16 @@ Shader "EVE/Cloud" {
 					float2 depthUV = IN.projPos.xy/IN.projPos.w;
 					float zdepth = tex2Dlod(_CameraDepthTexture, float4(depthUV,0,0));
 
-	#ifdef SHADER_API_D3D11  //#if defined(UNITY_REVERSED_Z)
-					zdepth = 1 - zdepth;
-	#endif
-					float4 clipPos = float4(depthUV, zdepth, 1.0);
-					clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
-					float4 viewPos = mul(unity_CameraInvProjection, clipPos);
+					float3 terrainViewPos = getPreciseViewPosFromDepth(depthUV, zdepth);
+					float terrainLength = length(terrainViewPos);
 
-					float fade = saturate(_InvFade * (-viewPos.z/viewPos.w - partZ));
-	#ifdef SHADER_API_D3D11
-					fade = lerp(fade,1.0, smoothstep (5000.0, 10000.0, -viewPos.z/viewPos.w));	//fade out soft depth to hide artifacts from insufficient depth precision in dx11
-	#endif
+					float4 viewPos = mul(UNITY_MATRIX_V, float4(IN.worldVert,1.0));
+					float viewLength = length(viewPos.xyz/viewPos.w);
+
+					float fade = saturate(_InvFade * 0.1 * (terrainLength - viewLength));
+
+					fade = lerp(fade,1.0, smoothstep (50000.0, 100000.0, viewLength));      //fade out soft depth at large distances
+					
 					scolor.a *= fade;
 #endif
 					scolor.rgb *= MultiBodyShadow(IN.worldVert, _SunRadius, _SunPos, _ShadowBodies);
