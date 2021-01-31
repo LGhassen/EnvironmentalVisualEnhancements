@@ -187,6 +187,11 @@ namespace Atmosphere
 
         public DeferredRendererNotifier()
         {
+            
+        }
+
+        public void Init()
+        {
             mr = gameObject.GetComponent<MeshRenderer>();
         }
 

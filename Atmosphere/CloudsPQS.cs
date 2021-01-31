@@ -377,8 +377,22 @@ namespace Atmosphere
                 }
             }
 
+            if (scene == GameScenes.FLIGHT)
+            {
+                StartCoroutine(DelayedCheckForSphereInactive());
+            }
         }
-        
+
+        IEnumerator DelayedCheckForSphereInactive()
+        {
+            yield return new WaitForFixedUpdate();
+
+            if (!sphere.isActive && !layer2D.Scaled)
+            {
+                OnSphereInactive();
+            }
+        }
+
         public void Remove()
         {
             if (layer2D != null)

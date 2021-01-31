@@ -30,13 +30,18 @@ namespace CelestialShadows
         {
             if (HighLogic.LoadedScene != GameScenes.MAINMENU)
             {
-                Matrix4x4 bodies = new Matrix4x4();
+                Matrix4x4 bodies = Matrix4x4.zero;
                 int i = 0;
                 foreach (CelestialBody cb in shadowList)
                 {
-                    bodies.SetRow(i, cb.scaledBody.transform.position);
-                    bodies[i, 3] = (float)(ScaledSpace.InverseScaleFactor * cb.Radius);
-                    i++;
+                    if (cb != null && cb.transform != null)
+                    {
+                        bodies.SetRow(i, cb.scaledBody.transform.position);
+                        bodies[i, 3] = (float)(ScaledSpace.InverseScaleFactor * cb.Radius);
+                        i++;
+                        if (i == 4)
+                            break;
+                    }
                 }
                 if (shadowMat != null)
                 {
@@ -80,16 +85,20 @@ namespace CelestialShadows
         {
             if (HighLogic.LoadedScene != GameScenes.MAINMENU && screenSpaceShadowGO != null && body.pqsController != null)
             {
-                Matrix4x4 bodies = new Matrix4x4();
+                Matrix4x4 bodies = Matrix4x4.zero;
                 int i = 0;
                 foreach (CelestialBody cb in shadowList)
                 {
-                    bodies.SetRow(i, cb.transform.position);
-                    bodies[i, 3] = (float)(cb.Radius);
-                    i++;
-                    if (i == 4)
-                        break;
+                    if (cb != null && cb.transform != null)
+                    {
+                        bodies.SetRow(i, cb.transform.position);
+                        bodies[i, 3] = (float)(cb.Radius);
+                        i++;
+                        if (i == 4)
+                            break;
+                    }
                 }
+
                 if (shadowMat != null)
                 {
                     shadowMat.SetVector(ShaderProperties._SunPos_PROPERTY, Sun.Instance.sun.transform.position);

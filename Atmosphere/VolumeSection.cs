@@ -94,6 +94,7 @@ namespace Atmosphere
                 mr.sharedMaterial = new Material(InvisibleShader);
                 DeferredRendererNotifier notifier = cloudMesh.AddComponent<DeferredRendererNotifier>();
                 notifier.mat = cloudParticleMaterial;
+                notifier.Init();
             }
             else
             {
