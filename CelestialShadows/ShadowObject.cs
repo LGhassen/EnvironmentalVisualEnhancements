@@ -30,7 +30,7 @@ namespace CelestialShadows
         {
             if (HighLogic.LoadedScene != GameScenes.MAINMENU)
             {
-                Matrix4x4 bodies = new Matrix4x4();
+                Matrix4x4 bodies = Matrix4x4.zero;
                 int i = 0;
                 foreach (CelestialBody cb in shadowList)
                 {
@@ -85,7 +85,7 @@ namespace CelestialShadows
         {
             if (HighLogic.LoadedScene != GameScenes.MAINMENU && screenSpaceShadowGO != null && body.pqsController != null)
             {
-                Matrix4x4 bodies = new Matrix4x4();
+                Matrix4x4 bodies = Matrix4x4.zero;
                 int i = 0;
                 foreach (CelestialBody cb in shadowList)
                 {

@@ -164,9 +164,14 @@
 		return terminator;
 	}
 
+	//V is worldVertex
+	//R is radius of the sun	
+	//r is radius of body
+	//P is sunPos
+	//p is pos of body
+	//Original EVE eclipse function, looks less natural than EclipseShadow below
 	inline half BodyShadow(float3 v, float R, float r, float3 P, float3 p)
-	{
-		
+	{		
 		float3 D = P - v;
 
 		float a = PI*(r*r);
@@ -185,13 +190,39 @@
 		return lerp(1, saturate((A - (s*a)) / A), step(r, tc)*saturate(a));
 	}
 
-	inline half MultiBodyShadow(float3 v, float R, float3 P, float4x4 m)
+	//Same eclipse function from scatterer
+	half EclipseShadow(float3 worldPos, float lightSourceRadius, float occluderSphereRadius, float3 worldLightPos,float3 occluderSpherePosition)		
+	{											
+		float3 lightDirection = float3(worldLightPos - worldPos);
+		float3 lightDistance = length(lightDirection);
+		lightDirection = lightDirection / lightDistance;
+
+		// computation of level of shadowing w  
+		float3 sphereDirection = float3(occluderSpherePosition - worldPos);  //occluder planet
+		float sphereDistance = length(sphereDirection);
+		sphereDirection = sphereDirection / sphereDistance;
+
+		float dd = lightDistance * (asin(min(1.0, length(cross(lightDirection, sphereDirection)))) 
+			- asin(min(1.0, occluderSphereRadius / sphereDistance)));
+
+		float w = smoothstep(-1.0, 1.0, -dd / lightSourceRadius);
+		w = w * smoothstep(0.0, 0.2, dot(lightDirection, sphereDirection));
+
+		return (1-w);
+	}
+	
+	inline half MultiBodyShadow(float3 worldPos, float sunRadius, float3 sunPos, float4x4 m)
 	{
-		half a = BodyShadow(v, R, m[0].w, P, m[0].xyz);
-		half b = BodyShadow(v, R, m[1].w, P, m[1].xyz);
-		half c = BodyShadow(v, R, m[2].w, P, m[2].xyz);
-		half d = BodyShadow(v, R, m[3].w, P, m[3].xyz);
-		return min(min(a, b), min(c, d));
+		half shadowTerm = 1.0;
+		
+		for (int i=0; i<4;i++)
+		{
+			if (m[i].w == 0.0) break;
+
+			shadowTerm*= EclipseShadow(worldPos, sunRadius, m[i].w, sunPos, m[i].xyz);
+		}
+
+		return shadowTerm;
 	}
 
 	//hybrid method using the depth from the ray method and the direction from the invprojection method
