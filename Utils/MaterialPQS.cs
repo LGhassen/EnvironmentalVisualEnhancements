@@ -340,22 +340,53 @@ namespace Utils
             }
         }
 
-        private void AddMaterial(Renderer r)
+        private void AddMaterial(MeshRenderer meshRenderer)
         {
-            DeferredRenderer.Add(r.gameObject, material, isOcean, body);
+            if (this.sphere.useSharedMaterial)
+            {
+                List<Material> materials = new List<Material>(meshRenderer.sharedMaterials);
+
+                if (!materials.Exists(mat => mat.shader.name.Contains(material.shader.name)))
+                {
+                    materials.Add(material);
+                    meshRenderer.sharedMaterials = materials.ToArray();
+                }
+            }
+            else
+            {
+                List<Material> materials = new List<Material>(meshRenderer.materials);
+
+                if (!materials.Exists(mat => mat.shader.name.Contains(material.shader.name)))
+                {
+                    materials.Add(material);
+                    meshRenderer.materials = materials.ToArray();
+                }
+            }
         }
 
-        private void RemoveMaterial(Renderer r)
+        private void RemoveMaterial(MeshRenderer mr)
         {
-            DeferredRenderer.Remove(r.gameObject, material);
+            if (this.sphere.useSharedMaterial)
+            {
+                List<Material> materials = new List<Material>(mr.sharedMaterials);
+                materials.Remove(materials.Find(mat => mat.shader.name.Contains(material.shader.name)));
+                
+                mr.sharedMaterials = materials.ToArray();
+            }
+            else
+            {
+                List<Material> materials = new List<Material>(mr.materials);
+                materials.Remove(materials.Find(mat => mat.shader.name.Contains(material.shader.name)));
+                mr.materials = materials.ToArray();
+            }
         }
 
         private void ApplyToQuadMaterials(PQ pq)
         {
-            Renderer[] renderers = pq.GetComponentsInChildren<Renderer>();
-            foreach (Renderer r in renderers)
+            MeshRenderer[] renderers = pq.GetComponentsInChildren<MeshRenderer>();
+            foreach (MeshRenderer mr in renderers)
             {
-                AddMaterial(r);
+                AddMaterial(mr);
             }
         }
 
