@@ -198,7 +198,7 @@ namespace CelestialShadows
                     localShadowMat.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(Sun.Instance.sun.Radius));
 
                     shadowMat.name = materialName;
-                    shadowMat.renderQueue = (int)Tools.Queue.Geometry + 3;
+                    shadowMat.renderQueue = (int)Tools.Queue.Geometry + 1;
 
                     localShadowMat.name = materialName;
                     localShadowMat.renderQueue = (int)Tools.Queue.Geometry + 3;
