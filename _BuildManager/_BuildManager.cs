@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,7 +40,10 @@ namespace _BuildManager
         {
             Assembly buildManager = Assembly.GetExecutingAssembly();
             String location = Path.GetDirectoryName(buildManager.Location);
-            List<AssemblyName> assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(x => Path.GetDirectoryName(x.Location) == location).Select(x => x.GetName()).ToList();
+            List<AssemblyName> assemblies = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(x => !x.IsDynamic)
+                .Where(x => Path.GetDirectoryName(x.Location) == location)
+                .Select(x => x.GetName()).ToList();
 
             String versionInfo = "[BLACKRACK_EVE_REDUX] Version Info:\n";
             foreach (AssemblyName assembly in assemblies)
