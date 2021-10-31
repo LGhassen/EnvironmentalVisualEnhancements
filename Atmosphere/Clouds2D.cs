@@ -297,7 +297,10 @@ namespace Atmosphere
                 {
                     ShadowProjector.ignoreLayers = ~layer.Mask();
                     ShadowProjector.material.DisableKeyword("WORLD_SPACE_ON");
+                    ShadowProjector.enabled = true;
                 }
+                else
+                    ShadowProjector.enabled = false;
 
                 if (screenSpaceShadowGO != null)
                 {
