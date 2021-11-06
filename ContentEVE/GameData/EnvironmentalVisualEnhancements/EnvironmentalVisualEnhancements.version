@@ -10,7 +10,7 @@
 	"VERSION": {
 		"MAJOR": 1,
 		"MINOR": 11,
-		"PATCH": 3,
+		"PATCH": 5,
 		"BUILD": 1
 	},
 	"KSP_VERSION": {
@@ -25,7 +25,7 @@
 	},
 	"KSP_VERSION_MAX": {
 		"MAJOR": 1,
-		"MINOR": 11,
+		"MINOR": 12,
 		"PATCH": 99
 	}
 }
