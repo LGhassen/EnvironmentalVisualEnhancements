@@ -28,7 +28,8 @@ namespace _BuildManager
                 string[] newTips = {
                     "Inserting Head Into Clouds...", // How KSP makes us all feel.
                     "Luminously Urbanizing...", // City lights
-                    "Searching for the Aurora Borealis...", "Searching for the Aurora Australis..." // You'll find them in SVE!
+                    "Searching for the Aurora Borealis...", "Searching for the Aurora Australis...", // You'll find them in SVE!
+                    "Reduxing EVE..."
                 };
                 Array.Resize(ref tips, tips.Length + newTips.Length);
                 newTips.CopyTo(tips, tips.Length - newTips.Length);

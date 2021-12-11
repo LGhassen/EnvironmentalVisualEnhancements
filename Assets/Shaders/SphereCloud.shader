@@ -208,6 +208,7 @@ Shader "EVE/Cloud" {
 					half4 scolor = SpecularColorLight(_WorldSpaceLightPos0, IN.viewDir, worldNormal, color, 0, 0, LIGHT_ATTENUATION(IN));
 					scolor *= Terminator(normalize(_WorldSpaceLightPos0), worldNormal);
 					scolor.a = transparency;
+
 #ifdef SOFT_DEPTH_ON
 					float partZ = IN.projPos.z;
 
@@ -223,7 +224,7 @@ Shader "EVE/Cloud" {
 					float fade = saturate(_InvFade * 0.1 * (terrainLength - viewLength));
 
 					fade = lerp(fade,1.0, smoothstep (50000.0, 100000.0, viewLength));      //fade out soft depth at large distances
-					
+					fade = (_ProjectionParams.y < 1.0 && _ProjectionParams.z > 1000 && _ProjectionParams.z < 200000) ? 1.0 : fade; //HACK to disable soft-depth on reflection probe which causes flickering
 					scolor.a *= fade;
 #endif
 					scolor.rgb *= MultiBodyShadow(IN.worldVert, _SunRadius, _SunPos, _ShadowBodies);
@@ -238,7 +239,6 @@ Shader "EVE/Cloud" {
 #if !(SHADER_API_D3D11 && WORLD_SPACE_ON) //fixes clouds fading into the planet when zooming out
 					OUT.depth = (1.0 - depthWithOffset * _ZBufferParams.w) / (depthWithOffset * _ZBufferParams.z);
 #endif
-
 					return OUT;
 				}
 				ENDCG
