@@ -36,10 +36,10 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			#pragma glsl
 			#pragma vertex vert
 			#pragma fragment frag
-#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1
-#ifndef MAP_TYPE_CUBE2_1
-#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
-#endif
+			#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 //MAP_TYPE_CUBE_1
+			#ifndef MAP_TYPE_CUBE2_1
+				#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
+			#endif
 
 #include "alphaMap.cginc"
 #include "cubeMap.cginc"

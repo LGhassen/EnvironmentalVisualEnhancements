@@ -59,7 +59,7 @@ Shader "EVE/Cloud" {
 				#pragma multi_compile_fwdbase
 				#pragma multi_compile SOFT_DEPTH_OFF SOFT_DEPTH_ON
 				#pragma multi_compile WORLD_SPACE_OFF WORLD_SPACE_ON
-				#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1
+				#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 //MAP_TYPE_CUBE_1
 #ifndef MAP_TYPE_CUBE2_1
 #pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
 #endif
