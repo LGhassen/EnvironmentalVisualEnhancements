@@ -482,6 +482,24 @@ namespace Utils
                 }
                 catch { throw new Exception("Can't parse " + value + " to List<string>"); }
             }
+            else if (ConfigHelper.IsList(field))
+            {
+                var innerType = field.FieldType.GetGenericArguments()[0];
+
+                try
+                {
+                    obj = Activator.CreateInstance(field.FieldType);
+
+                    foreach (var itemNode in node.GetNodes("Item"))
+                    {
+                        var itemObject = Activator.CreateInstance(innerType);
+                        LoadObjectFromConfig(itemObject, itemNode);
+                        field.FieldType.GetMethod("Add").Invoke(obj, new[] { itemObject });
+                    }
+                    return true;
+                }
+                catch { throw new Exception("Can't parse " + value + " to List<"+ innerType.Name+">"); }
+            }
             else
             {
                 bool isOptional = Attribute.IsDefined(field, typeof(Optional));
