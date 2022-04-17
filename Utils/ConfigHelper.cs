@@ -500,6 +500,12 @@ namespace Utils
                 }
                 catch { throw new Exception("Can't parse " + value + " to List<"+ innerType.Name+">"); }
             }
+            else if (field.FieldType == typeof(FloatCurve))
+            {
+                obj = new FloatCurve();
+                ((FloatCurve) obj).Load(node);
+                return true;
+            }
             else
             {
                 bool isOptional = Attribute.IsDefined(field, typeof(Optional));
