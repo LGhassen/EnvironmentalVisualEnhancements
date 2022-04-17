@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -160,6 +161,11 @@ namespace Utils
             }
 
             return isNode;
+        }
+
+        public static bool IsList(FieldInfo field)
+        {
+            return field.FieldType.IsGenericType && field.FieldType.GetGenericTypeDefinition() == typeof(List<>);
         }
 
         public static bool CanParse(FieldInfo field, String value, ConfigNode node = null)

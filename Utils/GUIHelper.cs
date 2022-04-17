@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -44,7 +45,7 @@ namespace Utils
             {
                 bool isNode = ConfigHelper.IsNode(field, node, false);
 
-                if ( node != null && ConfigHelper.ConditionsMet(field, parent, node))
+                if ( node != null && (parent == null || ConfigHelper.ConditionsMet(field, parent, node)))
                 {
                     if (isNode)
                     {
@@ -57,6 +58,19 @@ namespace Utils
                             fieldCount += GetNodeHeightCount(null, field.FieldType, field);
                         }
                         fieldCount += spacingOffset;
+                    }
+                    else if (ConfigHelper.IsList(field))
+                    {
+                        if (typeof(IList).IsAssignableFrom(field.FieldType) && node.HasNode(field.Name))
+                        {
+                            var itemNodes = node.GetNode(field.Name).GetNodes();
+
+                            for (int i = 0; i < itemNodes.Length; i++)
+                            {
+                                var itemNode = itemNodes[i];
+                                fieldCount += GetNodeHeightCount(itemNode, field.FieldType.GetGenericArguments()[0], null);
+                            }
+                        }
                     }
                     else if(!Attribute.IsDefined(field, typeof(GUIHidden)))
                     {
@@ -459,25 +473,26 @@ namespace Utils
         
         public static void HandleGUI(object obj, FieldInfo objInfo, ConfigNode configNode, Rect placementBase, ref Rect placement)
         {
-
             var objfields = obj.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(
                     field => Attribute.IsDefined(field, typeof(ConfigItem)));
             foreach (FieldInfo field in objfields)
             {
                 bool isNode = ConfigHelper.IsNode(field, configNode);
+
                 bool isValueNode = ConfigHelper.IsValueNode(field);
 
-                
-                if (isNode || isValueNode)
+                bool isList = ConfigHelper.IsList(field);
+
+                if (isNode || isValueNode || isList)
                 {
                     placement.y += spacingOffset;
                     bool isOptional = Attribute.IsDefined(field, typeof(Optional));
 
                     ConfigNode node = configNode.GetNode(field.Name);
+
                     GUIStyle gsRight = new GUIStyle(GUI.skin.label);
                     gsRight.alignment = TextAnchor.MiddleCenter;
 
-                    
                     Rect boxRect = GUIHelper.GetRect(placementBase, ref placement, node, field.FieldType, field);
                     GUIStyle gs = new GUIStyle(GUI.skin.textField);
                     GUI.Box(boxRect, "", gs);
@@ -498,6 +513,15 @@ namespace Utils
                     }
                     GUIHelper.SplitRect(ref toggleRect, ref titleRect, (1f / 16));
 
+                    Rect listPlusRec = new Rect(titleRect);
+                    Rect listMinusRec = new Rect(listPlusRec);
+
+                    if (isList)
+                    {
+                        GUIHelper.SplitRect(ref titleRect, ref listPlusRec, (4f / 5f));
+                        GUIHelper.SplitRect(ref listPlusRec, ref listMinusRec, (1f / 2f));
+                    }
+
                     String tooltipText = "";
                     if (Attribute.IsDefined(field, typeof(TooltipAttribute)))
                     {
@@ -512,7 +536,11 @@ namespace Utils
                     GUI.Label(titleRect, gc);
 
                     bool removeable = node == null ? false : true;
-                    bool conditionsMet = ConfigHelper.ConditionsMet(field, objInfo, configNode);
+
+                    bool conditionsMet = true;
+                    if (objInfo != null)
+                        ConfigHelper.ConditionsMet(field, objInfo, configNode);
+
                     if (conditionsMet)
                     {
                         if (isOptional || isValueNode)
@@ -618,13 +646,57 @@ namespace Utils
                         if (node != null)
                         {
                             object subObj = field.GetValue(obj);
+                            
+
                             if (subObj == null)
                             {
                                 ConstructorInfo ctor = field.FieldType.GetConstructor(System.Type.EmptyTypes);
                                 subObj = ctor.Invoke(null);
                             }
 
-                            HandleGUI(subObj, field, node, boxPlacementBase, ref boxPlacement);
+                            if (isList)
+                            {
+                                if (typeof(IList).IsAssignableFrom(field.FieldType))
+                                {
+                                    var itemNodes = node.GetNodes();
+                                    
+                                    if (GUI.Button(listPlusRec, "+"))
+                                    {
+                                        node.AddNode("Item");
+                                    }
+
+                                    if (GUI.Button(listMinusRec, "-"))
+                                    {
+                                        itemNodes = node.GetNodes();
+
+                                        if (itemNodes.Length > 0)
+                                        {
+                                            node.RemoveNode(itemNodes[itemNodes.Length - 1]);
+                                        }
+                                    }
+
+                                    var itemList = subObj as IList;
+
+                                    var innerType = field.FieldType.GetGenericArguments()[0];
+
+                                    foreach (var cn in itemNodes)
+                                    {
+                                        itemList.Add(Activator.CreateInstance(innerType));   
+                                    }
+
+                                    for (int i = 0; i < itemList.Count; i++)
+                                    {
+                                        var itemNode = itemNodes[i];
+
+                                        HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
+                                        boxPlacement.y += 4 * spacingOffset;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                HandleGUI(subObj, field, node, boxPlacementBase, ref boxPlacement);
+                            }
 
                         }
                         boxPlacement.y += spacingOffset;
@@ -634,7 +706,7 @@ namespace Utils
                     }
                     else
                     {
-                        if(configNode.HasNode(field.Name))
+                        if (configNode.HasNode(field.Name))
                         {
                             configNode.RemoveNode(field.Name);
                         }
@@ -646,11 +718,11 @@ namespace Utils
                 }
                 else
                 {
-                    if (ConfigHelper.ConditionsMet(field, objInfo, configNode))
+                    if (objInfo == null || ConfigHelper.ConditionsMet(field, objInfo, configNode))
                     {
                         GUIHelper.DrawField(placementBase, ref placement, obj, field, configNode);
                     }
-                    else if(configNode.HasValue(field.Name))
+                    else if (configNode.HasValue(field.Name))
                     {
                         configNode.RemoveValue(field.Name);
                     }
