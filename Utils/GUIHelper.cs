@@ -27,7 +27,7 @@ namespace Utils
     {
         public const float spacingOffset = .25f;
         public const float elementHeight = 22;
-        public const float valueRatio = (3f / 7);
+        public const float valueRatio = (3f / 10);
 
         public const string UP_ARROW = "\u2191";//"\u23f6";
         public const string DOWN_ARROW = "\u2193";//"\u23f7";
