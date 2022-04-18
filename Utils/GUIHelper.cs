@@ -47,7 +47,12 @@ namespace Utils
 
                 if ( node != null && (parent == null || ConfigHelper.ConditionsMet(field, parent, node)))
                 {
-                    if (isNode)
+                    if (field.FieldType == typeof(FloatCurve))
+                    {
+                        fieldCount += spacingOffset;
+                        fieldCount += 6f;
+                    }
+                    else if (isNode)
                     {
                         if (node.HasNode(field.Name))
                         {
@@ -370,13 +375,56 @@ namespace Utils
             return currentObj;
         }
 
+        private static Dictionary<ConfigNode, string> floatCurveTemporaryValues = new Dictionary<ConfigNode, string>();
+
         public static void DrawField(Rect placementBase, ref Rect placement, object obj, FieldInfo field, ConfigNode config)
         {
-            if (!Attribute.IsDefined(field, typeof(GUIHidden)))
+            if (field.FieldType == typeof(FloatCurve))
+            {
+                placement.y += spacingOffset;
+                placement.height = 1;
+
+                var subNode = config.GetNode(field.Name);
+
+                if (subNode == null)
+                {
+                    subNode = config.AddNode(field.Name);                    
+                }
+
+                if (!floatCurveTemporaryValues.ContainsKey(subNode))
+                    floatCurveTemporaryValues.Add(subNode, subNode.ToString());
+
+                string value = floatCurveTemporaryValues[subNode];
+
+                placement.height = 6;
+                Rect textAreaRect = GUIHelper.GetRect(placementBase, ref placement);
+                GUIStyle fieldStyle = new GUIStyle(GUI.skin.textArea);
+
+                if (!ConfigHelper.CanParse(field, value))
+                {
+                    fieldStyle.normal.textColor = Color.red; fieldStyle.active.textColor = Color.red; fieldStyle.focused.textColor = Color.red; fieldStyle.hover.textColor = Color.red;
+                }
+
+                string newValue = GUI.TextArea(textAreaRect, value, fieldStyle);
+                if (newValue != value)
+                    floatCurveTemporaryValues[subNode] = newValue;
+
+                if (newValue != value && ConfigHelper.CanParse(field, newValue))
+                {
+                    var tempCN = ConfigNode.Parse(newValue).GetNodes()[0];
+                    subNode.ClearValues();
+                    foreach (var tempValue in tempCN.GetValues())
+                        subNode.AddValue("key", tempValue);
+                }
+
+                placement.y += 6f;
+            }
+            else if (!Attribute.IsDefined(field, typeof(GUIHidden)))
             {
                 placement.y += spacingOffset;
                 placement.height = 1;
                 String value = config.GetValue(field.Name);
+
                 String defaultValue = ConfigHelper.GetConfigValue(obj, field);
                 if (value == null)
                 {
