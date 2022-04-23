@@ -74,11 +74,15 @@ namespace Atmosphere
 
         [ConfigItem, Tooltip("Settings for the cloud rendering")]
         CloudsMaterial settings = null;
-        
-        [ConfigItem, Optional]
-        CloudsVolume layerVolume = null;
+
         [ConfigItem, Optional]
         Clouds2D layer2D = null;
+
+        [ConfigItem, Optional]
+        CloudsRaymarchedVolume layerRaymarchedVolume = null;
+
+        [ConfigItem, Optional]
+        CloudsVolume layerVolume = null;
 
         private CloudsPQS cloudsPQS = null;
         private CelestialBody celestialBody;
@@ -100,7 +104,7 @@ namespace Atmosphere
             rotationAxis.SetRow(0, rotationAxis0);
             rotationAxis.SetRow(1, rotationAxis1);
             rotationAxis.SetRow(2, rotationAxis2);
-            cloudsPQS.Apply(body, settings, layer2D, layerVolume, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation);
+            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolume, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation);   //make it so it works without this so we can add it to gas giants
         }
 
         public void Remove()

@@ -119,6 +119,10 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\KSPResources\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Steam\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\_BuildManager\Properties\AssemblyVersionInfo.cs">
@@ -132,10 +136,13 @@
     <Compile Include="AtmosphereObject.cs" />
     <Compile Include="AtmosphereVolume.cs" />
     <Compile Include="Clouds2D.cs" />
+    <Compile Include="CloudsRaymarchedVolume.cs" />
     <Compile Include="CloudsVolume.cs" />
+    <Compile Include="DeferredRaymarchedVolumetricCloudsRenderer.cs" />
     <Compile Include="DeferredVolumetricCloudsRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VolumeManager.cs" />
+    <Compile Include="CloudNoiseGen.cs" />
     <Compile Include="VolumeSection.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -15,6 +15,7 @@ namespace Atmosphere
         private String body;
         private float altitude;
         CloudsVolume layerVolume = null;
+        CloudsRaymarchedVolume layerRaymarchedVolume = null;
         Clouds2D layer2D = null;
         CloudsMaterial cloudsMaterial = null;
         CelestialBody celestialBody = null;
@@ -51,6 +52,10 @@ namespace Atmosphere
                 {
                     layerVolume.enabled = value;
                 }
+                if (layerRaymarchedVolume != null)
+                {
+                    layerRaymarchedVolume.enabled = value;
+                }
             }
         }
 
@@ -68,6 +73,12 @@ namespace Atmosphere
                 {
                     layerVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform);
                 }
+
+                if (layerRaymarchedVolume != null)
+                {
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform);
+                }
+
                 volumeApplied = true;
             }
         }
@@ -85,6 +96,12 @@ namespace Atmosphere
                 {
                     layerVolume.Remove();
                 }
+
+                if (layerRaymarchedVolume != null)
+                {
+                    layerRaymarchedVolume.Remove();
+                }
+
                 volumeApplied = false;
             }
         }
@@ -103,6 +120,12 @@ namespace Atmosphere
                 {
                     layerVolume.Remove();
                 }
+
+                if (layerRaymarchedVolume != null)
+                {
+                    layerRaymarchedVolume.Remove();
+                }
+
                 volumeApplied = false;
             }
             else
@@ -259,12 +282,13 @@ namespace Atmosphere
             }
         }
 
-        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation)
+        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation)
         {
             this.body = body;
             this.cloudsMaterial = cloudsMaterial;
             this.layer2D = layer2D;
             this.layerVolume = layerVolume;
+            this.layerRaymarchedVolume = layerRaymarchedVolume;
             this.altitude = altitude;
             this.offset = -offset;
             this.rotationAxis = rotationAxis;
@@ -407,9 +431,14 @@ namespace Atmosphere
             {
                 layerVolume.Remove();
             }
+            if (layerRaymarchedVolume != null)
+            {
+                layerRaymarchedVolume.Remove();
+            }
             layer2D = null;
             mainMenuLayer = null;
             layerVolume = null;
+            layerRaymarchedVolume = null;
             volumeApplied = false;
             this.enabled = false;
             this.sphere = null;
