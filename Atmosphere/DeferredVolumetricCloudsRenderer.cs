@@ -199,7 +199,7 @@ namespace Atmosphere
     {
         Material material;
 
-        MeshRenderer shadowMR;
+        MeshRenderer compositeMR;
 
         public void Init()
         {
@@ -207,13 +207,13 @@ namespace Atmosphere
 
             Quad.Create(gameObject, 2, Color.white, Vector3.up, Mathf.Infinity);
 
-            shadowMR = gameObject.AddComponent<MeshRenderer>();
+            compositeMR = gameObject.AddComponent<MeshRenderer>();
             material.SetOverrideTag("IgnoreProjector", "True");
-            shadowMR.sharedMaterial = material;
+            compositeMR.sharedMaterial = material;
 
-            shadowMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            shadowMR.receiveShadows = false;
-            shadowMR.enabled = true;
+            compositeMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            compositeMR.receiveShadows = false;
+            compositeMR.enabled = true;
             material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, 0f);
 
             gameObject.layer = (int)Tools.Layer.Local;
@@ -221,7 +221,7 @@ namespace Atmosphere
 
         public void SetRenderTexture(RenderTexture RT)
         {
-            material.SetTexture("cloudTexture", RT);
+            material.SetTexture("cloudTexture", RT);    //TODO: shader properties
         }
 
         public void SetDepthTexture(RenderTexture RT)
@@ -232,11 +232,6 @@ namespace Atmosphere
         public void SetActive(bool active)
         {
             material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
-        }
-
-        public void OnWillRenderObject()
-        {
-            
         }
     }
 }

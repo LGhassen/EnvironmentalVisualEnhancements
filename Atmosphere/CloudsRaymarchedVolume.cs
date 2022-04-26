@@ -61,7 +61,7 @@ namespace Atmosphere
 
     class CloudsRaymarchedVolume
     {
-        GameObject volumeHolder;
+        public GameObject volumeHolder;
 
         public Shader shader, compositeCloudShader, reconstructCloudsShader;
 
@@ -78,32 +78,19 @@ namespace Atmosphere
             }
         }
 
-        private static Shader reconstructCloudShader = null;
-        private static Shader ReconstructionShader
+        private static Shader invisibleShader = null;
+        private static Shader InvisibleShader
         {
             get
             {
-                if (reconstructCloudShader == null)
+                if (invisibleShader == null)
                 {
-                    reconstructCloudShader = ShaderLoaderClass.FindShader("EVE/ReconstructRaymarchedClouds");
+                    invisibleShader = ShaderLoaderClass.FindShader("EVE/Invisible");
                 }
-                return reconstructCloudShader;
+                return invisibleShader;
             }
         }
 
-        private static Shader compositeRaymarchedCloudShader = null;
-        private static Shader CompositeRaymarchedCloudShader
-        {
-            get
-            {
-                if (compositeRaymarchedCloudShader == null)
-                {
-                    compositeRaymarchedCloudShader = ShaderLoaderClass.FindShader("EVE/CompositeRaymarchedClouds");
-                }
-                return compositeRaymarchedCloudShader;
-            }
-        }
-        
         private int baseTextureDimension = 128;
         private int detailTextureDimension = 32;
 
@@ -114,8 +101,8 @@ namespace Atmosphere
         //public int reprojectionXfactor = 4;
         //public int reprojectionYfactor = 2;
 
-        public int reprojectionXfactor = 1;
-        public int reprojectionYfactor = 1;
+        //public int reprojectionXfactor = 1;
+        //public int reprojectionYfactor = 1;
 
         //temporary, make it a relative path later, put in shaders folder
         private string stbnPath = "C:\\Steam\\steamapps\\common\\Kerbal Space Program\\GameData\\EnvironmentalVisualEnhancements\\stbn.R8"; 
@@ -173,10 +160,10 @@ namespace Atmosphere
         [ConfigItem]
         Color cloudColor = Color.white;
         [ConfigItem]
-        float Density = 1.0f;
-        [ConfigItem]
         float absorptionMultiplier = 1.0f;
-        
+        [ConfigItem]
+        float lightMarchAttenuationMultiplier = 1.0f;
+
         [ConfigItem]
         float cloudTypeTiling = 5f;
         [ConfigItem]
@@ -219,6 +206,11 @@ namespace Atmosphere
             }
         }
 
+        public float InnerSphereRadius { get => innerSphereRadius;}
+        public float OuterSphereRadius { get => outerSphereRadius; }
+
+        public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
+
         Transform parentTransform;
 
         public void Apply(CloudsMaterial material, float radius, Transform parent)
@@ -227,8 +219,6 @@ namespace Atmosphere
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
-            compositeCloudsMaterial = new Material(CompositeRaymarchedCloudShader);
-            reconstructCloudsMaterial = new Material(ReconstructionShader);
 
             stbn = new Texture2D(stbnWidth, stbnHeight * stbnSlices, TextureFormat.R8, false);
             stbn.filterMode = FilterMode.Point;
@@ -255,11 +245,15 @@ namespace Atmosphere
             var updater = volumeHolder.AddComponent<Updater>();
             updater.mat = raymarchedCloudMaterial;
             updater.parent = parentTransform;
+            var notifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
+            notifier.volume = this;
 
             MeshRenderer mr = volumeHolder.GetComponent<MeshRenderer>();
-            mr.material = raymarchedCloudMaterial;
+            //mr.material = raymarchedCloudMaterial;
+            mr.material = new Material(InvisibleShader);
             raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero);
-            raymarchedCloudMaterial.renderQueue = (int)Tools.Queue.Transparent + 2; //check this
+            //raymarchedCloudMaterial.renderQueue = (int)Tools.Queue.Transparent + 2; //check this
+
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;
             mr.enabled = true;
@@ -292,8 +286,6 @@ namespace Atmosphere
 
             raymarchedCloudMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
             raymarchedCloudMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
-            reconstructCloudsMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
-            reconstructCloudsMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
 
             raymarchedCloudMaterial.SetTexture("DensityCurve", BakeDensityCurvesTexture());
 
@@ -322,6 +314,7 @@ namespace Atmosphere
             mat.SetFloat("detailStrength", detailStrength);
             mat.SetFloat("detailHeightGradient", detailHeightGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
+            mat.SetFloat("lightMarchAttenuationMultiplier", lightMarchAttenuationMultiplier);
             mat.SetFloat("baseMipLevel", baseMipLevel);
             mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
             mat.SetFloat("cloudSpeed", cloudSpeed);
@@ -332,59 +325,32 @@ namespace Atmosphere
 
             mat.SetFloat("lightMarchDistance", lightMarchDistance);
             mat.SetInt("lightMarchSteps", lightMarchSteps);
-
-
-            // WARNING: FIX FOR REPROJECTION
-            mat.SetFloat("frameNumber", 0f);
-            mat.SetVector("reprojectionUVOffset", Vector2.zero);
-            mat.SetInt("reprojectionXfactor", 1);
-            mat.SetInt("reprojectionXfactor", 1);
         }
 
         //TODO: decouple generation from setting them in the material
         public void GenerateNoiseTextures()
         {
-            Debug.Log("1");
             baseNoise = CreateRT(baseTextureDimension, baseTextureDimension, baseTextureDimension, RenderTextureFormat.R8);
-            Debug.Log("2");
-
-            Debug.Log("baseNoise null? "+ReferenceEquals(baseNoise, null));
-            Debug.Log("PWPerlin null? " + ReferenceEquals(PWPerlin, null));
-            Debug.Log("PWWorley null? " + ReferenceEquals(PWWorley, null));
-            Debug.Log("baseNoiseMode null? " + ReferenceEquals(baseNoiseMode, null));
 
             CloudNoiseGen.RenderNoiseToTexture(baseNoise, PWPerlin, PWWorley, baseNoiseMode);
-            Debug.Log("3");
             raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoise);
 
-            Debug.Log("4");
             detailNoise = CreateRT(detailTextureDimension, detailTextureDimension, detailTextureDimension, RenderTextureFormat.R8);
-            Debug.Log("5");
             CloudNoiseGen.RenderNoiseToTexture(detailNoise, worley32, worley32, NoiseMode.WorleyOnly);
-            Debug.Log("6");
             raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", detailNoise);
 
-            Debug.Log("7");
             localCoverage = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            Debug.Log("8");
             CloudNoiseGen.RenderNoiseToTexture(localCoverage, localCoverageSettings, localCoverageSettings, localCoverageMode);
-            Debug.Log("9");
             //Texture2D compressedLocalCoverage = TextureUtils.CompressSingleChannelRenderTextureToBC4(LocalCoverage, true);	//compress to BC4, increases fps a tiny bit, just disabled for now because it's slow
             raymarchedCloudMaterial.SetTexture("CloudCoverageDetail", localCoverage);
 
-            Debug.Log("10");
             cloudType = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            Debug.Log("11");
             CloudNoiseGen.RenderNoiseToTexture(cloudType, cloudTypeSettings, cloudTypeSettings, cloudTypeMode);
             //Texture2D compressedCloudType = TextureUtils.CompressSingleChannelRenderTextureToBC4(cloudType, true);
-            Debug.Log("12");
             raymarchedCloudMaterial.SetTexture("CloudType", cloudType);
 
-            Debug.Log("13");
             cloudMaxHeight = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            Debug.Log("14");
             CloudNoiseGen.RenderNoiseToTexture(cloudMaxHeight, cloudMaxHeightSettings, cloudMaxHeightSettings, cloudMaxHeightMode);
-            Debug.Log("15");
             //Texture2D compressedCloudMaxHeight = TextureUtils.CompressSingleChannelRenderTextureToBC4(cloudMaxHeight, true);
             raymarchedCloudMaterial.SetTexture("CloudMaxHeight", cloudMaxHeight);
 
@@ -505,8 +471,7 @@ namespace Atmosphere
                 if (!cam || !mat)
                     return;
 
-                mat.SetMatrix("CameraToWorld", cam.cameraToWorldMatrix);
-                mat.SetVector("sphereCenter", parent.position);
+                mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer
             }
         }
     }
