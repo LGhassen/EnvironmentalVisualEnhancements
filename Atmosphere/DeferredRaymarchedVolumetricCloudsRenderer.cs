@@ -70,11 +70,10 @@ namespace Atmosphere
         Matrix4x4 previousP = Matrix4x4.identity;
 
 
+        
+        //int reprojectionXfactor = 2;  //4x seems to be the best quality/performance ratio, 8x is on the lower quality side
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
-
-        //int reprojectionXfactor = 1;
-        //int reprojectionYfactor = 1;
 
         //manually made sampling sequences that distribute samples in a cross pattern for reprojection
         int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
@@ -130,8 +129,8 @@ namespace Atmosphere
                 int width = targetCamera.activeTexture.width;
                 int height = targetCamera.activeTexture.height;
                 
-                historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Point);
-                historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Point);
+                historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+                historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
                 
                 newRaysFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
                 newRaysFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
@@ -140,13 +139,13 @@ namespace Atmosphere
                 newDistanceFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
                 
                 reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-                reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / width, 1.0f / height));
+                reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
 
                 //compositeCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
                 //compositeCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / width, 1.0f / height));
 
                 DeferredRaymarchedRendererToScreen.material.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-                DeferredRaymarchedRendererToScreen.material.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / width, 1.0f / height));
+                DeferredRaymarchedRendererToScreen.material.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
 
                 reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
                 reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
@@ -240,6 +239,7 @@ namespace Atmosphere
 
                 reconstructCloudsMaterial.SetFloat("innerSphereRadius", volumesAdded.ElementAt(0).InnerSphereRadius);
                 reconstructCloudsMaterial.SetFloat("outerSphereRadius", volumesAdded.ElementAt(0).OuterSphereRadius);
+                reconstructCloudsMaterial.SetFloat("planetRadius", volumesAdded.ElementAt(0).PlanetRadius);
 
                 cloudMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
                 reconstructCloudsMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);

@@ -33,7 +33,7 @@ namespace Atmosphere
         float detailTiling = 100f;
 
         [ConfigItem]
-        float density = 1f; //not sure it's used?
+        float density = 1f;
         [ConfigItem]
         FloatCurve densityCurve;
 
@@ -94,7 +94,7 @@ namespace Atmosphere
         private int baseTextureDimension = 128;
         private int detailTextureDimension = 32;
 
-        private RenderTexture baseNoise, detailNoise, localCoverage, cloudType, cloudMaxHeight, cloudMinHeight;
+        private RenderTexture baseNoise, localCoverage, cloudType, cloudMaxHeight, cloudMinHeight;
 
 
         /////// Global quality settings /////// 
@@ -128,13 +128,10 @@ namespace Atmosphere
         ///noise params
         [ConfigItem]
         NoiseMode baseNoiseMode;
-
         [ConfigItem]
         NoiseSettings PWPerlin;
         [ConfigItem]
         NoiseSettings PWWorley;
-        [ConfigItem]
-        NoiseSettings worley32;
 
         [ConfigItem]
         NoiseMode localCoverageMode;
@@ -208,6 +205,8 @@ namespace Atmosphere
 
         public float InnerSphereRadius { get => innerSphereRadius;}
         public float OuterSphereRadius { get => outerSphereRadius; }
+
+        public float PlanetRadius { get => planetRadius; }
 
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
@@ -310,7 +309,7 @@ namespace Atmosphere
             mat.SetFloat("cloudMaxHeightTiling", cloudMaxHeightTiling);
             mat.SetFloat("maxVisibility", maxVisibility);
 
-            mat.SetFloat("detailTiling", detailTiling);
+            mat.SetFloat("detailTiling", 1f / detailTiling);
             mat.SetFloat("detailStrength", detailStrength);
             mat.SetFloat("detailHeightGradient", detailHeightGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
@@ -334,10 +333,6 @@ namespace Atmosphere
 
             CloudNoiseGen.RenderNoiseToTexture(baseNoise, PWPerlin, PWWorley, baseNoiseMode);
             raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoise);
-
-            detailNoise = CreateRT(detailTextureDimension, detailTextureDimension, detailTextureDimension, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(detailNoise, worley32, worley32, NoiseMode.WorleyOnly);
-            raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", detailNoise);
 
             localCoverage = CreateRT(512, 512, 0, RenderTextureFormat.R8);
             CloudNoiseGen.RenderNoiseToTexture(localCoverage, localCoverageSettings, localCoverageSettings, localCoverageMode);
