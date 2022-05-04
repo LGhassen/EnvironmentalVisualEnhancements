@@ -240,6 +240,7 @@ namespace Atmosphere
                 reconstructCloudsMaterial.SetFloat("innerSphereRadius", volumesAdded.ElementAt(0).InnerSphereRadius);
                 reconstructCloudsMaterial.SetFloat("outerSphereRadius", volumesAdded.ElementAt(0).OuterSphereRadius);
                 reconstructCloudsMaterial.SetFloat("planetRadius", volumesAdded.ElementAt(0).PlanetRadius);
+                reconstructCloudsMaterial.SetVector("sphereCenter", volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter")); //this needs to be moved to deferred renderer
 
                 cloudMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
                 reconstructCloudsMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
