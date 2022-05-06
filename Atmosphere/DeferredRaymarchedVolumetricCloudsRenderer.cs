@@ -68,10 +68,7 @@ namespace Atmosphere
 
         Matrix4x4 previousV = Matrix4x4.identity;
         Matrix4x4 previousP = Matrix4x4.identity;
-
-
         
-        //int reprojectionXfactor = 2;  //4x seems to be the best quality/performance ratio, 8x is on the lower quality side
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
 
@@ -211,13 +208,7 @@ namespace Atmosphere
                 RenderTargetIdentifier[] targetIdentifiers = useFlipBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
-                reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);   //this jitters a lot so the precision is probably absolutely messed up
-                                                                                            //it also messes with the reprojection/reconstruction, horrible
-
-                //reconstructCloudsMaterial.SetMatrix("previousVP", targetCamera.previousViewProjectionMatrix); //appears to be broken completely
-
-
-
+                reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);
 
                 reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipBuffer ? historyFlopRT : historyFlipRT);
 
@@ -228,7 +219,6 @@ namespace Atmosphere
 
                 DeferredRaymarchedRendererToScreen.SetActive(true);
                 DeferredRaymarchedRendererToScreen.SetRenderTexture(useFlipBuffer ? historyFlipRT : historyFlopRT);
-
 
                 //this needs to be done on pre-render but it's a bit of a waste
                 cloudMaterial.SetVector("reconstructedTextureResolution", new Vector2(historyFlipRT.width, historyFlipRT.height));
@@ -348,7 +338,6 @@ namespace Atmosphere
 
         void OnWillRenderObject()
         {
-            //if (volume != null) //not needed?
             if (Camera.current != null)
                 DeferredRaymarchedVolumetricCloudsRenderer.EnableForThisFrame(Camera.current, volume);
         }

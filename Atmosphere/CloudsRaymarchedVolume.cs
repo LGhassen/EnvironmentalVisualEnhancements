@@ -92,17 +92,8 @@ namespace Atmosphere
         }
 
         private int baseTextureDimension = 128;
-        private int detailTextureDimension = 32;
 
         private RenderTexture baseNoise, localCoverage, cloudType, cloudMaxHeight, cloudMinHeight;
-
-
-        /////// Global quality settings /////// 
-        //public int reprojectionXfactor = 4;
-        //public int reprojectionYfactor = 2;
-
-        //public int reprojectionXfactor = 1;
-        //public int reprojectionYfactor = 1;
 
         //temporary, make it a relative path later, put in shaders folder
         private string stbnPath = "C:\\Steam\\steamapps\\common\\Kerbal Space Program\\GameData\\EnvironmentalVisualEnhancements\\stbn.R8"; 
@@ -212,7 +203,9 @@ namespace Atmosphere
 
         Transform parentTransform;
 
-        public void Apply(CloudsMaterial material, float radius, Transform parent)
+        private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
+
+        public void Apply(CloudsMaterial material, float radius, Transform parent)  //here we need the radius of the planet also
         {
             planetRadius = radius;
             parentTransform = parent;
@@ -242,6 +235,7 @@ namespace Atmosphere
             GameObject.Destroy(volumeHolder.GetComponent<Collider>());
 
             var updater = volumeHolder.AddComponent<Updater>();
+            updater.volume = this;
             updater.mat = raymarchedCloudMaterial;
             updater.parent = parentTransform;
             var notifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
@@ -288,10 +282,9 @@ namespace Atmosphere
 
             raymarchedCloudMaterial.SetTexture("DensityCurve", BakeDensityCurvesTexture());
 
-            //not sure I need to initialize this to 10 but trying to avoid the bug mentioned here: https://www.alanzucconi.com/2016/10/24/arrays-shaders-unity-5-4/
             Vector4[] cloudTypePropertiesArray0 = new Vector4[10];
             Vector4[] cloudTypePropertiesArray1 = new Vector4[10];
-            for (int i = 0; i < cloudTypes.Count; i++)
+            for (int i = 0; i < cloudTypes.Count && i < 10; i++)
             {
                 cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, cloudTypes[i].CoverageDetailTiling, 0f);   //0f instead of anvilBias
                 cloudTypePropertiesArray1[i] = new Vector4(cloudTypes[i].LockHeights ? 1f : 0f, 0f, 0f, 0f);
@@ -323,7 +316,7 @@ namespace Atmosphere
             mat.SetFloat("adaptiveStepSizeFactor", adaptiveStepSizeFactor);
 
             mat.SetFloat("lightMarchDistance", lightMarchDistance);
-            mat.SetInt("lightMarchSteps", lightMarchSteps);
+            mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
         }
 
         //TODO: decouple generation from setting them in the material
@@ -358,7 +351,7 @@ namespace Atmosphere
             //raymarchedCloudMaterial.SetTexture("CloudMinHeight", cloudMinHeight);
         }
 
-        public Texture2D BakeDensityCurvesTexture()
+        private Texture2D BakeDensityCurvesTexture()
         {
             int resolution = 128;
 
@@ -392,7 +385,35 @@ namespace Atmosphere
             tex.Apply(false);
 
             return tex;
+        }
 
+        public void UpdateCloudNoiseOffsets()
+        {
+            double xOffset = -parentTransform.position.x, yOffset = -parentTransform.position.y, zOffset = -parentTransform.position.z;
+
+            //TODO: add upward wind offset, calculate vector from camera position? or just the direction of the planet center would give you that
+            //and give a direction to this offset, maybe tangent to cloud rotation?
+            timeXoffset += (double)Time.deltaTime * (double)TimeWarp.CurrentRate * ((double)cloudSpeed);
+
+            xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
+
+            Vector4[] baseNoiseOffsets = new Vector4[10];
+            for (int i = 0; i < cloudTypes.Count && i < 10; i++)
+            {
+                double noiseXOffset = xOffset / (double)cloudTypes[i].BaseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseTiling;
+
+                baseNoiseOffsets[i] = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float) (noiseYOffset - Math.Truncate(noiseYOffset)),
+                    (float) (noiseZOffset - Math.Truncate(noiseZOffset)), 0f);
+
+
+                Debug.Log("offsets x " + baseNoiseOffsets[i].x.ToString());
+            }
+            raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
+
+            double detailXOffset = xOffset / (double) detailTiling, localDetailYOffset = yOffset / (double)detailTiling, localDetailZOffset = zOffset / (double)detailTiling;
+
+            raymarchedCloudMaterial.SetVector("detailOffset", new Vector4((float)(detailXOffset - Math.Truncate(detailXOffset)),
+                (float)(localDetailYOffset - Math.Truncate(detailXOffset)), (float)(localDetailZOffset - Math.Truncate(detailXOffset)), 0f));
         }
 
         public void Remove()
@@ -459,6 +480,7 @@ namespace Atmosphere
 
             public Material mat;
             public Transform parent;
+            public CloudsRaymarchedVolume volume;
 
             public void OnWillRenderObject()
             {
@@ -466,7 +488,12 @@ namespace Atmosphere
                 if (!cam || !mat)
                     return;
 
-                mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer
+                mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
+            }
+
+            public void Update()
+            {
+                volume.UpdateCloudNoiseOffsets();
             }
         }
     }
