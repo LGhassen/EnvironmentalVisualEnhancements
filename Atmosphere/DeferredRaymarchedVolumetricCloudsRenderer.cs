@@ -68,7 +68,8 @@ namespace Atmosphere
 
         Matrix4x4 previousV = Matrix4x4.identity;
         Matrix4x4 previousP = Matrix4x4.identity;
-        
+        Vector3d previousFloatingOriginOffset = Vector3d.zero;
+
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
 
@@ -208,6 +209,18 @@ namespace Atmosphere
                 RenderTargetIdentifier[] targetIdentifiers = useFlipBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
+
+                //handle floatingOrigin changes
+                Vector3d currentOffset = FloatingOrigin.TerrainShaderOffset - previousFloatingOriginOffset;
+
+                //transform to camera space
+                Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
+
+                //inject in the previous view matrix
+                previousV.m03 += floatOffset.x;
+                previousV.m13 += floatOffset.y;
+                previousV.m23 += floatOffset.z;
+
                 reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);
 
                 reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipBuffer ? historyFlopRT : historyFlipRT);
@@ -295,6 +308,8 @@ namespace Atmosphere
 
                     previousP = GL.GetGPUProjectionMatrix(targetCamera.projectionMatrix, false);
                     previousV = targetCamera.worldToCameraMatrix;
+
+                    previousFloatingOriginOffset = FloatingOrigin.TerrainShaderOffset;
 
                     DeferredRaymarchedRendererToScreen.SetActive(false);
                     renderingEnabled = false;
