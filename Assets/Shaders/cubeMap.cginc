@@ -1,51 +1,57 @@
+#include "FastMath.cginc"
+
 #ifndef CUBE_MAP_CG_INC
 #define CUBE_MAP_CG_INC
 
 #ifdef MAP_TYPE_CUBE_1
-#define GET_CUBE_MAP_1(name, vect) GetCubeMap(cube ## name, vect)
-#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(cube ## name, vect, n, nsc, nst, na)
-#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name, vect)
-#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
-#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name, vect)
-#define CUBEMAP_DEF_1(name) \
-	uniform samplerCUBE cube ## name;
+	#define GET_CUBE_MAP_1(name, vect) GetCubeMap(cube ## name, vect)
+	#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(cube ## name, vect, n, nsc, nst, na)
+	#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name, vect)
+	#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
+	#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name, vect)
+	#define CUBEMAP_DEF_1(name) \
+		uniform samplerCUBE cube ## name;
+
 #elif defined (MAP_TYPE_CUBE6_1)
-#define GET_CUBE_MAP_1(name, vect) GetCubeMap(cube ## name ## xn, cube ## name ## xp, \
-											cube ## name ## yn, cube ## name ## yp, \
-											cube ## name ## zn, cube ## name ## zp, vect)
-#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(cube ## name ## xn, cube ## name ## xp, \
-											cube ## name ## yn, cube ## name ## yp, \
-											cube ## name ## zn, cube ## name ## zp, vect, n, nsc, nst, na)
-#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name ## xn, cube ## name ## xp, \
-														cube ## name ## yn, cube ## name ## yp, \
-														cube ## name ## zn, cube ## name ## zp, vect)
-#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect)  GetCubeMap(cube ## name ## xn, cube ## name ## xp, \
-											cube ## name ## yn, cube ## name ## yp, \
-											cube ## name ## zn, cube ## name ## zp, vect)
-#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
-#define CUBEMAP_DEF_1(name) \
-	sampler2D cube ## name ## xn, cube ## name ## xp; \
-	sampler2D cube ## name ## yn, cube ## name ## yp; \
-	sampler2D cube ## name ## zn, cube ## name ## zp;
+	#define GET_CUBE_MAP_1(name, vect) GetCubeMap(sampler## cube ## name ## xn, cube ## name ## xn, cube ## name ## xp, \
+												cube ## name ## yn, cube ## name ## yp, \
+												cube ## name ## zn, cube ## name ## zp, vect)
+	#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(sampler## cube ## name ## xn, cube ## name ## xn, cube ## name ## xp, \
+												cube ## name ## yn, cube ## name ## yp, \
+												cube ## name ## zn, cube ## name ## zp, vect, n, nsc, nst, na)
+	#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(sampler## cube ## name ## xn, cube ## name ## xn, cube ## name ## xp, \
+															cube ## name ## yn, cube ## name ## yp, \
+															cube ## name ## zn, cube ## name ## zp, vect)
+	#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect)  GetCubeMap(sampler## cube ## name ## xn, cube ## name ## xn, cube ## name ## xp, \
+												cube ## name ## yn, cube ## name ## yp, \
+												cube ## name ## zn, cube ## name ## zp, vect)
+	#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
+	#define CUBEMAP_DEF_1(name) \
+		UNITY_DECLARE_TEX2D( cube ## name ## xn); \
+		UNITY_DECLARE_TEX2D_NOSAMPLER( cube ## name ## xp); \
+		UNITY_DECLARE_TEX2D_NOSAMPLER( cube ## name ## yn); \
+		UNITY_DECLARE_TEX2D_NOSAMPLER( cube ## name ## yp); \
+		UNITY_DECLARE_TEX2D_NOSAMPLER( cube ## name ## zn); \
+		UNITY_DECLARE_TEX2D_NOSAMPLER( cube ## name ## zp);
 
 #elif defined (MAP_TYPE_CUBE2_1)
-#define GET_CUBE_MAP_1(name, vect) GetCubeMap(cube ## name ## POS, cube ## name ## NEG, vect)
-#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(cube ## name ## POS, cube ## name ## NEG, vect, n, nsc, nst, na)
-#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name ## POS, cube ## name ## NEG, vect)
-#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
-#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name ## POS, cube ## name ## NEG, vect)
-#define CUBEMAP_DEF_1(name) \
-	sampler2D cube ## name ## POS; \
-	sampler2D cube ## name ## NEG;
+	#define GET_CUBE_MAP_1(name, vect) GetCubeMap(cube ## name ## POS, cube ## name ## NEG, vect)
+	#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(cube ## name ## POS, cube ## name ## NEG, vect, n, nsc, nst, na)
+	#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name ## POS, cube ## name ## NEG, vect)
+	#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect) half4(1,1,1,1)
+	#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(cube ## name ## POS, cube ## name ## NEG, vect)
+	#define CUBEMAP_DEF_1(name) \
+		sampler2D cube ## name ## POS; \
+		sampler2D cube ## name ## NEG;
 
 #else
-#define GET_CUBE_MAP_1(name, vect) GetCubeMap(name, vect)
-#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(name, vect, n, nsc, nst, na)
-#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(name, vect)
-#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect)  half4(1,1,1,1)
-#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(name, vect)
-#define CUBEMAP_DEF_1(name) \
-	sampler2D name;
+	#define GET_CUBE_MAP_1(name, vect) GetCubeMap(name, vect)
+	#define GET_CUBE_MAP_P(name, vect, n, nsc, nst, na) GetCubeMapPerturbed(name, vect, n, nsc, nst, na)
+	#define GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(name, vect)
+	#define FRAG_GET_NO_LOD_CUBE_MAP_1(name, vect)  half4(1,1,1,1)
+	#define VERT_GET_NO_LOD_CUBE_MAP_1(name, vect) GetCubeMapNoLOD(name, vect)
+	#define CUBEMAP_DEF_1(name) \
+		sampler2D name;
 #endif
 
 
@@ -72,11 +78,24 @@ inline float4 Derivatives(float2 uv)
 	return float4(ddx(uvCont), ddy(uvCont));
 }
 
-inline float2 GetCubeUV(float3 cubeVect, float2 uvOffset)
+inline float2 GetEquirectangularUV(float3 cubeVect)
 {
 	float2 uv;
-	uv.x = .5 + (INV_2PI*atan2(cubeVect.x, cubeVect.z));
+
+	uv.x = .5 + (INV_TWO_PI*fastAtan2(cubeVect.x, cubeVect.z));	//big perf bump
 	uv.y = INV_PI*acos(cubeVect.y);
+	//uv.y = INV_PI*fastAcos(cubeVect.y);				//mixed results
+	return uv;
+}
+
+inline float2 GetEquirectangularUVWithOffset(float3 cubeVect, float2 uvOffset)
+{
+	float2 uv;
+
+	uv.x = .5 + (INV_TWO_PI*fastAtan2(cubeVect.x, cubeVect.z));	//big perf bump
+	uv.y = INV_PI*acos(cubeVect.y);
+	//uv.y = INV_PI*fastAcos(cubeVect.y);				//mixed results
+
 	uv += uvOffset;
 	return uv;
 }
@@ -97,7 +116,7 @@ inline half4 GetCubeMapNoLOD(sampler2D texSampler, float3 cubeVect)
 {
 	float4 uv;
 	float3 cubeVectNorm = normalize(cubeVect);
-	uv.xy = GetCubeUV(cubeVectNorm, float2(0, 0));
+	uv.xy = GetEquirectangularUVWithOffset(cubeVectNorm, float2(0, 0));
 	uv.zw = float2(0, 0);
 	half4 tex = tex2Dlod(texSampler, uv);
 	return tex;
@@ -106,7 +125,7 @@ inline half4 GetCubeMapNoLOD(sampler2D texSampler, float3 cubeVect)
 inline half4 GetCubeMap(sampler2D texSampler, float3 cubeVect)
 {
 	float3 cubeVectNorm = normalize(cubeVect);
-	float2 uv = GetCubeUV(cubeVectNorm, float2(0, 0));
+	float2 uv = GetEquirectangularUVWithOffset(cubeVectNorm, float2(0, 0));
 	float4 uvdd = Derivatives(uv);
 	half4 tex = tex2D(texSampler, uv, uvdd.xy, uvdd.zw);
 	return tex;
@@ -115,7 +134,7 @@ inline half4 GetCubeMap(sampler2D texSampler, float3 cubeVect)
 inline half4 GetCubeMapPerturbed(sampler2D texSampler, float3 cubeVect, sampler2D uvNoiseSampler, float uvNoiseScale, float uvNoiseStrength, float2 uvNoiseAnimation)
 {
 	float3 cubeVectNorm = normalize(cubeVect);
-	float2 uv = GetCubeUV(cubeVectNorm, float2(0, 0));
+	float2 uv = GetEquirectangularUVWithOffset(cubeVectNorm, float2(0, 0));
 	float2 uvd = fmod(uv, uvNoiseScale) / uvNoiseScale + uvNoiseAnimation*float2(_UniversalTime.x, _UniversalTime.x);
 	uv += (tex2D(uvNoiseSampler, uvd) - float2(0.5, 0.5))*uvNoiseStrength;
 	float4 uvdd = Derivatives(uv);
@@ -150,7 +169,7 @@ inline half4 GetCubeMapPerturbed(samplerCUBE texSampler, float3 cubeVect, sample
 	return tex;
 }
 
-inline half4 GetCubeMapNoLOD(sampler2D texXn, sampler2D texXp, sampler2D texYn, sampler2D texYp, sampler2D texZn, sampler2D texZp, float3 cubeVect)
+inline half4 GetCubeMapNoLOD(SamplerState texXnSampler, Texture2D texXn, Texture2D texXp, Texture2D texYn, Texture2D texYp, Texture2D texZn, Texture2D texZp, float3 cubeVect)
 {
 	float4 uv4;
 	uv4.zw = float2(0, 0);
@@ -158,12 +177,12 @@ inline half4 GetCubeMapNoLOD(sampler2D texXn, sampler2D texXp, sampler2D texYn, 
 	GetCubeCubeUV(cubeVect);
 	uv4.xy = uv;
 
-	half4 sampxn = tex2Dlod(texXn, uv4);
-	half4 sampxp = tex2Dlod(texXp, uv4);
-	half4 sampyn = tex2Dlod(texYn, uv4);
-	half4 sampyp = tex2Dlod(texYp, uv4);
-	half4 sampzn = tex2Dlod(texZn, uv4);
-	half4 sampzp = tex2Dlod(texZp, uv4);
+	half4 sampxn = texXn.SampleLevel(texXnSampler, uv4.xy, 0.0);
+	half4 sampxp = texXp.SampleLevel(texXnSampler, uv4.xy, 0.0);
+	half4 sampyn = texYn.SampleLevel(texXnSampler, uv4.xy, 0.0);
+	half4 sampyp = texYp.SampleLevel(texXnSampler, uv4.xy, 0.0);
+	half4 sampzn = texZn.SampleLevel(texXnSampler, uv4.xy, 0.0);
+	half4 sampzp = texZp.SampleLevel(texXnSampler, uv4.xy, 0.0);
 
 	half4 sampx = lerp(sampxn, sampxp, step(0, s));
 	half4 sampy = lerp(sampyn, sampyp, step(0, s));
@@ -177,20 +196,19 @@ inline half4 GetCubeMapNoLOD(sampler2D texXn, sampler2D texXp, sampler2D texYn, 
 	
 }
 
-inline half4 GetCubeMap(sampler2D texXn, sampler2D texXp, sampler2D texYn, sampler2D texYp, sampler2D texZn, sampler2D texZp, float3 cubeVect)
+inline half4 GetCubeMap(SamplerState texXnSampler, Texture2D texXn, Texture2D texXp, Texture2D texYn, Texture2D texYp, Texture2D texZn, Texture2D texZp, float3 cubeVect)
 {
 	GetCubeCubeUV(cubeVect);
 
 	//this fixes UV discontinuity on Y-X seam by swapping uv coords in derivative calcs when in the X quadrants.
 	float4 uvdd = CubeDerivatives(uv, 1);
 
-
-	half4 sampxn = tex2D(texXn, uv, uvdd.xy, uvdd.zw);
-	half4 sampxp = tex2D(texXp, uv, uvdd.xy, uvdd.zw);
-	half4 sampyn = tex2D(texYn, uv, uvdd.xy, uvdd.zw);
-	half4 sampyp = tex2D(texYp, uv, uvdd.xy, uvdd.zw);
-	half4 sampzn = tex2D(texZn, uv, uvdd.xy, uvdd.zw);
-	half4 sampzp = tex2D(texZp, uv, uvdd.xy, uvdd.zw);
+	half4 sampxn = texXn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampxp = texXp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampyn = texYn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampyp = texYp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampzn = texZn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampzp = texZp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
 
 	half4 sampx = lerp(sampxn, sampxp, step(0, s));
 	half4 sampy = lerp(sampyn, sampyp, step(0, s));
@@ -201,7 +219,7 @@ inline half4 GetCubeMap(sampler2D texXn, sampler2D texXp, sampler2D texYn, sampl
 	return samp;
 }
 
-inline half4 GetCubeMapPerturbed(sampler2D texXn, sampler2D texXp, sampler2D texYn, sampler2D texYp, sampler2D texZn, sampler2D texZp, float3 cubeVect, sampler2D uvNoiseSampler, float uvNoiseScale, float uvNoiseStrength, float2 uvNoiseAnimation)
+inline half4 GetCubeMapPerturbed(SamplerState texXnSampler, Texture2D texXn, Texture2D texXp, Texture2D texYn, Texture2D texYp, Texture2D texZn, Texture2D texZp, float3 cubeVect, sampler2D uvNoiseSampler, float uvNoiseScale, float uvNoiseStrength, float2 uvNoiseAnimation)
 {
 	GetCubeCubeUV(cubeVect);
 
@@ -211,13 +229,12 @@ inline half4 GetCubeMapPerturbed(sampler2D texXn, sampler2D texXp, sampler2D tex
 	//this fixes UV discontinuity on Y-X seam by swapping uv coords in derivative calcs when in the X quadrants.
 	float4 uvdd = CubeDerivatives(uv, 1);
 
-
-	half4 sampxn = tex2D(texXn, uv, uvdd.xy, uvdd.zw);
-	half4 sampxp = tex2D(texXp, uv, uvdd.xy, uvdd.zw);
-	half4 sampyn = tex2D(texYn, uv, uvdd.xy, uvdd.zw);
-	half4 sampyp = tex2D(texYp, uv, uvdd.xy, uvdd.zw);
-	half4 sampzn = tex2D(texZn, uv, uvdd.xy, uvdd.zw);
-	half4 sampzp = tex2D(texZp, uv, uvdd.xy, uvdd.zw);
+	half4 sampxn = texXn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampxp = texXp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampyn = texYn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampyp = texYp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampzn = texZn.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
+	half4 sampzp = texZp.SampleGrad(texXnSampler, uv, uvdd.xy, uvdd.zw);
 
 	half4 sampx = lerp(sampxn, sampxp, step(0, s));
 	half4 sampy = lerp(sampyn, sampyp, step(0, s));
