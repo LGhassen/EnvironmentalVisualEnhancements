@@ -178,7 +178,7 @@ namespace Utils
         [ConfigItem, Conditional("alphaMaskEval")]
         AlphaMaskEnum alphaMask = AlphaMaskEnum.ALPHAMAP_A;
 
-        int index = 0;
+        int index = 1;
         public bool IsNormal { get { return isNormal; } set { isNormal = value; } }
         public bool IsClamped { get { return isClamped; } set { isClamped = value; } }
         public int Index { get { return index; } set { index = value; } }

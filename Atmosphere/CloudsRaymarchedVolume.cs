@@ -12,6 +12,34 @@ using Utils;
 
 namespace Atmosphere
 {
+    public class CloudTexture
+    {
+        [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
+        TextureWrapper globalTexture;
+
+        [ConfigItem, Optional]
+        TextureWrapper tiledTexture;
+
+        [ConfigItem, Optional]
+        NoiseWrapper generatedTiledTexture;
+
+        public TextureWrapper GlobalTexture { get => globalTexture; }
+        public TextureWrapper TiledTexture { get => tiledTexture; }
+        public NoiseWrapper GeneratedTiledTexture { get => generatedTiledTexture; }
+    }
+
+    public class TiledCloudTexture
+    {
+        [ConfigItem, Optional]
+        TextureWrapper tiledTexture;
+
+        [ConfigItem, Optional]
+        NoiseWrapper generatedTiledTexture;
+
+        public TextureWrapper TiledTexture { get => tiledTexture; }
+        public NoiseWrapper GeneratedTiledTexture { get => generatedTiledTexture; }
+    }
+
     public class CloudType
     {
         [ConfigItem]
@@ -63,94 +91,68 @@ namespace Atmosphere
     {
         public GameObject volumeHolder;
 
-        public Shader shader, compositeCloudShader, reconstructCloudsShader;
-
-        private static Shader raymarchedCloudShader = null;
+        private static Shader raymarchedCloudShader = null, invisibleShader = null;
         private static Shader RaymarchedCloudShader
         {
             get
             {
-                if (raymarchedCloudShader == null)
-                {
-                    raymarchedCloudShader = ShaderLoaderClass.FindShader("EVE/RaymarchCloud");
-                }
+                if (raymarchedCloudShader == null) raymarchedCloudShader = ShaderLoaderClass.FindShader("EVE/RaymarchCloud");
                 return raymarchedCloudShader;
             }
         }
 
-        private static Shader invisibleShader = null;
         private static Shader InvisibleShader
         {
             get
             {
-                if (invisibleShader == null)
-                {
-                    invisibleShader = ShaderLoaderClass.FindShader("EVE/Invisible");
-                }
+                if (invisibleShader == null) invisibleShader = ShaderLoaderClass.FindShader("EVE/Invisible");
                 return invisibleShader;
             }
         }
 
-        private int baseTextureDimension = 128;
+        private int baseNoiseDimension = 128;
+        private RenderTexture baseNoiseRT;
 
-        private RenderTexture baseNoise, localCoverage, cloudType, cloudMaxHeight, cloudMinHeight;
+        //TODO: move these to global quality settings or something like that
+        [ConfigItem]
+        float lightMarchSteps = 4;
 
-        //temporary, make it a relative path later, put in shaders folder
-        private string stbnPath = "C:\\Steam\\steamapps\\common\\Kerbal Space Program\\GameData\\EnvironmentalVisualEnhancements\\stbn.R8"; 
+        [ConfigItem]
+        float lightMarchDistance = 800f;
 
-        static private int stbnWidth = 128;
-        static private int stbnHeight = 128;
-        static private int stbnSlices = 64;
-
-        public int lightMarchSteps = 4;
-        public float lightMarchDistance = 800f;
-
-        public float baseStepSize = 32f;
-        public float adaptiveStepSizeFactor = 0.0075f;
-        public float maxStepSize = 250f;
-
-        public float maxVisibility = 50000000f;
+        [ConfigItem]
+        float baseStepSize = 32f;
+        [ConfigItem]
+        float adaptiveStepSizeFactor = 0.0075f;
+        [ConfigItem]
+        float maxStepSize = 250f;
 
         public float baseMipLevel = 0f, lightRayMipLevel = 0f;
         //////////////////////////////
 
-        float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
+        ///noise and texture params
+        [ConfigItem]
+        NoiseWrapper noise;
 
-        ///noise params
-        [ConfigItem]
-        NoiseMode baseNoiseMode;
-        [ConfigItem]
-        NoiseSettings PWPerlin;
-        [ConfigItem]
-        NoiseSettings PWWorley;
+        [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
+        TextureWrapper coverageMap;
 
-        [ConfigItem]
-        NoiseMode localCoverageMode;
-        [ConfigItem]
-        NoiseSettings localCoverageSettings;
+        [ConfigItem, Optional]
+        TiledCloudTexture localCoverageMap;
 
-        [ConfigItem]
-        NoiseMode cloudTypeMode;
-        [ConfigItem]
-        NoiseSettings cloudTypeSettings;
+        [ConfigItem, Optional]
+        CloudTexture cloudTypeMap;
 
-        [ConfigItem]
-        NoiseMode cloudMaxHeightMode;
-        [ConfigItem]
-        NoiseSettings cloudMaxHeightSettings;
-
-        [ConfigItem]
-        NoiseMode cloudMinHeightMode;
-        [ConfigItem]
-        NoiseSettings cloudMinHeightSettings;
+        [ConfigItem, Optional]
+        CloudTexture cloudMaxHeightMap;
 
         ///cloud params
         [ConfigItem]
         Color cloudColor = Color.white;
         [ConfigItem]
-        float absorptionMultiplier = 1.0f;
+        float absorptionMultiplier = 1.0f;  //I think this isn't needed
         [ConfigItem]
-        float lightMarchAttenuationMultiplier = 1.0f;
+        float lightMarchAttenuationMultiplier = 1.0f;   //rename to lightMarchAbsorptionMultiplier?
 
         [ConfigItem]
         float cloudTypeTiling = 5f;
@@ -158,30 +160,29 @@ namespace Atmosphere
         float cloudMaxHeightTiling = 5f;
         [ConfigItem]
         float cloudSpeed = 11.0f;
+
+        //[ConfigItem]
+        //float curlNoiseTiling = 1f;
+        //[ConfigItem]
+        //float curlNoiseStrength = 1f;
+
+        //potentially move these to be per cloud type as well?
+
         [ConfigItem]
-        float curlNoiseTiling = 1f;
+        float secondaryNoiseTiling = 1f;
         [ConfigItem]
-        float curlNoiseStrength = 1f;
+        float secondaryNoiseStrength = 1f;
         [ConfigItem]
-        float detailTiling = 1f;
-        [ConfigItem]
-        float detailStrength = 1f;
-        [ConfigItem]
-        float detailHeightGradient = 1f;
+        float secondaryNoiseGradient = 1f;
         
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
-        protected Quaternion axis = Quaternion.identity;
         ///////////
 
-        protected Material raymarchedCloudMaterial, compositeCloudsMaterial, reconstructCloudsMaterial;
+        protected Material raymarchedCloudMaterial;
+        public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
-        private Texture2D cloudCoverage, curlNoise;
-
-        //probably this shouldn't be here but static in the DeferredRaymarchedVolumetricCloudsRenderer class
-        private Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer> CameraToDeferredRenderer = new Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer>();
-        
         private bool _enabled = true;
         public bool enabled
         {
@@ -193,13 +194,12 @@ namespace Atmosphere
             }
         }
 
+
+        float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
         public float InnerSphereRadius { get => innerSphereRadius;}
         public float OuterSphereRadius { get => outerSphereRadius; }
-
         public float PlanetRadius { get => planetRadius; }
-
-        public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
-
+        
         Transform parentTransform;
 
         private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
@@ -215,7 +215,7 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("blueNoiseResolution", ShaderLoader.ShaderLoaderClass.stbnDimensions.x);
             raymarchedCloudMaterial.SetFloat("blueNoiseSlices", ShaderLoader.ShaderLoaderClass.stbnDimensions.z);
 
-            GenerateNoiseTextures();
+            ConfigureTextures();
 
             ProcessCloudTypes();
 
@@ -248,14 +248,98 @@ namespace Atmosphere
             MeshFilter filter = volumeHolder.GetComponent<MeshFilter>();
             filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(Mathf.Infinity, Mathf.Infinity, Mathf.Infinity));
 
-            volumeHolder.transform.parent = parent;
+            volumeHolder.transform.parent = parent; //probably parent this to the camera instead, if you want it to render before scatterer sky at least
             volumeHolder.transform.localPosition = Vector3.zero;
             volumeHolder.transform.localScale = Vector3.one;
             volumeHolder.transform.localRotation = Quaternion.identity;
             volumeHolder.layer = (int)Tools.Layer.Local;
         }
-        
-        public void ProcessCloudTypes()
+
+        public void ConfigureTextures()
+        {
+            baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
+            CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
+            raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoiseRT);
+
+            if (coverageMap != null)    //have to apply this last because it sets the MAP type keywords
+            {
+                coverageMap.ApplyTexture(raymarchedCloudMaterial, "CloudCoverage");
+            }
+            else
+            {
+                raymarchedCloudMaterial.SetTexture("CloudCoverage", Texture2D.whiteTexture);
+                raymarchedCloudMaterial.EnableKeyword("MAP_TYPE_1");
+            }
+
+            if (localCoverageMap.GeneratedTiledTexture != null)
+            {
+                GenerateAndAssignTexture(localCoverageMap.GeneratedTiledTexture, "CloudCoverageDetail", raymarchedCloudMaterial);
+            }
+            else if (localCoverageMap.TiledTexture != null)
+            {
+                localCoverageMap.TiledTexture.ApplyTexture(raymarchedCloudMaterial, "CloudCoverageDetail");
+            }
+            else
+            {
+                raymarchedCloudMaterial.SetTexture("CloudCoverageDetail", Texture2D.whiteTexture);
+            }
+
+            ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial);
+            ApplyCloudTexture(cloudMaxHeightMap, "CloudMaxHeight", raymarchedCloudMaterial);
+        }
+
+        private void ApplyCloudTexture(CloudTexture cloudTexture, string propertyName, Material mat)
+        {
+            if (cloudTexture.GlobalTexture != null)
+            {
+                cloudTexture.GlobalTexture.ApplyTexture(mat, "propertyName");
+            }
+            else if (cloudTexture.GeneratedTiledTexture != null)
+            {
+                GenerateAndAssignTexture(cloudTexture.GeneratedTiledTexture, propertyName, mat);
+            }
+            else if (cloudTexture.TiledTexture != null)
+            {
+                cloudTexture.TiledTexture.ApplyTexture(mat, propertyName);
+            }
+            else
+            {
+                mat.SetTexture(propertyName, Texture2D.whiteTexture);
+            }
+        }
+
+        private void GenerateAndAssignTexture(NoiseWrapper noiseWrapper, string propertyName, Material mat)
+        {
+            RenderTexture rt = CreateRT(512, 512, 0, RenderTextureFormat.R8);
+            CloudNoiseGen.RenderNoiseToTexture(rt, noiseWrapper);
+            //var tex = TextureUtils.CompressSingleChannelRenderTextureToBC4(LocalCoverage, true);	//compress to BC4, increases fps a tiny bit, just disabled for now because it's slow
+            mat.SetTexture(propertyName, rt);
+        }
+
+        public void SetShaderParams(Material mat)
+        {
+            mat.SetColor("cloudColor", cloudColor);
+            mat.SetFloat("cloudTypeTiling", cloudTypeTiling);
+            mat.SetFloat("cloudMaxHeightTiling", cloudMaxHeightTiling);
+
+            mat.SetFloat("detailTiling", 1f / secondaryNoiseTiling);
+            mat.SetFloat("detailStrength", secondaryNoiseStrength);
+            mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
+            mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
+            mat.SetFloat("lightMarchAttenuationMultiplier", lightMarchAttenuationMultiplier);
+            mat.SetFloat("baseMipLevel", baseMipLevel);
+            mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
+            mat.SetFloat("cloudSpeed", cloudSpeed);
+
+            mat.SetFloat("baseStepSize", baseStepSize);
+            mat.SetFloat("maxStepSize", maxStepSize);
+            mat.SetFloat("adaptiveStepSizeFactor", adaptiveStepSizeFactor);
+
+            mat.SetFloat("lightMarchDistance", lightMarchDistance);
+            mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
+        }
+
+        private void ProcessCloudTypes()
         {
             //figure out min and max radiuses
             cloudMinAltitude = Mathf.Infinity;
@@ -287,62 +371,6 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties1", cloudTypePropertiesArray1);
             raymarchedCloudMaterial.SetInt("numberOfCloudTypes", cloudTypes.Count);
             raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
-        }
-
-        public void SetShaderParams(Material mat)
-        {
-            mat.SetColor("cloudColor", cloudColor);
-            mat.SetFloat("cloudTypeTiling", cloudTypeTiling);
-            mat.SetFloat("cloudMaxHeightTiling", cloudMaxHeightTiling);
-            mat.SetFloat("maxVisibility", maxVisibility);
-
-            mat.SetFloat("detailTiling", 1f / detailTiling);
-            mat.SetFloat("detailStrength", detailStrength);
-            mat.SetFloat("detailHeightGradient", detailHeightGradient);
-            mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
-            mat.SetFloat("lightMarchAttenuationMultiplier", lightMarchAttenuationMultiplier);
-            mat.SetFloat("baseMipLevel", baseMipLevel);
-            mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
-            mat.SetFloat("cloudSpeed", cloudSpeed);
-
-            mat.SetFloat("baseStepSize", baseStepSize);
-            mat.SetFloat("maxStepSize", maxStepSize);
-            mat.SetFloat("adaptiveStepSizeFactor", adaptiveStepSizeFactor);
-
-            mat.SetFloat("lightMarchDistance", lightMarchDistance);
-            mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
-        }
-
-        //TODO: decouple generation from setting them in the material
-        public void GenerateNoiseTextures()
-        {
-            baseNoise = CreateRT(baseTextureDimension, baseTextureDimension, baseTextureDimension, RenderTextureFormat.R8);
-
-            CloudNoiseGen.RenderNoiseToTexture(baseNoise, PWPerlin, PWWorley, baseNoiseMode);
-            raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoise);
-
-            localCoverage = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(localCoverage, localCoverageSettings, localCoverageSettings, localCoverageMode);
-            //Texture2D compressedLocalCoverage = TextureUtils.CompressSingleChannelRenderTextureToBC4(LocalCoverage, true);	//compress to BC4, increases fps a tiny bit, just disabled for now because it's slow
-            raymarchedCloudMaterial.SetTexture("CloudCoverageDetail", localCoverage);
-
-            cloudType = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(cloudType, cloudTypeSettings, cloudTypeSettings, cloudTypeMode);
-            //Texture2D compressedCloudType = TextureUtils.CompressSingleChannelRenderTextureToBC4(cloudType, true);
-            raymarchedCloudMaterial.SetTexture("CloudType", cloudType);
-
-            cloudMaxHeight = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(cloudMaxHeight, cloudMaxHeightSettings, cloudMaxHeightSettings, cloudMaxHeightMode);
-            //Texture2D compressedCloudMaxHeight = TextureUtils.CompressSingleChannelRenderTextureToBC4(cloudMaxHeight, true);
-            raymarchedCloudMaterial.SetTexture("CloudMaxHeight", cloudMaxHeight);
-
-            /*
-            cloudMinHeight = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(cloudMinHeight, cloudMinHeightSettings, cloudMinHeightSettings, cloudMinHeightMode);
-            //Texture2D compressedCloudMinHeight= TextureUtils.CompressSingleChannelRenderTextureToBC4(cloudMinHeight, true);
-            */
-            //Debug.Log("16");
-            //raymarchedCloudMaterial.SetTexture("CloudMinHeight", cloudMinHeight);
         }
 
         private Texture2D BakeDensityCurvesTexture()
@@ -401,7 +429,7 @@ namespace Atmosphere
             }
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
 
-            double detailXOffset = xOffset / (double) detailTiling, localDetailYOffset = yOffset / (double)detailTiling, localDetailZOffset = zOffset / (double)detailTiling;
+            double detailXOffset = xOffset / (double) secondaryNoiseTiling, localDetailYOffset = yOffset / (double)secondaryNoiseTiling, localDetailZOffset = zOffset / (double)secondaryNoiseTiling;
 
             raymarchedCloudMaterial.SetVector("detailOffset", new Vector4((float)(detailXOffset - Math.Truncate(detailXOffset)),
                 (float)(localDetailYOffset - Math.Truncate(detailXOffset)), (float)(localDetailZOffset - Math.Truncate(detailXOffset)), 0f));
@@ -417,14 +445,9 @@ namespace Atmosphere
             }
         }
 
-        
-        // rotates the main texture I think
+        // supposed to be called from CloudsPQS which I won't use because we don't want to be locked to PQS
         internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 detailRotationMatrix)
         {
-            //search for camera 01 and
-            //no just add a script with onWillRenderObject
-            //material.SetMatrix("CameraToWorld", cam.cameraToWorldMatrix);
-
             if (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER)
             {
                 Matrix4x4 rotationMatrix = mainRotationMatrix * World2Planet;
@@ -446,7 +469,7 @@ namespace Atmosphere
             }
         }
 
-        public RenderTexture CreateRT(int height, int width, int volume, RenderTextureFormat format)
+        private RenderTexture CreateRT(int height, int width, int volume, RenderTextureFormat format)
         {
             RenderTexture RT = new RenderTexture(height, width, 0, format);
             RT.filterMode = FilterMode.Bilinear;

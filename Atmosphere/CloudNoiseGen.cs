@@ -10,7 +10,8 @@ namespace Atmosphere
     {
         Mix = 0,
         PerlinOnly = 1,
-        WorleyOnly = 2
+        WorleyOnly = 2,
+        None = 4,
     }
 
     [System.Serializable]
@@ -39,6 +40,31 @@ namespace Atmosphere
         }
     }
 
+    [System.Serializable]
+    public class NoiseWrapper
+    {
+        [ConfigItem, Optional]
+        NoiseSettings worley;
+
+        [ConfigItem, Optional]
+        NoiseSettings perlin;
+
+        public NoiseSettings PerlinNoiseSettings { get => perlin; }
+        public NoiseSettings WorleyNoiseSettings { get => worley; }
+
+        public NoiseMode GetNoiseMode()
+        {
+            if (worley != null && perlin != null)
+                return NoiseMode.Mix;
+            else if (worley != null)
+                return NoiseMode.WorleyOnly;
+            else if (perlin != null)
+                return NoiseMode.PerlinOnly;
+            else
+                return NoiseMode.None;
+        }
+    }
+
     class CloudNoiseGen
     {
         private static Material noiseMaterial = null;
@@ -56,15 +82,21 @@ namespace Atmosphere
         }
 
 
-        public static void RenderNoiseToTexture(RenderTexture RT, NoiseSettings perlinSettings, NoiseSettings worleySettings, NoiseMode mode)
+        public static void RenderNoiseToTexture(RenderTexture RT, NoiseWrapper settings)
         {
-            Debug.Log("RenderNoiseToTexture");
-            NoiseMaterial.SetVector("_PerlinParams", perlinSettings.GetParams());
-            NoiseMaterial.SetFloat("_PerlinLift", perlinSettings.Lift);
-            NoiseMaterial.SetVector("_WorleyParams", worleySettings.GetParams());
-            NoiseMaterial.SetFloat("_WorleyLift", worleySettings.Lift);
+            if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.PerlinOnly)
+            { 
+                NoiseMaterial.SetVector("_PerlinParams", settings.PerlinNoiseSettings.GetParams());
+                NoiseMaterial.SetFloat("_PerlinLift", settings.PerlinNoiseSettings.Lift);
+            }
 
-            NoiseMaterial.SetInt("_Mode", (int)mode);
+            if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.WorleyOnly)
+            { 
+                NoiseMaterial.SetVector("_WorleyParams", settings.WorleyNoiseSettings.GetParams());
+                NoiseMaterial.SetFloat("_WorleyLift", settings.WorleyNoiseSettings.Lift);
+            }
+
+            NoiseMaterial.SetInt("_Mode", (int)settings.GetNoiseMode());
             NoiseMaterial.SetInt("_TargetChannel", 0);
             NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
 
