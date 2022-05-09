@@ -14,6 +14,10 @@ namespace ShaderLoader
     public class ShaderLoaderClass : MonoBehaviour
     {
         static Dictionary<string, Shader> shaderDictionary = null;
+
+        public static Vector3 stbnDimensions = new Vector3(128, 128, 64);
+        public static Texture2D stbn;
+
         public static bool loaded = false;
 
         private void Start()
@@ -50,6 +54,15 @@ namespace ShaderLoader
                     bundle.Unload(false);
                     www.Dispose();
                 }
+
+                // Load Stbn
+                stbn = new Texture2D((int)stbnDimensions.x, (int) (stbnDimensions.y * stbnDimensions.z), TextureFormat.R8, false);
+                stbn.filterMode = FilterMode.Point;
+                stbn.wrapMode = TextureWrapMode.Repeat;
+                stbn.LoadRawTextureData(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/EnvironmentalVisualEnhancements/stbn.R8"));
+                stbn.Apply();
+
+                Debug.Log("Stbn loaded");
 
                 loaded = true;
             }

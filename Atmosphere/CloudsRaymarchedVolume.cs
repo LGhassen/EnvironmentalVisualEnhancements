@@ -178,7 +178,6 @@ namespace Atmosphere
         protected Material raymarchedCloudMaterial, compositeCloudsMaterial, reconstructCloudsMaterial;
 
         private Texture2D cloudCoverage, curlNoise;
-        private Texture2D stbn;
 
         //probably this shouldn't be here but static in the DeferredRaymarchedVolumetricCloudsRenderer class
         private Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer> CameraToDeferredRenderer = new Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer>();
@@ -212,14 +211,9 @@ namespace Atmosphere
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
 
-            stbn = new Texture2D(stbnWidth, stbnHeight * stbnSlices, TextureFormat.R8, false);
-            stbn.filterMode = FilterMode.Point;
-            stbn.wrapMode = TextureWrapMode.Repeat;
-            stbn.LoadRawTextureData(System.IO.File.ReadAllBytes(stbnPath));
-            stbn.Apply();
-            raymarchedCloudMaterial.SetTexture("StbnBlueNoise", stbn);
-            raymarchedCloudMaterial.SetFloat("blueNoiseResolution", stbnWidth);
-            raymarchedCloudMaterial.SetFloat("blueNoiseSlices", stbnSlices);
+            raymarchedCloudMaterial.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
+            raymarchedCloudMaterial.SetFloat("blueNoiseResolution", ShaderLoader.ShaderLoaderClass.stbnDimensions.x);
+            raymarchedCloudMaterial.SetFloat("blueNoiseSlices", ShaderLoader.ShaderLoaderClass.stbnDimensions.z);
 
             GenerateNoiseTextures();
 
@@ -404,9 +398,6 @@ namespace Atmosphere
 
                 baseNoiseOffsets[i] = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float) (noiseYOffset - Math.Truncate(noiseYOffset)),
                     (float) (noiseZOffset - Math.Truncate(noiseZOffset)), 0f);
-
-
-                Debug.Log("offsets x " + baseNoiseOffsets[i].x.ToString());
             }
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
 
