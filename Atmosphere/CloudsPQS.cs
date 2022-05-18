@@ -278,6 +278,29 @@ namespace Atmosphere
                             layerVolume.enabled = true;
                         }
                     }
+                    if (layerRaymarchedVolume != null && sphere.isActive)
+                    {
+                        if (FlightCamera.fetch != null)
+                        {
+                                layerRaymarchedVolume.enabled = true;
+                                layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
+                                                       world2SphereMatrix,
+                                                       mainRotationQ,
+                                                       detailRotationQ,
+                                                       mainRotationMatrix,
+                                                       detailRotationMatrix);
+                        }
+                        else
+                        {
+                            layerRaymarchedVolume.UpdatePos(this.sphere.target.position,
+                                                       world2SphereMatrix,
+                                                       mainRotationQ,
+                                                       detailRotationQ,
+                                                       mainRotationMatrix,
+                                                       detailRotationMatrix);
+                            layerVolume.enabled = true;
+                        }
+                    }
                 }
             }
         }

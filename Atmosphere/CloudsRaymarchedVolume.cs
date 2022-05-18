@@ -10,6 +10,18 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
 
+using UnityEngine;
+using System.Collections;
+using System.IO;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+
+using KSP.IO;
+
 namespace Atmosphere
 {
     public class CloudTexture
@@ -66,11 +78,12 @@ namespace Atmosphere
         FloatCurve densityCurve;
 
 
-        /*//these aren't used yet, using global for now
+        //these aren't used yet, using global for now
         [ConfigItem]
         float detailHeightGradient;
         [ConfigItem]
         float detailStrength;
+        /*
         [ConfigItem]
         float curlNoiseTiling;
         [ConfigItem]
@@ -113,6 +126,9 @@ namespace Atmosphere
         private int baseNoiseDimension = 128;
         private RenderTexture baseNoiseRT;
 
+        [ConfigItem]
+        float deTilifyBaseNoise = 1f;
+
         //TODO: move these to global quality settings or something like that
         [ConfigItem]
         float lightMarchSteps = 4;
@@ -153,6 +169,8 @@ namespace Atmosphere
         float absorptionMultiplier = 1.0f;  //I think this isn't needed
         [ConfigItem]
         float lightMarchAttenuationMultiplier = 1.0f;   //rename to lightMarchAbsorptionMultiplier?
+        [ConfigItem]
+        float skylightMultiplier = 0.5f;
 
         [ConfigItem]
         float cloudTypeTiling = 5f;
@@ -337,6 +355,11 @@ namespace Atmosphere
 
             mat.SetFloat("lightMarchDistance", lightMarchDistance);
             mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
+
+            Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false);
+            mat.SetTexture("BlueNoise", tex);
+            mat.SetFloat("deTilifyBaseNoise", deTilifyBaseNoise * 0.01f);
+            mat.SetFloat("skylightMultiplier", skylightMultiplier);
         }
 
         private void ProcessCloudTypes()
@@ -419,15 +442,24 @@ namespace Atmosphere
 
             xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
 
-            Vector4[] baseNoiseOffsets = new Vector4[10];
+            Vector4[] baseNoiseOffsets   = new Vector4[10];
+            Vector4[] noTileNoiseOffsets = new Vector4[10];
             for (int i = 0; i < cloudTypes.Count && i < 10; i++)
             {
                 double noiseXOffset = xOffset / (double)cloudTypes[i].BaseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseTiling;
 
                 baseNoiseOffsets[i] = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float) (noiseYOffset - Math.Truncate(noiseYOffset)),
                     (float) (noiseZOffset - Math.Truncate(noiseZOffset)), 0f);
+
+                double noTileXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
+                double noTileYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
+                double noTileZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
+
+                noTileNoiseOffsets[i] = new Vector4((float)(noTileXOffset - Math.Truncate(noTileXOffset)), (float)(noTileYOffset - Math.Truncate(noTileYOffset)),
+                    (float)(noTileZOffset - Math.Truncate(noTileZOffset)), 0f);
             }
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
+            raymarchedCloudMaterial.SetVectorArray("noTileNoiseOffsets", noTileNoiseOffsets);
 
             double detailXOffset = xOffset / (double) secondaryNoiseTiling, localDetailYOffset = yOffset / (double)secondaryNoiseTiling, localDetailZOffset = zOffset / (double)secondaryNoiseTiling;
 
@@ -466,6 +498,8 @@ namespace Atmosphere
                     volumeHolder.transform.localRotation = rotation;
                     raymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);
                 }
+
+                raymarchedCloudMaterial.SetMatrix("cloudRotation", mainRotationMatrix);
             }
         }
 
