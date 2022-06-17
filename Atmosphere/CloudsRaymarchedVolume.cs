@@ -481,7 +481,7 @@ namespace Atmosphere
                     raymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);
                 }
 
-                raymarchedCloudMaterial.SetMatrix("cloudRotation", mainRotationMatrix);
+                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);
             }
         }
 
