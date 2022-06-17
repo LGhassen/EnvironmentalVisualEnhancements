@@ -1,26 +1,9 @@
-﻿using EVEManager;
-using ShaderLoader;
+﻿using ShaderLoader;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
-
-using UnityEngine;
-using System.Collections;
-using System.IO;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-
-using KSP.IO;
 
 namespace Atmosphere
 {
@@ -73,7 +56,7 @@ namespace Atmosphere
         float detailTiling = 100f;
 
         [ConfigItem]
-        float density = 1f;
+        float density = 0.15f;
         [ConfigItem]
         FloatCurve densityCurve;
 
@@ -83,6 +66,7 @@ namespace Atmosphere
         float detailHeightGradient;
         [ConfigItem]
         float detailStrength;
+
         /*
         [ConfigItem]
         float curlNoiseTiling;
@@ -168,8 +152,6 @@ namespace Atmosphere
         [ConfigItem]
         float absorptionMultiplier = 1.0f;  //I think this isn't needed
         [ConfigItem]
-        float lightMarchAttenuationMultiplier = 1.0f;   //rename to lightMarchAbsorptionMultiplier?
-        [ConfigItem]
         float skylightMultiplier = 0.5f;
 
         [ConfigItem]
@@ -222,9 +204,9 @@ namespace Atmosphere
 
         private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
 
-        public void Apply(CloudsMaterial material, float radius, Transform parent)  //here we need the radius of the planet also
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)
         {
-            planetRadius = radius;
+            planetRadius = parentRadius;
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
@@ -344,7 +326,7 @@ namespace Atmosphere
             mat.SetFloat("detailStrength", secondaryNoiseStrength);
             mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
-            mat.SetFloat("lightMarchAttenuationMultiplier", lightMarchAttenuationMultiplier);
+            mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
             mat.SetFloat("baseMipLevel", baseMipLevel);
             mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
             mat.SetFloat("cloudSpeed", cloudSpeed);

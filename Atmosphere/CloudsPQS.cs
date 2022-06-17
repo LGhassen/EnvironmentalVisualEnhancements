@@ -76,7 +76,7 @@ namespace Atmosphere
 
                 if (layerRaymarchedVolume != null)
                 {
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform);
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius);
                 }
 
                 volumeApplied = true;
