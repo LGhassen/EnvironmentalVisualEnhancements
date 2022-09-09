@@ -169,12 +169,10 @@ namespace Atmosphere
 
         protected void Update()
         {
-            
+
             bool visible = HighLogic.LoadedScene == GameScenes.TRACKSTATION || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.MAINMENU;
             if (visible)
             {
-                
-
                 double ut;
                 if (HighLogic.LoadedScene == GameScenes.MAINMENU)
                 {
@@ -298,7 +296,7 @@ namespace Atmosphere
                                                        detailRotationQ,
                                                        mainRotationMatrix,
                                                        detailRotationMatrix);
-                            layerVolume.enabled = true;
+                            layerRaymarchedVolume.enabled = true;
                         }
                     }
                 }

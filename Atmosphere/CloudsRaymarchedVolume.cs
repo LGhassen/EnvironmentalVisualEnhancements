@@ -159,7 +159,11 @@ namespace Atmosphere
         [ConfigItem]
         float cloudMaxHeightTiling = 5f;
         [ConfigItem]
-        float cloudSpeed = 11.0f;
+        float cloudSpeed = 11.0f;   // TODO: fix the direction for this
+        
+        [ConfigItem]
+        float upwardsCloudSpeed = 11.0f;
+
 
         //[ConfigItem]
         //float curlNoiseTiling = 1f;
@@ -182,6 +186,8 @@ namespace Atmosphere
 
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
+
+        private Texture densityCurvesTexture;
 
         private bool _enabled = true;
         public bool enabled
@@ -292,7 +298,7 @@ namespace Atmosphere
         {
             if (cloudTexture.GlobalTexture != null)
             {
-                cloudTexture.GlobalTexture.ApplyTexture(mat, "propertyName");
+                cloudTexture.GlobalTexture.ApplyTexture(mat, propertyName);
             }
             else if (cloudTexture.GeneratedTiledTexture != null)
             {
@@ -363,7 +369,8 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
             raymarchedCloudMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
 
-            raymarchedCloudMaterial.SetTexture("DensityCurve", BakeDensityCurvesTexture());
+            densityCurvesTexture = BakeDensityCurvesTexture();  // must keep a reference to it or it gets yeeted on scene load
+            raymarchedCloudMaterial.SetTexture("DensityCurve", densityCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[10];
             Vector4[] cloudTypePropertiesArray1 = new Vector4[10];
