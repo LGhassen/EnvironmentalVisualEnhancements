@@ -29,6 +29,7 @@ Shader "EVE/TerrainCityLight" {
 			Pass {
 
 				Lighting Off
+				Offset -0.25, -0.25
 
 				CGPROGRAM
 
