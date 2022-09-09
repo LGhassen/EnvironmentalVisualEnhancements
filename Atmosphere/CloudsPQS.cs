@@ -387,7 +387,7 @@ namespace Atmosphere
         {
             yield return new WaitForFixedUpdate();
 
-            if (!sphere.isActive && !layer2D.Scaled)
+            if (!sphere.isActive && layer2D != null && !layer2D.Scaled)
             {
                 OnSphereInactive();
             }
