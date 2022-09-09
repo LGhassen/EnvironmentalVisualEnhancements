@@ -188,5 +188,11 @@ namespace EVEManager
             UnityEngine.Debug.Log("EVEManager: " + message);
         }
 
+        void OnDestroy()
+        {
+            GameEvents.onGUIApplicationLauncherReady.Remove(AddButton);
+            GameEvents.onGUIApplicationLauncherUnreadifying.Remove(RemoveButton);
+        }
+
     }
 }
