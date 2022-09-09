@@ -94,27 +94,6 @@ namespace Atmosphere
         {
             if (isInitialized)
             {
-                if (!renderingEnabled)
-                {
-                    CommandBuffer cb = new CommandBuffer();
-
-                    DeferredRendererToScreen.SetActive(true);
-                    DeferredRendererToScreen.SetRenderTexture(targetRT);
-
-                    //downscale depth
-                    cb.Blit(null, downscaledDepthRT, downscaleDepthMaterial);
-                    cb.SetGlobalTexture("EVEDownscaledDepth", downscaledDepthRT);
-                    DeferredRendererToScreen.SetDepthTexture(downscaledDepthRT);
-
-                    //clear target rendertexture
-                    cb.SetRenderTarget(targetRT);
-                    cb.ClearRenderTarget(false, true, Color.gray);
-
-                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
-
-                    commandBuffersAdded.Add(cb);
-                }
-
                 renderersAdded.Add(mr.gameObject.transform.position.magnitude, new Tuple<Renderer, Material>(mr, mat));
 
                 renderingEnabled = true;
@@ -125,17 +104,27 @@ namespace Atmosphere
         {
             if (renderingEnabled)
             {
+                CommandBuffer cb = new CommandBuffer();
+
+                DeferredRendererToScreen.SetActive(true);
+                DeferredRendererToScreen.SetRenderTexture(targetRT);
+
+                //downscale depth
+                cb.Blit(null, downscaledDepthRT, downscaleDepthMaterial);
+                cb.SetGlobalTexture("EVEDownscaledDepth", downscaledDepthRT);
+                DeferredRendererToScreen.SetDepthTexture(downscaledDepthRT);
+
+                //clear target rendertexture
+                cb.SetRenderTarget(targetRT);
+                cb.ClearRenderTarget(false, true, Color.gray);
+
                 foreach (var elt in renderersAdded.Reverse())           //sort cloud layers by decreasing distance to camera and render them farthest to closest
                 {
-                    CommandBuffer cb = new CommandBuffer();
-
-                    cb.SetRenderTarget(targetRT);
                     cb.DrawRenderer(elt.Value.Item1, elt.Value.Item2);
-
-                    targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
-
-                    commandBuffersAdded.Add(cb);
                 }
+
+                targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+                commandBuffersAdded.Add(cb);
             }
         }
 
@@ -154,10 +143,14 @@ namespace Atmosphere
                         targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
                     }
                     commandBuffersAdded.Clear();
-                    renderersAdded.Clear();
 
-                    DeferredRendererToScreen.SetActive(false);
-                    renderingEnabled = false;
+                    if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                    {
+                        renderersAdded.Clear();
+
+                        DeferredRendererToScreen.SetActive(false);
+                        renderingEnabled = false;
+                    }
                 }
             }
 
