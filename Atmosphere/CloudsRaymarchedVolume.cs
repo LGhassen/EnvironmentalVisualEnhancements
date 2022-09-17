@@ -115,7 +115,7 @@ namespace Atmosphere
 
         //TODO: move these to global quality settings or something like that
         [ConfigItem]
-        float lightMarchSteps = 4;
+        float lightMarchSteps = 8;
 
         [ConfigItem]
         float lightMarchDistance = 800f;
@@ -390,29 +390,41 @@ namespace Atmosphere
             int resolution = 128;
 
             if (cloudTypes.Count == 0)
-                return Texture2D.blackTexture;
+                return Texture2D.whiteTexture;
 
-            Texture2D tex = new Texture2D(cloudTypes.Count, resolution, TextureFormat.R8, false);
+            Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.R8, false);
 
             tex.filterMode = FilterMode.Bilinear;
             tex.wrapMode = TextureWrapMode.Clamp; //will need to pass this to the compressor script after
 
-            Color[] colors = new Color[resolution * cloudTypes.Count];
+            Color[] colors = new Color[resolution * resolution];
 
-            for (int i = 0; i < cloudTypes.Count; i++)
+            for (int x = 0; x < resolution; x++)
             {
-                for (int j = 0; j < resolution; j++)
-                {
-                    float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)j / resolution);
+                // find where we are and the two curves to interpolate
+                float cloudTypeIndex = (float)x / (float)resolution;
+                cloudTypeIndex *= cloudTypes.Count - 1;
+                int currentCloudType = (int)cloudTypeIndex;
+                int nextCloudType = Math.Min(currentCloudType + 1, cloudTypes.Count - 1);
+                float cloudFrac = cloudTypeIndex - currentCloudType;
 
-                    if (cloudTypes[i].MinAltitude > currentAltitude || cloudTypes[i].MaxAltitude < currentAltitude)
-                        colors[i + j * cloudTypes.Count].r = 0f;
+                //interpolate heights
+                float interpolatedMinAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MinAltitude, cloudTypes[nextCloudType].MinAltitude, cloudFrac);
+                float interpolatedMaxAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MaxAltitude, cloudTypes[nextCloudType].MaxAltitude, cloudFrac);
+
+                for (int y = 0; y < resolution; y++)
+                {
+                    float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / resolution);
+
+                    if (interpolatedMinAltitude > currentAltitude || interpolatedMaxAltitude < currentAltitude)
+                        colors[x + y * resolution].r = 0f;
                     else
                     {
-                        float t = (currentAltitude - cloudTypes[i].MinAltitude) / (cloudTypes[i].MaxAltitude - cloudTypes[i].MinAltitude);
-                        colors[i + j * cloudTypes.Count].r = cloudTypes[i].DensityCurve.Evaluate(t);
+                        float t = (currentAltitude - interpolatedMinAltitude) / (interpolatedMaxAltitude - interpolatedMinAltitude);
+                        colors[x + y * resolution].r = Mathf.Lerp(cloudTypes[currentCloudType].DensityCurve.Evaluate(t), cloudTypes[nextCloudType].DensityCurve.Evaluate(t), cloudFrac);
                     }
                 }
+
             }
 
             tex.SetPixels(colors);
