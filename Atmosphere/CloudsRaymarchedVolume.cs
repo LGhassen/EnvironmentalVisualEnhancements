@@ -450,10 +450,19 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
             raymarchedCloudMaterial.SetVectorArray("noTileNoiseOffsets", noTileNoiseOffsets);
 
-            double detailXOffset = xOffset / (double) secondaryNoiseTiling, localDetailYOffset = yOffset / (double)secondaryNoiseTiling, localDetailZOffset = zOffset / (double)secondaryNoiseTiling;
+            double detailXOffset = xOffset / (double) secondaryNoiseTiling, detailYOffset = yOffset / (double)secondaryNoiseTiling, detailZOffset = zOffset / (double)secondaryNoiseTiling;
 
             raymarchedCloudMaterial.SetVector("detailOffset", new Vector4((float)(detailXOffset - Math.Truncate(detailXOffset)),
-                (float)(localDetailYOffset - Math.Truncate(detailXOffset)), (float)(localDetailZOffset - Math.Truncate(detailXOffset)), 0f));
+                (float)(detailYOffset - Math.Truncate(detailXOffset)), (float)(detailZOffset - Math.Truncate(detailXOffset)), 0f));
+
+            detailXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
+            detailYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
+            detailZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
+
+            Vector3 noTileNoiseDetailOffset = new Vector3((float)(detailXOffset - Math.Truncate(detailXOffset)),
+                (float)(detailYOffset - Math.Truncate(detailXOffset)), (float)(detailZOffset - Math.Truncate(detailXOffset)));
+
+            raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
         }
 
         public void Remove()
