@@ -384,21 +384,15 @@ namespace Atmosphere
                 int nextCloudType = Math.Min(currentCloudType + 1, cloudTypes.Count - 1);
                 float cloudFrac = cloudTypeIndex - currentCloudType;
 
-                //interpolate heights, TODO: lock heights option
                 float interpolatedMinAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MinAltitude, cloudTypes[nextCloudType].MinAltitude, cloudFrac);
                 float interpolatedMaxAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MaxAltitude, cloudTypes[nextCloudType].MaxAltitude, cloudFrac);
 
                 for (int y = 0; y < resolution; y++)
                 {
                     float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / resolution);
-
-                    if (interpolatedMinAltitude > currentAltitude || interpolatedMaxAltitude < currentAltitude)
-                        colors[x + y * resolution].r = 0f;
-                    else
-                    {
-                        float t = (currentAltitude - interpolatedMinAltitude) / (interpolatedMaxAltitude - interpolatedMinAltitude);
-                        colors[x + y * resolution].r = Mathf.Lerp(cloudTypes[currentCloudType].DensityCurve.Evaluate(t), cloudTypes[nextCloudType].DensityCurve.Evaluate(t), cloudFrac);
-                    }
+                    colors[x + y * resolution].r = Mathf.Lerp(EvaluateCloudValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                        EvaluateCloudValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                        cloudFrac);
                 }
 
             }
@@ -407,6 +401,20 @@ namespace Atmosphere
             tex.Apply(false);
 
             return tex;
+        }
+
+        float EvaluateCloudValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
+        {
+            float minAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMinAltitude : cloudTypes[cloudIndex].MinAltitude;
+            float maxAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMaxAltitude : cloudTypes[cloudIndex].MaxAltitude;
+
+            if (currentAltitude <= maxAltitude && currentAltitude >= minAltitude)
+            {
+                float t = (currentAltitude - minAltitude) / (maxAltitude - minAltitude);
+                return cloudTypes[cloudIndex].DensityCurve.Evaluate(t);
+            }
+
+            return 0f;
         }
 
         public void UpdateCloudNoiseOffsets()
