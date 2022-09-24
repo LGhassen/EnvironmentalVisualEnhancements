@@ -46,26 +46,24 @@ namespace Atmosphere
         float maxAltitude = 0f;
 
         [ConfigItem]
-        bool lockHeights = false;
-
-        [ConfigItem]
-        float coverageDetailTiling = 1f;
-        [ConfigItem]
         float baseTiling = 1000f;
         [ConfigItem]
         float detailTiling = 100f;
-
-        [ConfigItem]
-        float density = 0.15f;
-        [ConfigItem]
-        FloatCurve densityCurve;
-
 
         //these aren't used yet, using global for now
         [ConfigItem]
         float detailHeightGradient;
         [ConfigItem]
         float detailStrength;
+
+        [ConfigItem]
+        float density = 0.15f;
+
+        [ConfigItem]
+        bool interpolateCloudHeights = true;
+
+        [ConfigItem]
+        FloatCurve densityCurve;
 
         /*
         [ConfigItem]
@@ -77,8 +75,7 @@ namespace Atmosphere
         public FloatCurve DensityCurve { get => densityCurve; }
         public float MinAltitude { get => minAltitude; }
         public float MaxAltitude { get => maxAltitude; }
-        public bool LockHeights { get => lockHeights; }
-        public float CoverageDetailTiling { get => coverageDetailTiling; }
+        public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
         public float BaseTiling { get => baseTiling; }
         public float DetailTiling { get => detailTiling; }
         public float Density { get => density; }
@@ -138,26 +135,19 @@ namespace Atmosphere
         TextureWrapper coverageMap;
 
         [ConfigItem, Optional]
-        TiledCloudTexture localCoverageMap;
-
-        [ConfigItem, Optional]
         CloudTexture cloudTypeMap;
-
-        [ConfigItem, Optional]
-        CloudTexture cloudMaxHeightMap;
 
         ///cloud params
         [ConfigItem]
         Color cloudColor = Color.white;
         [ConfigItem]
-        float absorptionMultiplier = 1.0f;  //I think this isn't needed
+        float absorptionMultiplier = 1.0f;
         [ConfigItem]
         float skylightMultiplier = 0.5f;
 
         [ConfigItem]
         float cloudTypeTiling = 5f;
-        [ConfigItem]
-        float cloudMaxHeightTiling = 5f;
+
         [ConfigItem]
         float cloudSpeed = 11.0f;   // TODO: fix the direction for this
         
@@ -176,9 +166,9 @@ namespace Atmosphere
         float secondaryNoiseTiling = 1f;
         [ConfigItem]
         float secondaryNoiseStrength = 1f;
-        [ConfigItem]
-        float secondaryNoiseGradient = 1f;
-        
+        //[ConfigItem]
+        //float secondaryNoiseGradient = 1f;
+
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
@@ -277,21 +267,7 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("MAP_TYPE_1");
             }
 
-            if (localCoverageMap.GeneratedTiledTexture != null)
-            {
-                GenerateAndAssignTexture(localCoverageMap.GeneratedTiledTexture, "CloudCoverageDetail", raymarchedCloudMaterial);
-            }
-            else if (localCoverageMap.TiledTexture != null)
-            {
-                localCoverageMap.TiledTexture.ApplyTexture(raymarchedCloudMaterial, "CloudCoverageDetail");
-            }
-            else
-            {
-                raymarchedCloudMaterial.SetTexture("CloudCoverageDetail", Texture2D.whiteTexture);
-            }
-
             ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial);
-            ApplyCloudTexture(cloudMaxHeightMap, "CloudMaxHeight", raymarchedCloudMaterial);
         }
 
         private void ApplyCloudTexture(CloudTexture cloudTexture, string propertyName, Material mat)
@@ -326,11 +302,10 @@ namespace Atmosphere
         {
             mat.SetColor("cloudColor", cloudColor);
             mat.SetFloat("cloudTypeTiling", cloudTypeTiling);
-            mat.SetFloat("cloudMaxHeightTiling", cloudMaxHeightTiling);
 
             mat.SetFloat("detailTiling", 1f / secondaryNoiseTiling);
             mat.SetFloat("detailStrength", secondaryNoiseStrength);
-            mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
+            //mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
             mat.SetFloat("baseMipLevel", baseMipLevel);
@@ -344,7 +319,7 @@ namespace Atmosphere
             mat.SetFloat("lightMarchDistance", lightMarchDistance);
             mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
 
-            Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false);
+            Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false); //TODO: remove/replace with lower res texture?
             mat.SetTexture("BlueNoise", tex);
             mat.SetFloat("deTilifyBaseNoise", deTilifyBaseNoise * 0.01f);
             mat.SetFloat("skylightMultiplier", skylightMultiplier);
@@ -369,15 +344,15 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
             raymarchedCloudMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
 
-            densityCurvesTexture = BakeDensityCurvesTexture();  // must keep a reference to it or it gets yeeted on scene load
+            densityCurvesTexture = BakeDensityCurvesTexture();
             raymarchedCloudMaterial.SetTexture("DensityCurve", densityCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[10];
             Vector4[] cloudTypePropertiesArray1 = new Vector4[10];
             for (int i = 0; i < cloudTypes.Count && i < 10; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, cloudTypes[i].CoverageDetailTiling, 0f);   //0f instead of anvilBias
-                cloudTypePropertiesArray1[i] = new Vector4(cloudTypes[i].LockHeights ? 1f : 0f, 0f, 0f, 0f);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, 0f, 0f);
+                cloudTypePropertiesArray1[i] = new Vector4(0f, 0f, 0f, 0f);
             }
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties1", cloudTypePropertiesArray1);
@@ -408,7 +383,7 @@ namespace Atmosphere
                 int nextCloudType = Math.Min(currentCloudType + 1, cloudTypes.Count - 1);
                 float cloudFrac = cloudTypeIndex - currentCloudType;
 
-                //interpolate heights
+                //interpolate heights, TODO: lock heights option
                 float interpolatedMinAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MinAltitude, cloudTypes[nextCloudType].MinAltitude, cloudFrac);
                 float interpolatedMaxAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MaxAltitude, cloudTypes[nextCloudType].MaxAltitude, cloudFrac);
 
@@ -535,7 +510,6 @@ namespace Atmosphere
 
         public class Updater : MonoBehaviour
         {
-
             public Material mat;
             public Transform parent;
             public CloudsRaymarchedVolume volume;
