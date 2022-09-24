@@ -59,11 +59,14 @@ namespace Atmosphere
         private Camera targetCamera;
         private CommandBuffer commandBuffer;
 
-        // list of volumes sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
+        // raw list of volumes added
         List<CloudsRaymarchedVolume> volumesAdded = new List<CloudsRaymarchedVolume>();
 
+        // list of intersections sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
+        List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
+
         private RenderTexture historyFlipRT, historyFlopRT, newDistanceFlipRT, newDistanceFlopRT, newRaysFlipRT, newRaysFlopRT;
-        bool useFlipBuffer = true;
+        bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
         Matrix4x4 previousV = Matrix4x4.identity;
@@ -164,12 +167,18 @@ namespace Atmosphere
             }
         }
 
+        struct raymarchedLayerIntersection
+        {
+            public float distance;
+            public CloudsRaymarchedVolume layer;
+            public bool isSecondIntersect;
+        }
+
         void OnPreRender()
         {
             if (renderingEnabled)
             {
-                //calculate camera altitude
-                //float camAltitude = 0; //TODO: placeholder FIX IT
+
 
                 //TODO: sort layers by distance to nearest thing
                 //Do a flip flop raymarching scheme to the reprojection buffer
@@ -188,25 +197,89 @@ namespace Atmosphere
                 }
                 */
 
-                //for now just do the front one
+                // calculate intersections and intersection distances for each layer if we're inside layer -> 1 intersect with distance 0 and 1 intersect with distance camAltitude + 2*planetRadius+innerLayerAlt (layers must not overlap, possibly enforce this in the Clouds class?)
+                // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
+                // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
+                intersections.Clear();
+                foreach (var elt in volumesAdded)
+                {
+                    //calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
+                    float camDistanceToPlanetOrigin = (gameObject.transform.position - elt.ParentTransform.position).magnitude;
+
+                    if (camDistanceToPlanetOrigin >= elt.InnerSphereRadius && camDistanceToPlanetOrigin <= elt.OuterSphereRadius)
+                    {
+                        intersections.Add(new raymarchedLayerIntersection() { distance = 0f, layer = elt, isSecondIntersect = false });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin+elt.InnerSphereRadius, layer = elt, isSecondIntersect = true });
+                    }
+                    else if (camDistanceToPlanetOrigin < elt.InnerSphereRadius)
+                    {
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + elt.InnerSphereRadius, layer = elt, isSecondIntersect = false });
+                    }
+                    else if (camDistanceToPlanetOrigin > elt.OuterSphereRadius)
+                    {
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin - elt.OuterSphereRadius, layer = elt, isSecondIntersect = false });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + elt.InnerSphereRadius, layer = elt, isSecondIntersect = true });
+                    }
+                }
+
+                // now sort our intersections front to back
+                intersections.OrderBy(x => x.distance);
+
+                // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
+
+                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newDistanceFlipRT) };
+                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlopRT), new RenderTargetIdentifier(newDistanceFlopRT) };
                 commandBuffer.Clear();
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
+                int frame = Time.frameCount % (256);
 
-                var cloudMaterial = volumesAdded.ElementAt(0).RaymarchedCloudMaterial;
-                var mr = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); //TODO: change this to not use a GetComponent
+                bool useFlipRaysBuffer = true;
+                bool isFirstLayerRendered  = true;
+                foreach (var intersection in intersections)
+                {
+                    var cloudMaterial = volumesAdded.ElementAt(0).RaymarchedCloudMaterial;
 
-                //render to new rays and distance textures
-                //TODO change this to flip flop when doing multiple layers
-                RenderTargetIdentifier[] raysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newDistanceFlipRT) };
-                commandBuffer.SetRenderTarget(raysRenderTextures, newRaysFlipRT.depthBuffer);
-                commandBuffer.DrawRenderer(mr, cloudMaterial, 0, -1);                          //maybe just replace with a drawMesh?
+                    var mr = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); //TODO: change this to not use a GetComponent
+
+                    // set material properties
+                    
+                    //this needs to be done on pre-render but it's a bit of a waste
+                    cloudMaterial.SetVector("reconstructedTextureResolution", new Vector2(historyFlipRT.width, historyFlipRT.height));
+                    cloudMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / historyFlipRT.width, 1.0f / historyFlipRT.height));
+
+                    cloudMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
+                    cloudMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
+
+                    cloudMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
+                    cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
+                    cloudMaterial.SetFloat("frameNumber", (float)(frame));
+
+                    // handle the actual rendering
+
+                    commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysFlipRT.depthBuffer);
+
+                    //cloudMaterial.SetFloat("firstLayerRendered", isFirstLayerRendered ? 1f : 0f);
+                    //cloudMaterial.SetFloat("renderSecondLayerIntersect", intersection.isSecondIntersect ? 1f : 0f);    // these don't work from here (shader always gets the last params) so just use multiple passes in shader
+
+                    cloudMaterial.SetTexture("PreviousLayerRays", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
+                    cloudMaterial.SetTexture("PreviousLayerDistance", useFlipRaysBuffer ? newDistanceFlopRT : newDistanceFlipRT); // not sure how I'm gonna handle weighing between multiple layers, perhaps just the distance weighed by previous alpha? usually I weigh by density but yeah this could work
+
+                    commandBuffer.DrawRenderer(mr, cloudMaterial, 0, intersection.isSecondIntersect? 1 : 0); //maybe just replace with a drawMesh?
+
+                    isFirstLayerRendered = false;
+                    useFlipRaysBuffer = !useFlipRaysBuffer;
+                }
+
+                // here do reprojection
+
+                
 
                 RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyFlipRT) };   //technically don't need to output the distance here
                 RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyFlopRT) };
 
                 //reconstruct full frame from history and new rays texture
-                RenderTargetIdentifier[] targetIdentifiers = useFlipBuffer ? flipIdentifiers : flopIdentifiers;
+                RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
 
@@ -223,42 +296,26 @@ namespace Atmosphere
 
                 reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);
 
-                reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipBuffer ? historyFlopRT : historyFlipRT);
+                reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipScreenBuffer ? historyFlopRT : historyFlipRT);
+                reconstructCloudsMaterial.SetTexture("newRaysBuffer", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
+                reconstructCloudsMaterial.SetTexture("newRaysDepthBuffer", useFlipRaysBuffer ? newDistanceFlopRT : newDistanceFlipRT);
 
-                reconstructCloudsMaterial.SetTexture("newRaysBuffer", newRaysFlipRT);   //TODO: change this blabla flip flop multi layer blabla
-                reconstructCloudsMaterial.SetTexture("newRaysDepthBuffer", newDistanceFlipRT);
-
-                commandBuffer.DrawRenderer(mr, reconstructCloudsMaterial, 0, 0);
-
-                DeferredRaymarchedRendererToScreen.SetActive(true);
-                DeferredRaymarchedRendererToScreen.SetRenderTexture(useFlipBuffer ? historyFlipRT : historyFlopRT);
-
-                //this needs to be done on pre-render but it's a bit of a waste
-                cloudMaterial.SetVector("reconstructedTextureResolution", new Vector2(historyFlipRT.width, historyFlipRT.height));
-                cloudMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / historyFlipRT.width, 1.0f / historyFlipRT.height));
-
-                cloudMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
-                cloudMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
-
+                // TODO: these need to be iterated on and determine the max/min so we can reproject all layers
                 reconstructCloudsMaterial.SetFloat("innerSphereRadius", volumesAdded.ElementAt(0).InnerSphereRadius);
                 reconstructCloudsMaterial.SetFloat("outerSphereRadius", volumesAdded.ElementAt(0).OuterSphereRadius);
                 reconstructCloudsMaterial.SetFloat("planetRadius", volumesAdded.ElementAt(0).PlanetRadius);
                 reconstructCloudsMaterial.SetVector("sphereCenter", volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter")); //this needs to be moved to deferred renderer
 
-                cloudMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
                 reconstructCloudsMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
 
-                //also do this
-                cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
-
-                //also need to set the blue noise offset
-                int frame = Time.frameCount % (256);
-
-                DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
-
-                //to double check if these are still needed
-                cloudMaterial.SetFloat("frameNumber", (float)(frame));
                 reconstructCloudsMaterial.SetFloat("frameNumber", (float)(frame));
+
+                var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
+                commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
+
+                DeferredRaymarchedRendererToScreen.SetActive(true);
+                DeferredRaymarchedRendererToScreen.SetRenderTexture(useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
+                DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -302,7 +359,7 @@ namespace Atmosphere
             {
                 if (renderingEnabled)
                 {
-                    useFlipBuffer = !useFlipBuffer;
+                    useFlipScreenBuffer = !useFlipScreenBuffer;
                     targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
                     volumesAdded.Clear();
 

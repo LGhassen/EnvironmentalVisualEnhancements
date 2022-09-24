@@ -197,6 +197,7 @@ namespace Atmosphere
         public float PlanetRadius { get => planetRadius; }
         
         Transform parentTransform;
+        public Transform ParentTransform { get => parentTransform; }
 
         private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
 
