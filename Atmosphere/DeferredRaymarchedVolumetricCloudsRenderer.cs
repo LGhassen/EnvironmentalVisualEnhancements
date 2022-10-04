@@ -65,7 +65,7 @@ namespace Atmosphere
         // list of intersections sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
         List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
 
-        private RenderTexture historyFlipRT, historyFlopRT, newDistanceFlipRT, newDistanceFlopRT, newRaysFlipRT, newRaysFlopRT;
+        private RenderTexture historyFlipRT, historyFlopRT, reconstructedDistanceRt, newRaysFlipRT, newRaysFlopRT, newMotionVectorsFlipRT, newMotionVectorsFlopRT, newRaysDistanceFlipRT, newRaysDistanceFlopRT;
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
@@ -132,13 +132,17 @@ namespace Atmosphere
                 
                 historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
                 historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
-                
+                reconstructedDistanceRt = CreateRenderTexture(width, height, RenderTextureFormat.RHalf, false, FilterMode.Point);
+
                 newRaysFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
                 newRaysFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
                 
-                newDistanceFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-                newDistanceFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-                
+                newMotionVectorsFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+                newMotionVectorsFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+
+                newRaysDistanceFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RHalf, false, FilterMode.Point);
+                newRaysDistanceFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RHalf, false, FilterMode.Point);
+
                 reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
                 reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
 
@@ -212,8 +216,8 @@ namespace Atmosphere
 
                 // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
 
-                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newDistanceFlipRT) };
-                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlopRT), new RenderTargetIdentifier(newDistanceFlopRT) };
+                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newMotionVectorsFlipRT), new RenderTargetIdentifier(newRaysDistanceFlipRT) };
+                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlopRT), new RenderTargetIdentifier(newMotionVectorsFlopRT), new RenderTargetIdentifier(newRaysDistanceFlopRT) };
                 commandBuffer.Clear();
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
@@ -221,6 +225,22 @@ namespace Atmosphere
 
                 bool useFlipRaysBuffer = true;
                 bool isFirstLayerRendered  = true;
+
+                // have to use these to build the motion vector because the unity provided one in shader will be flipped
+                var currentP = GL.GetGPUProjectionMatrix(targetCamera.projectionMatrix, false);
+                var currentV = targetCamera.worldToCameraMatrix;
+
+                //handle floatingOrigin changes
+                Vector3d currentOffset = FloatingOrigin.TerrainShaderOffset - previousFloatingOriginOffset;
+
+                //transform to camera space
+                Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
+
+                //inject in the previous view matrix
+                previousV.m03 += floatOffset.x;
+                previousV.m13 += floatOffset.y;
+                previousV.m23 += floatOffset.z;
+
                 foreach (var intersection in intersections)
                 {
                     var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
@@ -238,12 +258,16 @@ namespace Atmosphere
                     cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
                     cloudMaterial.SetFloat("frameNumber", (float)(frame));
 
+                    cloudMaterial.SetMatrix("currentVP", currentP * currentV);
+                    cloudMaterial.SetMatrix("previousVP", previousP * previousV);
+
                     // handle the actual rendering
                     commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysFlipRT.depthBuffer);
                     commandBuffer.SetGlobalFloat("isFirstLayerRendered", isFirstLayerRendered ? 1f : 0f);
                     commandBuffer.SetGlobalFloat("renderSecondLayerIntersect", intersection.isSecondIntersect ? 1f : 0f);
                     commandBuffer.SetGlobalTexture("PreviousLayerRays", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
-                    commandBuffer.SetGlobalTexture("PreviousLayerDistance", useFlipRaysBuffer ? newDistanceFlopRT : newDistanceFlipRT); // not sure how I'm gonna handle weighing between multiple layers, perhaps just the distance weighed by previous alpha? usually I weigh by density but yeah this could work
+                    commandBuffer.SetGlobalTexture("PreviousLayerMotionVectors", useFlipRaysBuffer ? newMotionVectorsFlopRT : newMotionVectorsFlipRT);
+                    commandBuffer.SetGlobalTexture("PreviousLayerDistance", useFlipRaysBuffer ? newRaysDistanceFlopRT : newRaysDistanceFlipRT);
 
                     commandBuffer.DrawRenderer(mr, cloudMaterial, 0, -1); //maybe just replace with a drawMesh?
 
@@ -252,28 +276,18 @@ namespace Atmosphere
                 }
 
                 //reconstruct full frame from history and new rays texture
-                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyFlipRT) };   //technically don't need to output the distance here
-                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyFlopRT) };
+                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyFlipRT), new RenderTargetIdentifier(reconstructedDistanceRt) };
+                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyFlopRT), new RenderTargetIdentifier(reconstructedDistanceRt) };
                 RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
-
-                //handle floatingOrigin changes
-                Vector3d currentOffset = FloatingOrigin.TerrainShaderOffset - previousFloatingOriginOffset;
-
-                //transform to camera space
-                Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
-
-                //inject in the previous view matrix
-                previousV.m03 += floatOffset.x;
-                previousV.m13 += floatOffset.y;
-                previousV.m23 += floatOffset.z;
 
                 reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);
 
                 reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipScreenBuffer ? historyFlopRT : historyFlipRT);
                 reconstructCloudsMaterial.SetTexture("newRaysBuffer", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
-                reconstructCloudsMaterial.SetTexture("newRaysDepthBuffer", useFlipRaysBuffer ? newDistanceFlopRT : newDistanceFlipRT);
+                reconstructCloudsMaterial.SetTexture("newRaysMotionVectors", useFlipRaysBuffer ? newMotionVectorsFlopRT : newMotionVectorsFlipRT);
+                reconstructCloudsMaterial.SetTexture("newRaysDepthBuffer", useFlipRaysBuffer ? newRaysDistanceFlopRT : newRaysDistanceFlipRT);
 
                 reconstructCloudsMaterial.SetFloat("innerSphereRadius", innerRepojectionRadius);
                 reconstructCloudsMaterial.SetFloat("outerSphereRadius", outerRepojectionRadius);
@@ -288,7 +302,7 @@ namespace Atmosphere
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
                 DeferredRaymarchedRendererToScreen.SetActive(true);
-                DeferredRaymarchedRendererToScreen.SetRenderTexture(useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
+                DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, reconstructedDistanceRt);
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
@@ -414,10 +428,11 @@ namespace Atmosphere
             gameObject.layer = (int)Tools.Layer.Local;
         }
 
-        public void SetRenderTexture(RenderTexture RT)
+        public void SetRenderTextures(RenderTexture colorBuffer, RenderTexture distanceBuffer)
         {
-            material.SetTexture("colorBuffer", RT);                                                     //TODO: shader properties
-            material.SetVector("reconstructedTextureResolution", new Vector2(RT.width, RT.height));     //TODO: shader properties
+            material.SetTexture("colorBuffer", colorBuffer);                                                     //TODO: shader properties
+            material.SetTexture("distanceBuffer", distanceBuffer);                                                     //TODO: shader properties
+            material.SetVector("reconstructedTextureResolution", new Vector2(colorBuffer.width, colorBuffer.height));     //TODO: shader properties
         }
 
         public void SetActive(bool active)      //needed?
