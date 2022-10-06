@@ -177,6 +177,16 @@ namespace Atmosphere
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
+        private static Material raymarchedCloudCompositeMaterial;
+        public static Material RaymarchedCloudCompositeMaterial
+        {
+            get
+            {
+                if (raymarchedCloudCompositeMaterial == null) raymarchedCloudCompositeMaterial = new Material(ShaderLoaderClass.FindShader("EVE/CompositeRaymarchedClouds"));
+                return raymarchedCloudCompositeMaterial;
+            }
+        }
+
         private Texture densityCurvesTexture;
 
         private bool _enabled = true;

@@ -186,7 +186,8 @@ namespace Atmosphere
                 // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
                 // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
                 intersections.Clear();
-                float innerRepojectionRadius = float.MaxValue, outerRepojectionRadius = float.MinValue;
+                float innerReprojectionRadius = float.MaxValue, outerRepojectionRadius = float.MinValue;
+
                 foreach (var elt in volumesAdded)
                 {
                     //calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
@@ -207,7 +208,7 @@ namespace Atmosphere
                         intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + elt.InnerSphereRadius, layer = elt, isSecondIntersect = true });
                     }
 
-                    innerRepojectionRadius = Mathf.Min(innerRepojectionRadius, elt.InnerSphereRadius);
+                    innerReprojectionRadius = Mathf.Min(innerReprojectionRadius, elt.InnerSphereRadius);
                     outerRepojectionRadius = Mathf.Max(outerRepojectionRadius, elt.OuterSphereRadius);
                 }
 
@@ -289,7 +290,7 @@ namespace Atmosphere
                 reconstructCloudsMaterial.SetTexture("newRaysMotionVectors", useFlipRaysBuffer ? newMotionVectorsFlopRT : newMotionVectorsFlipRT);
                 reconstructCloudsMaterial.SetTexture("newRaysDepthBuffer", useFlipRaysBuffer ? newRaysDistanceFlopRT : newRaysDistanceFlipRT);
 
-                reconstructCloudsMaterial.SetFloat("innerSphereRadius", innerRepojectionRadius);
+                reconstructCloudsMaterial.SetFloat("innerSphereRadius", innerReprojectionRadius);
                 reconstructCloudsMaterial.SetFloat("outerSphereRadius", outerRepojectionRadius);
                 reconstructCloudsMaterial.SetFloat("planetRadius", volumesAdded.ElementAt(0).PlanetRadius);
                 reconstructCloudsMaterial.SetVector("sphereCenter", volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter")); //TODO: cleaner way to handle it
@@ -304,6 +305,8 @@ namespace Atmosphere
                 DeferredRaymarchedRendererToScreen.SetActive(true);
                 DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, reconstructedDistanceRt);
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
+                DeferredRaymarchedRendererToScreen.material.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
+                DeferredRaymarchedRendererToScreen.material.SetVector("sphereCenter", volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter"));
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -411,7 +414,7 @@ namespace Atmosphere
 
         public void Init()
         {
-            material = new Material(ShaderLoaderClass.FindShader("EVE/CompositeRaymarchedClouds"));
+            material = CloudsRaymarchedVolume.RaymarchedCloudCompositeMaterial;
             material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
             Quad.Create(gameObject, 2, Color.white, Vector3.up, Mathf.Infinity);
@@ -430,12 +433,12 @@ namespace Atmosphere
 
         public void SetRenderTextures(RenderTexture colorBuffer, RenderTexture distanceBuffer)
         {
-            material.SetTexture("colorBuffer", colorBuffer);                                                     //TODO: shader properties
-            material.SetTexture("distanceBuffer", distanceBuffer);                                                     //TODO: shader properties
-            material.SetVector("reconstructedTextureResolution", new Vector2(colorBuffer.width, colorBuffer.height));     //TODO: shader properties
+            material.SetTexture("colorBuffer", colorBuffer);                                                                //TODO: shader properties
+            material.SetTexture("distanceBuffer", distanceBuffer);                                                          //TODO: shader properties
+            material.SetVector("reconstructedTextureResolution", new Vector2(colorBuffer.width, colorBuffer.height));       //TODO: shader properties
         }
 
-        public void SetActive(bool active)      //needed?
+        public void SetActive(bool active)
         {
             material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
         }
