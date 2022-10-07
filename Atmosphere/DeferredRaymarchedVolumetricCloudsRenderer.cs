@@ -289,8 +289,6 @@ namespace Atmosphere
 
                 DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, useFlipScreenBuffer ? secondaryHistoryFlipRT : secondaryHistoryFlopRT);
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
-                DeferredRaymarchedRendererToScreen.material.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
-                DeferredRaymarchedRendererToScreen.material.SetVector("sphereCenter", volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter"));
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -398,7 +396,7 @@ namespace Atmosphere
 
         public void Init()
         {
-            material = CloudsRaymarchedVolume.RaymarchedCloudCompositeMaterial;
+            material = new Material(ShaderLoaderClass.FindShader("EVE/CompositeRaymarchedClouds"));
             material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
             Quad.Create(gameObject, 2, Color.white, Vector3.up, Mathf.Infinity);
