@@ -35,6 +35,7 @@ namespace Atmosphere
         Matrix4x4 rotationAxis;
 
         bool killBodyRotation;
+        double previousFrameUt = 0.0;
         public new bool enabled
         {
             get
@@ -182,6 +183,8 @@ namespace Atmosphere
                 {
                     ut = Planetarium.GetUniversalTime();
                 }
+
+
                 Vector3d detailRotation = (ut * detailPeriod);
                 detailRotation -= new Vector3d((int)detailRotation.x, (int)detailRotation.y, (int)detailRotation.z);
                 detailRotation *= 360;
@@ -191,6 +194,11 @@ namespace Atmosphere
                 mainRotation *= 360f;
                 mainRotation += offset;
 
+                Vector3d oppositeFrameDeltaRotation = ((previousFrameUt - ut) * mainPeriod);
+                oppositeFrameDeltaRotation -= new Vector3d((int)oppositeFrameDeltaRotation.x, (int)oppositeFrameDeltaRotation.y, (int)oppositeFrameDeltaRotation.z);
+                oppositeFrameDeltaRotation *= 360f;
+
+                previousFrameUt = ut;
 
                 QuaternionD mainRotationQ = Quaternion.identity;
                 if (killBodyRotation)
@@ -209,9 +217,18 @@ namespace Atmosphere
                     QuaternionD.AngleAxis(detailRotation.z, Vector3.forward);
                 Matrix4x4 detailRotationMatrix = Matrix4x4.TRS(Vector3.zero, detailRotationQ, Vector3.one).inverse;
 
+                QuaternionD oppositeFrameDeltaRotationQ =
+                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.x, Vector3.right) *
+                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.y, Vector3.up) *
+                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.z, Vector3.forward);
+                Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one).inverse;
+
                 if (this.sphere != null)
                 {
                     Matrix4x4 world2SphereMatrix = this.sphere.transform.worldToLocalMatrix;
+                    Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
+                    oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
+
                     if (layer2D != null)
                     {
                         if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
@@ -286,6 +303,7 @@ namespace Atmosphere
                                                        mainRotationQ,
                                                        detailRotationQ,
                                                        mainRotationMatrix,
+                                                       oppositeFrameDeltaRotationMatrix,
                                                        detailRotationMatrix);
                         }
                         else
@@ -295,6 +313,7 @@ namespace Atmosphere
                                                        mainRotationQ,
                                                        detailRotationQ,
                                                        mainRotationMatrix,
+                                                       oppositeFrameDeltaRotationMatrix,
                                                        detailRotationMatrix);
                             layerRaymarchedVolume.enabled = true;
                         }

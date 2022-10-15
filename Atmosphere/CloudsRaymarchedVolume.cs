@@ -147,9 +147,6 @@ namespace Atmosphere
 
         [ConfigItem]
         float cloudTypeTiling = 5f;
-
-        [ConfigItem]
-        float cloudSpeed = 11.0f;   // TODO: fix the direction for this
         
         [ConfigItem]
         float upwardsCloudSpeed = 11.0f;
@@ -201,7 +198,16 @@ namespace Atmosphere
 
         private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)
+        private Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.identity;
+        public Matrix4x4 OppositeFrameDeltaRotationMatrix { get => oppositeFrameDeltaRotationMatrix; }
+
+        private Vector3 noiseReprojectionOffset = Vector3.zero;
+
+        public Vector3 NoiseReprojectionOffset { get => noiseReprojectionOffset; }
+
+        Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
+
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)//, Vector3 speed, Matrix4x4 rotationAxis)
         {
             planetRadius = parentRadius;
             parentTransform = parent;
@@ -311,7 +317,6 @@ namespace Atmosphere
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
             mat.SetFloat("baseMipLevel", baseMipLevel);
             mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
-            mat.SetFloat("cloudSpeed", cloudSpeed);
 
             mat.SetFloat("baseStepSize", baseStepSize);
             mat.SetFloat("maxStepSize", maxStepSize);
@@ -348,9 +353,9 @@ namespace Atmosphere
             densityCurvesTexture = BakeDensityCurvesTexture();
             raymarchedCloudMaterial.SetTexture("DensityCurve", densityCurvesTexture);
 
-            Vector4[] cloudTypePropertiesArray0 = new Vector4[10];
-            Vector4[] cloudTypePropertiesArray1 = new Vector4[10];
-            for (int i = 0; i < cloudTypes.Count && i < 10; i++)
+            Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
+            Vector4[] cloudTypePropertiesArray1 = new Vector4[cloudTypes.Count];
+            for (int i = 0; i < cloudTypes.Count; i++)
             {
                 cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, 0f, 0f);
                 cloudTypePropertiesArray1[i] = new Vector4(0f, 0f, 0f, 0f);
@@ -417,19 +422,25 @@ namespace Atmosphere
             return 0f;
         }
 
+        // TODO: refactor/simplify
         public void UpdateCloudNoiseOffsets()
         {
-            double xOffset = -parentTransform.position.x, yOffset = -parentTransform.position.y, zOffset = -parentTransform.position.z;
+            double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
 
-            //TODO: add upward wind offset, calculate vector from camera position? or just the direction of the planet center would give you that
-            //and give a direction to this offset, maybe tangent to cloud rotation?
-            timeXoffset += (double)Time.deltaTime * (double)TimeWarp.CurrentRate * ((double)cloudSpeed);
+            Vector3 upwardsVector = (parentTransform.position).normalized; //usually this is fine but if you see some issues add the camera
+            noiseReprojectionOffset = -upwardsVector * Time.deltaTime * TimeWarp.CurrentRate * upwardsCloudSpeed;
+
+            upwardsVector = cloudRotationMatrix.MultiplyVector(upwardsVector);
+
+            Vector3 cloudSpaceNoiseReprojectionOffset = upwardsVector * Time.deltaTime * TimeWarp.CurrentRate * upwardsCloudSpeed;
+
+            timeXoffset += cloudSpaceNoiseReprojectionOffset.x; timeYoffset += cloudSpaceNoiseReprojectionOffset.y; timeZoffset += cloudSpaceNoiseReprojectionOffset.z;
 
             xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
 
-            Vector4[] baseNoiseOffsets   = new Vector4[10];
-            Vector4[] noTileNoiseOffsets = new Vector4[10];
-            for (int i = 0; i < cloudTypes.Count && i < 10; i++)
+            Vector4[] baseNoiseOffsets   = new Vector4[cloudTypes.Count];
+            Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
+            for (int i = 0; i < cloudTypes.Count; i++)
             {
                 double noiseXOffset = xOffset / (double)cloudTypes[i].BaseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseTiling;
 
@@ -472,7 +483,7 @@ namespace Atmosphere
         }
 
         // supposed to be called from CloudsPQS which I won't use because we don't want to be locked to PQS
-        internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 detailRotationMatrix)
+        internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 inOppositeFrameDeltaRotationMatrix, Matrix4x4 detailRotationMatrix)
         {
             if (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER)
             {
@@ -494,6 +505,8 @@ namespace Atmosphere
                 }
 
                 raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);
+                cloudRotationMatrix = rotationMatrix;
+                oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
             }
         }
 

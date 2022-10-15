@@ -241,8 +241,16 @@ namespace Atmosphere
                     cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
                     cloudMaterial.SetFloat("frameNumber", (float)(frame));
 
+                    Vector3 noiseReprojectionOffset = targetCamera.worldToCameraMatrix.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
+                    Matrix4x4 cloudPreviousV = previousV;
+
+                    // inject upwards noise offset
+                    cloudPreviousV.m03 += noiseReprojectionOffset.x;
+                    cloudPreviousV.m13 += noiseReprojectionOffset.y;
+                    cloudPreviousV.m23 += noiseReprojectionOffset.z;
+
                     cloudMaterial.SetMatrix("currentVP", currentP * currentV);
-                    cloudMaterial.SetMatrix("previousVP", previousP * previousV);
+                    cloudMaterial.SetMatrix("previousVP", previousP * cloudPreviousV * intersection.layer.OppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
 
                     // handle the actual rendering
                     commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysFlipRT.depthBuffer);
