@@ -29,7 +29,12 @@ namespace CelestialShadows
             }
             */
         }
-       
+
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
+
         protected void Update()
         {
             /*

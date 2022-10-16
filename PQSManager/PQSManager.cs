@@ -28,6 +28,11 @@ namespace PQSManager
             newObject.Apply();
         }
 
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
+
         protected override void Clean()
         {
             foreach (PQSWrapper obj in ObjectList)

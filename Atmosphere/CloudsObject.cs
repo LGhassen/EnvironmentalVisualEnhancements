@@ -50,7 +50,9 @@ namespace Atmosphere
         [ConfigItem, GUIHidden]
         String body;
 
-        
+        public string Name { get => name; }
+        public string Body { get => body; }
+
         [ConfigItem, Tooltip("Altitude above sea level for clouds.")]
         float altitude = 1000f;
         [ConfigItem, Tooltip("Enabling this will stop the cloud from moving with the celestial body.")]
@@ -74,7 +76,7 @@ namespace Atmosphere
 
         [ConfigItem, Tooltip("Settings for the cloud rendering")]
         CloudsMaterial settings = null;
-        
+
         [ConfigItem, Optional]
         CloudsVolume layerVolume = null;
         [ConfigItem, Optional]
@@ -83,6 +85,9 @@ namespace Atmosphere
         private CloudsPQS cloudsPQS = null;
         private CelestialBody celestialBody;
         private Transform scaledCelestialTransform;
+
+        
+
         public void LoadConfigNode(ConfigNode node)
         {
             ConfigHelper.LoadObjectFromConfig(this, node);

@@ -24,6 +24,11 @@ namespace Atmosphere
             newObject.Apply();
         }
 
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
+
         protected override void Clean()
         {
             CloudsManager.Log("Cleaning Clouds!");

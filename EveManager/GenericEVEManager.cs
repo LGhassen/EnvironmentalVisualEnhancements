@@ -88,6 +88,11 @@ namespace EVEManager
             newObject.Apply();
         }
 
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
+
         protected override void Clean()
         {
             foreach (T obj in ObjectList)
