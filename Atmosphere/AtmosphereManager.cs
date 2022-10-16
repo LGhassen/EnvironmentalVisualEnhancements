@@ -23,6 +23,11 @@ namespace Atmosphere
             newObject.Apply();
         }
 
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
+
         protected override void Clean()
         {
             AtmosphereManager.Log("Cleaning Atmosphere!");

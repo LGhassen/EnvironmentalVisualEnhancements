@@ -24,6 +24,27 @@ namespace Atmosphere
             newObject.Apply();
         }
 
+        protected override void PostApplyConfigNodes()
+        {
+            SetInterCloudShadows();
+        }
+
+        private void SetInterCloudShadows()
+        {
+            foreach(var cloudsObject in ObjectList)
+            {
+                if (!String.IsNullOrEmpty(cloudsObject.LayerRaymarchedVolume?.ReceiveShadowsFromLayer))
+                {
+                    var shadowCaster = ObjectList.Find(x => x.Body == cloudsObject.Body && x.Name == cloudsObject.LayerRaymarchedVolume.ReceiveShadowsFromLayer);
+
+                    if (shadowCaster != null && shadowCaster.LayerRaymarchedVolume != null)
+                    {
+                        cloudsObject.LayerRaymarchedVolume.SetShadowCasterLayerRaymarchedVolume(shadowCaster.LayerRaymarchedVolume);
+                    }
+                }
+            }
+        }
+
         protected override void Clean()
         {
             CloudsManager.Log("Cleaning Clouds!");

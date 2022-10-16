@@ -86,6 +86,8 @@ namespace EVEManager
                     }
                 }
             }
+
+            PostApplyConfigNodes();
         }
         public virtual void SaveConfig()
         {
@@ -97,6 +99,8 @@ namespace EVEManager
         }
         protected abstract void Clean();
         protected abstract void ApplyConfigNode(ConfigNode node);
+
+        protected abstract void PostApplyConfigNodes();
         public abstract void DrawGUI(Rect placementBase, Rect placement);
         public virtual void ILog(String message)
         {

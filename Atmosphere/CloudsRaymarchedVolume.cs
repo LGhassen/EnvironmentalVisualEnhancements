@@ -81,7 +81,7 @@ namespace Atmosphere
         public float Density { get => density; }
     }
 
-    class CloudsRaymarchedVolume
+    public class CloudsRaymarchedVolume
     {
         public GameObject volumeHolder;
 
@@ -112,17 +112,17 @@ namespace Atmosphere
 
         //TODO: move these to global quality settings or something like that
         [ConfigItem]
-        float lightMarchSteps = 8;
+        float lightMarchSteps = 4;
 
         [ConfigItem]
-        float lightMarchDistance = 800f;
+        float lightMarchDistance = 700f;
 
         [ConfigItem]
         float baseStepSize = 32f;
         [ConfigItem]
-        float adaptiveStepSizeFactor = 0.0075f;
+        float adaptiveStepSizeFactor = 0.012f;
         [ConfigItem]
-        float maxStepSize = 250f;
+        float maxStepSize = 180f;
 
         public float baseMipLevel = 0f, lightRayMipLevel = 0f;
         //////////////////////////////
@@ -134,6 +134,8 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
 
+        public TextureWrapper CoverageMap { get => coverageMap; }
+
         [ConfigItem, Optional]
         CloudTexture cloudTypeMap;
 
@@ -144,9 +146,6 @@ namespace Atmosphere
         float absorptionMultiplier = 1.0f;
         [ConfigItem]
         float skylightMultiplier = 0.5f;
-
-        [ConfigItem]
-        float cloudTypeTiling = 5f;
         
         [ConfigItem]
         float upwardsCloudSpeed = 11.0f;
@@ -169,6 +168,16 @@ namespace Atmosphere
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
+        [ConfigItem]
+        string receiveShadowsFromLayer = "";
+
+        public string ReceiveShadowsFromLayer { get => receiveShadowsFromLayer; }
+
+        [ConfigItem]
+        float receivedShadowsDensity = 100f;
+
+        CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
+
         ///////////
 
         protected Material raymarchedCloudMaterial;
@@ -176,17 +185,36 @@ namespace Atmosphere
 
         private Texture densityCurvesTexture;
 
+        private bool shadowCasterTextureSet = false;
         private bool _enabled = true;
         public bool enabled
         {
             get { return _enabled; }
             set
             {
+                if (!shadowCasterTextureSet && (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER))
+                { 
+                    SetShadowCasterTextureParams();
+                    Debug.Log("set shadow caster params");
+                }
+
                 _enabled = value;
-                //TODO: here any stuff that enables disables stuff
             }
         }
 
+        private void SetShadowCasterTextureParams()
+        {
+            if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
+            {
+                // this will break if using different map types, TODO: fix it
+                shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage");
+                raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
+                raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+                raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
+            }
+
+            shadowCasterTextureSet = true;
+        }
 
         float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
         public float InnerSphereRadius { get => innerSphereRadius;}
@@ -206,7 +234,8 @@ namespace Atmosphere
         public Vector3 NoiseReprojectionOffset { get => noiseReprojectionOffset; }
 
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
-
+        public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
+        
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)//, Vector3 speed, Matrix4x4 rotationAxis)
         {
             planetRadius = parentRadius;
@@ -277,6 +306,12 @@ namespace Atmosphere
             ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial);
         }
 
+        public void SetShadowCasterLayerRaymarchedVolume(CloudsRaymarchedVolume cloudsRaymarchedVolume)
+        {
+            if (cloudsRaymarchedVolume != null)
+                shadowCasterLayerRaymarchedVolume = cloudsRaymarchedVolume;
+        }
+
         private void ApplyCloudTexture(CloudTexture cloudTexture, string propertyName, Material mat)
         {
             if (cloudTexture.GlobalTexture != null)
@@ -308,7 +343,6 @@ namespace Atmosphere
         public void SetShaderParams(Material mat)
         {
             mat.SetColor("cloudColor", cloudColor);
-            mat.SetFloat("cloudTypeTiling", cloudTypeTiling);
 
             mat.SetFloat("detailTiling", 1f / secondaryNoiseTiling);
             mat.SetFloat("detailStrength", secondaryNoiseStrength);
@@ -329,6 +363,10 @@ namespace Atmosphere
             mat.SetTexture("BlueNoise", tex);
             mat.SetFloat("deTilifyBaseNoise", deTilifyBaseNoise * 0.01f);
             mat.SetFloat("skylightMultiplier", skylightMultiplier);
+            mat.SetFloat("shadowCasterDensity", receivedShadowsDensity);
+
+            mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
+            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
         }
 
         private void ProcessCloudTypes()
@@ -470,6 +508,10 @@ namespace Atmosphere
                 (float)(detailYOffset - Math.Truncate(detailXOffset)), (float)(detailZOffset - Math.Truncate(detailXOffset)));
 
             raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
+
+
+            if (shadowCasterLayerRaymarchedVolume != null)
+                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix); // this may be 1-2 frames behind
         }
 
         public void Remove()

@@ -16,7 +16,11 @@ namespace CityLights
     {
         public override ObjectType objectType { get { return ObjectType.BODY; } }
         public override String configName { get { return "EVE_CITY_LIGHTS"; } }
-        
+
+        protected override void PostApplyConfigNodes()
+        {
+
+        }
 
         public CityLightsManager()
         { }
