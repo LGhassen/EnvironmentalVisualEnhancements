@@ -184,7 +184,6 @@ namespace Atmosphere
                     ut = Planetarium.GetUniversalTime();
                 }
 
-
                 Vector3d detailRotation = (ut * detailPeriod);
                 detailRotation -= new Vector3d((int)detailRotation.x, (int)detailRotation.y, (int)detailRotation.z);
                 detailRotation *= 360;
@@ -194,9 +193,9 @@ namespace Atmosphere
                 mainRotation *= 360f;
                 mainRotation += offset;
 
-                Vector3d oppositeFrameDeltaRotation = ((previousFrameUt - ut) * mainPeriod);
-                oppositeFrameDeltaRotation -= new Vector3d((int)oppositeFrameDeltaRotation.x, (int)oppositeFrameDeltaRotation.y, (int)oppositeFrameDeltaRotation.z);
-                oppositeFrameDeltaRotation *= 360f;
+                Vector3d oppositeFrameDeltaRotation = (ut - previousFrameUt) * mainPeriod;
+                //oppositeFrameDeltaRotation -= new Vector3d((int)oppositeFrameDeltaRotation.x, (int)oppositeFrameDeltaRotation.y, (int)oppositeFrameDeltaRotation.z);
+                oppositeFrameDeltaRotation *= -360f;
 
                 previousFrameUt = ut;
 
@@ -221,7 +220,7 @@ namespace Atmosphere
                     QuaternionD.AngleAxis(oppositeFrameDeltaRotation.x, Vector3.right) *
                     QuaternionD.AngleAxis(oppositeFrameDeltaRotation.y, Vector3.up) *
                     QuaternionD.AngleAxis(oppositeFrameDeltaRotation.z, Vector3.forward);
-                Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one).inverse;
+                Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one);
 
                 if (this.sphere != null)
                 {
