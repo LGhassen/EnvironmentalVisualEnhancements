@@ -393,15 +393,22 @@ namespace Atmosphere
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
             Vector4[] cloudTypePropertiesArray1 = new Vector4[cloudTypes.Count];
+
+            Vector2 minMaxNoiseTilings = new Vector2(1f / secondaryNoiseTiling, 1f / secondaryNoiseTiling);
+
             for (int i = 0; i < cloudTypes.Count; i++)
             {
                 cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, 0f, 0f);
                 cloudTypePropertiesArray1[i] = new Vector4(0f, 0f, 0f, 0f);
+
+                minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseTiling));
             }
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties1", cloudTypePropertiesArray1);
             raymarchedCloudMaterial.SetInt("numberOfCloudTypes", cloudTypes.Count);
             raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
+
+            raymarchedCloudMaterial.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
         private Texture2D BakeDensityCurvesTexture()
