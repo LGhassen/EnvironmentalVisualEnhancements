@@ -14,6 +14,13 @@ namespace Atmosphere
         public override ObjectType objectType { get { return ObjectType.BODY | ObjectType.MULTIPLE; } }
         public override String configName { get{return "EVE_CLOUDS";} }
 
+        public static EventVoid onApply;
+
+        public CloudsManager():base()
+        {
+            onApply = new EventVoid("onCloudsApply");
+        }
+
         protected override void ApplyConfigNode(ConfigNode node)
         {
             GameObject go = new GameObject("CloudsManager");
@@ -27,6 +34,7 @@ namespace Atmosphere
         protected override void PostApplyConfigNodes()
         {
             SetInterCloudShadows();
+            onApply.Fire();
         }
 
         private void SetInterCloudShadows()
