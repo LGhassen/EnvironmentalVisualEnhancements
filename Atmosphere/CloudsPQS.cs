@@ -1,9 +1,7 @@
 ﻿using EVEManager;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using UnityEngine;
 using Utils;
 using PQSManager;
@@ -24,9 +22,9 @@ namespace Atmosphere
         Clouds2D mainMenuLayer = null;
         Camera mainMenuCamera = null;
 
-
         private bool volumeApplied = false;
         private double radius;
+        
 
         Vector3d detailPeriod;
         Vector3d mainPeriod;
@@ -146,7 +144,7 @@ namespace Atmosphere
 
         protected void Update()
         {
-            
+            //these are always active even if off-screen or smaller than 1 pixel, to do: take it into account in the visible calculation just like in singularity
             bool visible = HighLogic.LoadedScene == GameScenes.TRACKSTATION || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.MAINMENU;
             if (visible)
             {
@@ -313,8 +311,6 @@ namespace Atmosphere
                 {
                     this.OnSphereActive();
                 }
-                this.OnSetup();
-                pqs.EnableSphere();
             }
             else
             {
