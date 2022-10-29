@@ -1,11 +1,4 @@
-﻿using EVEManager;
-using ShaderLoader;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
+﻿using ShaderLoader;
 using UnityEngine;
 using Utils;
 
@@ -59,6 +52,18 @@ namespace Atmosphere
         VolumeManager volumeManager;
         GameObject volumeHolder;
 
+        public CloudsVolume()
+        {
+            if (Tools.IsUnifiedCameraMode())
+            {
+                ParticleMaterial = new Material(ParticleCloudToTextureShader);
+            }
+            else
+            {
+                ParticleMaterial = new Material(ParticleCloudShader);
+            }
+        }
+
         private static Shader particleCloudShader = null;
         private static Shader ParticleCloudShader
         {
@@ -104,15 +109,6 @@ namespace Atmosphere
             particleMaterial.MaxTrans = maxTranslation;
             particleMaterial.NoiseScale =  new Vector3(noiseScale.x, noiseScale.y, noiseScale.z / radius);
 
-            if (Tools.IsUnifiedCameraMode())
-            {
-                ParticleMaterial = new Material(ParticleCloudToTextureShader);
-            }
-            else
-            {
-                ParticleMaterial = new Material(ParticleCloudShader);
-            }
-
             particleMaterial.ApplyMaterialProperties(ParticleMaterial);
             material.ApplyMaterialProperties(ParticleMaterial);
             ParticleMaterial.EnableKeyword("SOFT_DEPTH_ON");
@@ -132,7 +128,6 @@ namespace Atmosphere
             volumeHolder.transform.localRotation = Quaternion.identity;
             volumeHolder.layer = (int)Tools.Layer.Local;
             volumeManager = new VolumeManager(radius, size, ParticleMaterial, volumeHolder.transform, area.x, (int)area.y);
-            
         }
 
         public void Remove()
