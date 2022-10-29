@@ -133,7 +133,6 @@ namespace Atmosphere
         GameObject segment;
         float magnitude;
         float xComp, zComp;
-        List<CloudParticle> Particles = new List<CloudParticle>();
         CloudMesh cloudMesh;
 
         float radius, divisions;
@@ -207,10 +206,6 @@ namespace Atmosphere
 
         internal void Destroy()
         {
-            foreach (CloudParticle particle in Particles)
-            {
-                particle.Destroy();
-            }
             GameObject.DestroyImmediate(segment);
         }
 
