@@ -170,6 +170,14 @@ namespace Atmosphere
             }
         }
 
+        public void setCloudMeshEnabled(bool value)
+        {
+            if (CloudMesh != null)
+            {
+                CloudMesh.SetActive(value);
+            }
+        }
+
         internal void Apply(CelestialBody celestialBody, Transform scaledCelestialTransform, CloudsMaterial cloudsMaterial, string name, float radius, float arc, Tools.Layer layer = Tools.Layer.Scaled)
         {
             CloudsManager.Log("Applying 2D clouds...");
@@ -382,6 +390,11 @@ namespace Atmosphere
             CloudMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
             
             SetRotations(World2Planet, mainRotationMatrix, detailRotationMatrix);
+        }
+
+        internal void SetFade(float fade)
+        {
+            CloudMaterial.SetFloat("cloudFade", fade); // still need to do this in shader
         }
 
         Vector4 UniversalTimeVector()

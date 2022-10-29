@@ -26,7 +26,6 @@ namespace Atmosphere
         private bool volumeApplied = false;
         private double radius;
         
-
         Vector3d detailPeriod;
         Vector3d mainPeriod;
         Vector3 offset;
@@ -60,7 +59,6 @@ namespace Atmosphere
 
         public override void OnSphereActive()
         {
-
             CloudsManager.Log("CloudsPQS: ("+this.name+") OnSphereActive");
             if (layer2D != null)
             {
@@ -71,11 +69,6 @@ namespace Atmosphere
                 if (layerVolume != null)
                 {
                     layerVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform);
-                }
-
-                if (layerRaymarchedVolume != null)
-                {
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius);
                 }
 
                 volumeApplied = true;
@@ -96,11 +89,6 @@ namespace Atmosphere
                     layerVolume.Remove();
                 }
 
-                if (layerRaymarchedVolume != null)
-                {
-                    layerRaymarchedVolume.Remove();
-                }
-
                 volumeApplied = false;
             }
         }
@@ -113,16 +101,12 @@ namespace Atmosphere
         IEnumerator CheckForDisable()
         {
             yield return new WaitForFixedUpdate();
+
             if (!sphere.isActive)
             {
                 if (layerVolume != null)
                 {
                     layerVolume.Remove();
-                }
-
-                if (layerRaymarchedVolume != null)
-                {
-                    layerRaymarchedVolume.Remove();
                 }
 
                 volumeApplied = false;
@@ -137,7 +121,6 @@ namespace Atmosphere
         {
             if (HighLogic.LoadedScene == GameScenes.MAINMENU)
             {
-                
                 GameObject go = Tools.GetMainMenuObject(body);
 
                 if (go != null && go.transform != mainMenuBodyTransform)
@@ -191,12 +174,6 @@ namespace Atmosphere
                 mainRotation *= 360f;
                 mainRotation += offset;
 
-                Vector3d oppositeFrameDeltaRotation = (ut - previousFrameUt) * mainPeriod;
-                //oppositeFrameDeltaRotation -= new Vector3d((int)oppositeFrameDeltaRotation.x, (int)oppositeFrameDeltaRotation.y, (int)oppositeFrameDeltaRotation.z);
-                oppositeFrameDeltaRotation *= -360f;
-
-                previousFrameUt = ut;
-
                 QuaternionD mainRotationQ = Quaternion.identity;
                 if (killBodyRotation)
                 {
@@ -214,52 +191,10 @@ namespace Atmosphere
                     QuaternionD.AngleAxis(detailRotation.z, Vector3.forward);
                 Matrix4x4 detailRotationMatrix = Matrix4x4.TRS(Vector3.zero, detailRotationQ, Vector3.one).inverse;
 
-                QuaternionD oppositeFrameDeltaRotationQ =
-                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.x, Vector3.right) *
-                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.y, Vector3.up) *
-                    QuaternionD.AngleAxis(oppositeFrameDeltaRotation.z, Vector3.forward);
-                Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one);
-
                 if (this.sphere != null)
                 {
                     Matrix4x4 world2SphereMatrix = this.sphere.transform.worldToLocalMatrix;
-                    Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
-                    oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
 
-                    if (layer2D != null)
-                    {
-                        if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
-                        {
-
-                            layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
-                                                   world2SphereMatrix,
-                                                   mainRotationMatrix,
-                                                   detailRotationMatrix);
-
-                        }
-                        else if (HighLogic.LoadedScene == GameScenes.MAINMENU && mainMenuLayer != null)
-                        {
-                            //mainMenuCamera.transform.position -= 5 * mainMenuCamera.transform.forward; 
-                            Transform transform = mainMenuCamera.transform;
-                            Vector3 pos = mainMenuBodyTransform.InverseTransformPoint(transform.position);
-
-                            mainMenuLayer.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
-                                                       mainMenuBodyTransform.worldToLocalMatrix,
-                                                       mainRotationMatrix,
-                                                       detailRotationMatrix);
-                        }
-                        else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
-                        {
-                            Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
-                            Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
-
-                            layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
-                                                   scaledCelestialTransform.worldToLocalMatrix,
-                                                   mainRotationMatrix,
-                                                   detailRotationMatrix);
-
-                        }
-                    }
                     if (layerVolume != null && sphere.isActive)
                     {
                         if (FlightCamera.fetch != null)
@@ -290,32 +225,96 @@ namespace Atmosphere
                             layerVolume.enabled = true;
                         }
                     }
-                    if (layerRaymarchedVolume != null && sphere.isActive)
+
+                    //here check it's enabling and disabling conditions of raymarchedLayer
+                    //1. check it's below max altitude
+                    //2. check the time intervals for enabling/disabling
+                    //after we do this get it's fade and pass it to the 2D cloud layer
+                    float scaledLayerFade = 1f;
+
+                    if (layerRaymarchedVolume != null)
                     {
-                        if (FlightCamera.fetch != null)
+                        if (FlightCamera.fetch != null && layerRaymarchedVolume.checkVisible(FlightCamera.fetch.cameraAlt, out scaledLayerFade))
                         {
-                                layerRaymarchedVolume.enabled = true;
-                                layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
-                                                       world2SphereMatrix,
-                                                       mainRotationQ,
-                                                       detailRotationQ,
-                                                       mainRotationMatrix,
-                                                       oppositeFrameDeltaRotationMatrix,
-                                                       detailRotationMatrix);
+                            Vector3d oppositeFrameDeltaRotation = (ut - previousFrameUt) * mainPeriod;
+                            oppositeFrameDeltaRotation *= -360f;
+
+                            previousFrameUt = ut;
+
+                            QuaternionD oppositeFrameDeltaRotationQ =
+                                QuaternionD.AngleAxis(oppositeFrameDeltaRotation.x, Vector3.right) *
+                                QuaternionD.AngleAxis(oppositeFrameDeltaRotation.y, Vector3.up) *
+                                QuaternionD.AngleAxis(oppositeFrameDeltaRotation.z, Vector3.forward);
+                            Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one);
+
+                            Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
+                            oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
+
+                            layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
+                                                   world2SphereMatrix,
+                                                   mainRotationQ,
+                                                   detailRotationQ,
+                                                   mainRotationMatrix,
+                                                   oppositeFrameDeltaRotationMatrix,
+                                                   detailRotationMatrix);
+
+                            layerRaymarchedVolume.enabled = true;
                         }
                         else
                         {
-                            layerRaymarchedVolume.UpdatePos(this.sphere.target.position,
+                            layerRaymarchedVolume.enabled = false;
+                        }
+                    }
+
+                    if (layer2D != null)
+                    {
+                        if(scaledLayerFade > 0f)
+                        { 
+                            if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
+                            {
+
+                                layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
                                                        world2SphereMatrix,
-                                                       mainRotationQ,
-                                                       detailRotationQ,
                                                        mainRotationMatrix,
-                                                       oppositeFrameDeltaRotationMatrix,
                                                        detailRotationMatrix);
-                            layerRaymarchedVolume.enabled = true;
+
+                            }
+                            else if (HighLogic.LoadedScene == GameScenes.MAINMENU && mainMenuLayer != null)
+                            {
+                                //mainMenuCamera.transform.position -= 5 * mainMenuCamera.transform.forward; 
+                                Transform transform = mainMenuCamera.transform;
+                                Vector3 pos = mainMenuBodyTransform.InverseTransformPoint(transform.position);
+
+                                mainMenuLayer.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
+                                                           mainMenuBodyTransform.worldToLocalMatrix,
+                                                           mainRotationMatrix,
+                                                           detailRotationMatrix);
+                            }
+                            else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
+                            {
+                                Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
+                                Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
+
+                                layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
+                                                       scaledCelestialTransform.worldToLocalMatrix,
+                                                       mainRotationMatrix,
+                                                       detailRotationMatrix);
+
+                            }
+
+                            layer2D.SetFade(scaledLayerFade);
+                            layer2D.enabled = true;
+                        }
+                        else
+                        {
+                            layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows, TODO: test this
                         }
                     }
                 }
+            }
+            else
+            {
+                layerRaymarchedVolume.enabled = false;
             }
         }
 
@@ -366,6 +365,11 @@ namespace Atmosphere
                     this.layer2D.Apply(celestialBody, scaledCelestialTransform, cloudsMaterial, this.name, (float)radius, arc);
                 }
 
+                if (layerRaymarchedVolume != null)
+                {
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius);
+                }
+
                 if (!pqs.isActive || HighLogic.LoadedScene == GameScenes.TRACKSTATION)
                 {
                     this.OnSphereInactive();
@@ -410,6 +414,7 @@ namespace Atmosphere
             if (scene == GameScenes.MAINMENU)
             {
                 ApplyToMainMenu();
+                layerRaymarchedVolume.enabled = false;
             }
             else
             {

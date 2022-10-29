@@ -154,6 +154,7 @@ namespace Atmosphere
                 volumesAdded.Add(volume);
 
                 renderingEnabled = true;
+                DeferredRaymarchedRendererToScreen.SetActive(true);
             }
         }
 
@@ -299,8 +300,6 @@ namespace Atmosphere
                 var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
-                DeferredRaymarchedRendererToScreen.SetActive(true);
-
                 DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, useFlipScreenBuffer ? secondaryHistoryFlipRT : secondaryHistoryFlopRT);
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
@@ -355,10 +354,10 @@ namespace Atmosphere
                     previousV = targetCamera.worldToCameraMatrix;
 
                     previousFloatingOriginOffset = FloatingOrigin.TerrainShaderOffset;
-
-                    DeferredRaymarchedRendererToScreen.SetActive(false);
                     renderingEnabled = false;
                 }
+
+                DeferredRaymarchedRendererToScreen.SetActive(false);
             }
 
         }
@@ -399,7 +398,9 @@ namespace Atmosphere
         void OnWillRenderObject()
         {
             if (Camera.current != null)
+            {
                 DeferredRaymarchedVolumetricCloudsRenderer.EnableForThisFrame(Camera.current, volume);
+            }
         }
     }
 
@@ -408,6 +409,7 @@ namespace Atmosphere
         public Material material;
 
         MeshRenderer compositeMR;
+        bool isActive = false;
 
         public void Init()
         {
@@ -431,7 +433,7 @@ namespace Atmosphere
         public void SetRenderTextures(RenderTexture colorBuffer, RenderTexture scatteringBuffer)
         {
             material.SetTexture("colorBuffer", colorBuffer);                                                                //TODO: shader properties
-            material.SetTexture("secondaryColorBuffer", scatteringBuffer);                                                 //TODO: shader properties
+            material.SetTexture("secondaryColorBuffer", scatteringBuffer);                                                  //TODO: shader properties
             material.SetVector("reconstructedTextureResolution", new Vector2(colorBuffer.width, colorBuffer.height));       //TODO: shader properties
 
         }
@@ -439,7 +441,11 @@ namespace Atmosphere
         public void SetActive(bool active)
         {
             material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
-        }
 
+            if (isActive == active)
+                compositeMR.enabled = active;    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable (and enable) this after 2 frames
+
+            isActive = active;
+        }
     }
 }

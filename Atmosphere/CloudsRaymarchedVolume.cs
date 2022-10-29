@@ -150,6 +150,13 @@ namespace Atmosphere
         [ConfigItem]
         float upwardsCloudSpeed = 11.0f;
 
+        [ConfigItem]
+        float scaledFadeStartAltitude = 30000.0f;
+
+        [ConfigItem]
+        float scaledFadeEndAltitude = 55000.0f;
+
+        float volumetricLayerScaledFade = 1.0f;
 
         //[ConfigItem]
         //float curlNoiseTiling = 1f;
@@ -186,7 +193,7 @@ namespace Atmosphere
         private Texture densityCurvesTexture;
 
         private bool shadowCasterTextureSet = false;
-        private bool _enabled = true;
+        private bool _enabled = false;
         public bool enabled
         {
             get { return _enabled; }
@@ -195,10 +202,11 @@ namespace Atmosphere
                 if (!shadowCasterTextureSet && (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER))
                 { 
                     SetShadowCasterTextureParams();
-                    Debug.Log("set shadow caster params");
                 }
 
                 _enabled = value;
+                volumeHolder.SetActive(value);
+                volumeMeshrenderer.enabled = value;
             }
         }
 
@@ -211,9 +219,9 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
                 raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
-            }
 
-            shadowCasterTextureSet = true;
+                shadowCasterTextureSet = true;
+            }
         }
 
         float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
@@ -235,7 +243,9 @@ namespace Atmosphere
 
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
         public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
-        
+
+        private MeshRenderer volumeMeshrenderer;
+
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)//, Vector3 speed, Matrix4x4 rotationAxis)
         {
             planetRadius = parentRadius;
@@ -260,22 +270,23 @@ namespace Atmosphere
             volumeHolder.name = "CloudsRaymarchedVolume";
             GameObject.Destroy(volumeHolder.GetComponent<Collider>());
 
-            var updater = volumeHolder.AddComponent<Updater>();
-            updater.volume = this;
-            updater.mat = raymarchedCloudMaterial;
-            updater.parent = parentTransform;
-            var notifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
-            notifier.volume = this;
+            var volumeUpdater = volumeHolder.AddComponent<Updater>();
+            volumeUpdater.volume = this;
+            volumeUpdater.mat = raymarchedCloudMaterial;
+            volumeUpdater.parent = parentTransform;
 
-            MeshRenderer mr = volumeHolder.GetComponent<MeshRenderer>();
-            //mr.material = raymarchedCloudMaterial;
-            mr.material = new Material(InvisibleShader);
-            raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero);
+            var volumeNotifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
+            volumeNotifier.volume = this;
+
+            volumeMeshrenderer = volumeHolder.GetComponent<MeshRenderer>();
+            volumeMeshrenderer.material = new Material(InvisibleShader);
+            
+            raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO
             //raymarchedCloudMaterial.renderQueue = (int)Tools.Queue.Transparent + 2; //check this
 
-            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.receiveShadows = false;
-            mr.enabled = true;
+            volumeMeshrenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            volumeMeshrenderer.receiveShadows = false;
+            volumeMeshrenderer.enabled = true;
 
             MeshFilter filter = volumeHolder.GetComponent<MeshFilter>();
             filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(Mathf.Infinity, Mathf.Infinity, Mathf.Infinity));
@@ -285,6 +296,10 @@ namespace Atmosphere
             volumeHolder.transform.localScale = Vector3.one;
             volumeHolder.transform.localRotation = Quaternion.identity;
             volumeHolder.layer = (int)Tools.Layer.Local;
+
+            volumeHolder.SetActive(false);
+
+            SetShadowCasterTextureParams();
         }
 
         public void ConfigureTextures()
@@ -337,6 +352,7 @@ namespace Atmosphere
             RenderTexture rt = CreateRT(512, 512, 0, RenderTextureFormat.R8);
             CloudNoiseGen.RenderNoiseToTexture(rt, noiseWrapper);
             //var tex = TextureUtils.CompressSingleChannelRenderTextureToBC4(LocalCoverage, true);	//compress to BC4, increases fps a tiny bit, just disabled for now because it's slow
+                                                                                                    //delete this because it doesn't work in 3d and I removed every 2d case
             mat.SetTexture(propertyName, rt);
         }
 
@@ -371,7 +387,6 @@ namespace Atmosphere
 
         private void ProcessCloudTypes()
         {
-            //figure out min and max radiuses
             cloudMinAltitude = Mathf.Infinity;
             cloudMaxAltitude = 0f;
 
@@ -381,7 +396,6 @@ namespace Atmosphere
                 cloudMaxAltitude = Mathf.Max(cloudMaxAltitude, cloudTypes[i].MaxAltitude);
             }
 
-            //need to get the planet's radius
             innerSphereRadius = planetRadius + cloudMinAltitude;
             outerSphereRadius = planetRadius + cloudMaxAltitude;
 
@@ -453,7 +467,7 @@ namespace Atmosphere
             return tex;
         }
 
-        float EvaluateCloudValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
+        private float EvaluateCloudValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
         {
             float minAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMinAltitude : cloudTypes[cloudIndex].MinAltitude;
             float maxAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMaxAltitude : cloudTypes[cloudIndex].MaxAltitude;
@@ -468,6 +482,7 @@ namespace Atmosphere
         }
 
         // TODO: refactor/simplify
+        // TODO: shader params
         public void UpdateCloudNoiseOffsets()
         {
             double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
@@ -516,7 +531,6 @@ namespace Atmosphere
 
             raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
 
-
             if (shadowCasterLayerRaymarchedVolume != null)
                 raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix); // this may be 1-2 frames behind
         }
@@ -531,7 +545,20 @@ namespace Atmosphere
             }
         }
 
-        // supposed to be called from CloudsPQS which I won't use because we don't want to be locked to PQS
+        internal bool checkVisible (float camAltitude, out float scaledLayerFade)
+        {
+            if (camAltitude >= scaledFadeEndAltitude || MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.MAINMENU)
+            {
+                volumetricLayerScaledFade = 0f;
+                scaledLayerFade = 1f;
+                return false;
+            }
+
+            volumetricLayerScaledFade = Mathf.Lerp(1f, 0f, Mathf.Clamp01((camAltitude - scaledFadeStartAltitude) / (scaledFadeEndAltitude - scaledFadeStartAltitude)));
+            scaledLayerFade = 1f - volumetricLayerScaledFade;
+            return true;
+        }
+
         internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 inOppositeFrameDeltaRotationMatrix, Matrix4x4 detailRotationMatrix)
         {
             if (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER)
@@ -540,25 +567,16 @@ namespace Atmosphere
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotationMatrix);
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotationMatrix);
 
-                //if (followDetail)
-                //{
-                  //  rotationMatrix = detailRotationMatrix * mainRotationMatrix * World2Planet;
-                  //  volumeHolder.transform.localRotation = rotation * detailRotation;
-                 //   RaymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);
-                //}
-                //else
-                
-                {
-                    volumeHolder.transform.localRotation = rotation;
-                    raymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);
-                }
+                volumeHolder.transform.localRotation = rotation;                                            // don't need this I think
+                raymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);  // or this
 
-                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);
+                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                         // TODO: shader params
                 cloudRotationMatrix = rotationMatrix;
                 oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
             }
         }
 
+        // TODO: move to utils
         private RenderTexture CreateRT(int height, int width, int volume, RenderTextureFormat format)
         {
             RenderTexture RT = new RenderTexture(height, width, 0, format);
