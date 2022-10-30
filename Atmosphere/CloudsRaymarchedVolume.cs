@@ -545,8 +545,10 @@ namespace Atmosphere
             }
         }
 
-        internal bool checkVisible (float camAltitude, out float scaledLayerFade)
+        internal bool checkVisible (Vector3 camPos, out float scaledLayerFade)
         {
+            float camAltitude = (camPos - parentTransform.position).magnitude - planetRadius;
+
             if (camAltitude >= scaledFadeEndAltitude || MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.MAINMENU)
             {
                 volumetricLayerScaledFade = 0f;

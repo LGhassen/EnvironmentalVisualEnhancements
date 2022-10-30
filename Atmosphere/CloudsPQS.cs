@@ -234,7 +234,7 @@ namespace Atmosphere
 
                     if (layerRaymarchedVolume != null)
                     {
-                        if (FlightCamera.fetch != null && layerRaymarchedVolume.checkVisible(FlightCamera.fetch.cameraAlt, out scaledLayerFade))
+                        if (FlightCamera.fetch != null && layerRaymarchedVolume.checkVisible(FlightCamera.fetch.mainCamera.transform.position, out scaledLayerFade))
                         {
                             Vector3d oppositeFrameDeltaRotation = (ut - previousFrameUt) * mainPeriod;
                             oppositeFrameDeltaRotation *= -360f;
@@ -268,46 +268,46 @@ namespace Atmosphere
 
                     if (layer2D != null)
                     {
-                        if(scaledLayerFade > 0f)
-                        { 
-                            if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
-                            {
+                        if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
+                        {
 
-                                layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
-                                                       world2SphereMatrix,
+                            layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
+                                                   world2SphereMatrix,
+                                                   mainRotationMatrix,
+                                                   detailRotationMatrix);
+
+                        }
+                        else if (HighLogic.LoadedScene == GameScenes.MAINMENU && mainMenuLayer != null)
+                        {
+                            //mainMenuCamera.transform.position -= 5 * mainMenuCamera.transform.forward; 
+                            Transform transform = mainMenuCamera.transform;
+                            Vector3 pos = mainMenuBodyTransform.InverseTransformPoint(transform.position);
+
+                            mainMenuLayer.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
+                                                       mainMenuBodyTransform.worldToLocalMatrix,
                                                        mainRotationMatrix,
                                                        detailRotationMatrix);
+                        }
+                        else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
+                        {
+                            Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
+                            Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
 
-                            }
-                            else if (HighLogic.LoadedScene == GameScenes.MAINMENU && mainMenuLayer != null)
-                            {
-                                //mainMenuCamera.transform.position -= 5 * mainMenuCamera.transform.forward; 
-                                Transform transform = mainMenuCamera.transform;
-                                Vector3 pos = mainMenuBodyTransform.InverseTransformPoint(transform.position);
+                            layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
+                                                   scaledCelestialTransform.worldToLocalMatrix,
+                                                   mainRotationMatrix,
+                                                   detailRotationMatrix);
 
-                                mainMenuLayer.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
-                                                           mainMenuBodyTransform.worldToLocalMatrix,
-                                                           mainRotationMatrix,
-                                                           detailRotationMatrix);
-                            }
-                            else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
-                            {
-                                Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
-                                Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
+                        }
 
-                                layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, pos),
-                                                       scaledCelestialTransform.worldToLocalMatrix,
-                                                       mainRotationMatrix,
-                                                       detailRotationMatrix);
-
-                            }
-
+                        if (scaledLayerFade > 0f)
+                        {
                             layer2D.SetFade(scaledLayerFade);
                             layer2D.enabled = true;
                         }
                         else
-                        {
-                            layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows, TODO: test this
+                        { 
+                            layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows
                         }
                     }
                 }
