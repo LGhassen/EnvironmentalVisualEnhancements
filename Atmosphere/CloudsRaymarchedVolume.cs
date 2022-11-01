@@ -194,6 +194,7 @@ namespace Atmosphere
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
+
         public bool enabled
         {
             get { return _enabled; }
@@ -243,6 +244,7 @@ namespace Atmosphere
 
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
         public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
+        public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
 
         private MeshRenderer volumeMeshrenderer;
 
@@ -576,6 +578,12 @@ namespace Atmosphere
                 cloudRotationMatrix = rotationMatrix;
                 oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
             }
+        }
+
+        internal void SetTimeFade(float currentTimeFade)
+        {
+            // TODO: fade mode
+            raymarchedCloudMaterial.SetFloat("timeFade", currentTimeFade); // TODO: shader params
         }
 
         // TODO: move to utils

@@ -31,6 +31,8 @@ namespace Atmosphere
         Vector3 offset;
         Matrix4x4 rotationAxis;
 
+        TimeSettings timeSettings;
+
         bool killBodyRotation;
         double previousFrameUt = 0.0;
         public new bool enabled
@@ -68,6 +70,7 @@ namespace Atmosphere
             {
                 if (layerVolume != null)
                 {
+                    // TODO pass timeSettings fadeMode
                     layerVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform);
                 }
 
@@ -153,6 +156,12 @@ namespace Atmosphere
         {
             //these are always active even if off-screen or smaller than 1 pixel, to do: take it into account in the visible calculation just like in singularity
             bool visible = HighLogic.LoadedScene == GameScenes.TRACKSTATION || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.MAINMENU;
+
+            float currentTimeFade = 1f;
+
+            if (timeSettings!=null)
+                visible = visible && timeSettings.IsEnabled(out currentTimeFade);
+
             if (visible)
             {
                 double ut;
@@ -224,6 +233,8 @@ namespace Atmosphere
                                                        detailRotationMatrix);
                             layerVolume.enabled = true;
                         }
+
+                        // TODO pass currentTimeFade
                     }
 
                     //here check it's enabling and disabling conditions of raymarchedLayer
@@ -250,6 +261,8 @@ namespace Atmosphere
                             Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
                             oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
 
+                            // TODO pass currentTimeFade
+
                             layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
                                                    world2SphereMatrix,
                                                    mainRotationQ,
@@ -258,6 +271,7 @@ namespace Atmosphere
                                                    oppositeFrameDeltaRotationMatrix,
                                                    detailRotationMatrix);
 
+                            layerRaymarchedVolume.SetTimeFade(currentTimeFade);
                             layerRaymarchedVolume.enabled = true;
                         }
                         else
@@ -300,13 +314,16 @@ namespace Atmosphere
 
                         }
 
+                        // TODO pass currentTimeFade
+
                         if (scaledLayerFade > 0f)
                         {
-                            layer2D.SetFade(scaledLayerFade);
+                            layer2D.SetOrbitFade(scaledLayerFade);
                             layer2D.enabled = true;
                         }
                         else
-                        { 
+                        {
+                            layer2D.enabled = true; // todo merge these two lines 
                             layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows
                         }
                     }
@@ -314,11 +331,12 @@ namespace Atmosphere
             }
             else
             {
-                layerRaymarchedVolume.enabled = false;
+                if (layer2D != null) layer2D.enabled = false; // needed?
+                if (layerRaymarchedVolume != null) layerRaymarchedVolume.enabled = false;
             }
         }
 
-        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation)
+        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation, TimeSettings timeSettings)
         {
             this.body = body;
             this.cloudsMaterial = cloudsMaterial;
@@ -329,6 +347,7 @@ namespace Atmosphere
             this.offset = -offset;
             this.rotationAxis = rotationAxis;
             this.killBodyRotation = killBodyRotation;
+            this.timeSettings = timeSettings;
 
             celestialBody = Tools.GetCelestialBody(body);
             scaledCelestialTransform = Tools.GetScaledTransform(body);
@@ -362,11 +381,13 @@ namespace Atmosphere
                 
                 if (layer2D != null)
                 {
+                    // TODO pass timeSettings fadeMode
                     this.layer2D.Apply(celestialBody, scaledCelestialTransform, cloudsMaterial, this.name, (float)radius, arc);
                 }
 
                 if (layerRaymarchedVolume != null)
                 {
+                    // TODO pass timeSettings fadeMode
                     layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius);
                 }
 

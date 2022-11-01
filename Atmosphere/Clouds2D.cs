@@ -392,7 +392,7 @@ namespace Atmosphere
             SetRotations(World2Planet, mainRotationMatrix, detailRotationMatrix);
         }
 
-        internal void SetFade(float fade)
+        internal void SetOrbitFade(float fade)
         {
             CloudMaterial.SetFloat("cloudFade", fade); // still need to do this in shader
         }

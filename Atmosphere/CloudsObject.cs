@@ -41,6 +41,68 @@ namespace Atmosphere
         Vector2 _UVNoiseAnimation = new Vector2(0.4f, 0.2f);
     }
 
+    public enum TimeFadeMode
+    {
+        Coverage,
+        Density,
+    }
+
+
+    public class TimeSettings   // all in seconds for now
+    {
+        [ConfigItem]
+        float duration = 5400f; // 1.5 hours
+
+        [ConfigItem]
+        float offset = 0f;
+
+        [ConfigItem]
+        float repeatInterval = 66960f; // 3.1 Kerbin days
+
+        [ConfigItem]
+        float fadeTime = 300f;
+
+        [ConfigItem]
+        TimeFadeMode fadeMode = TimeFadeMode.Density;
+
+        public bool IsEnabled(out float currentFade)
+        {
+            double ut = 0.0;
+
+            if (HighLogic.LoadedScene == GameScenes.MAINMENU)
+            {
+                ut = Time.time;
+            }
+            else
+            {
+                ut = Planetarium.GetUniversalTime();
+            }
+
+            ut -= offset;
+            ut = ut % repeatInterval;
+
+            if (ut > duration)
+            {
+                currentFade = 0f;
+                return false;
+            }
+
+            if (ut < fadeTime)
+                currentFade = (float)(ut / fadeTime);
+            else if (ut > duration - fadeTime)
+                currentFade = (float)(1.0 - (ut - (duration - fadeTime)) / fadeTime);
+            else
+                currentFade = 1.0f;
+
+            return true;
+        }
+
+        public TimeFadeMode GetFadeMode()
+        {
+            return fadeMode;
+        }
+    }
+
     [ConfigName("name")]
     public class CloudsObject : MonoBehaviour, IEVEObject
     {
@@ -77,6 +139,9 @@ namespace Atmosphere
         [ConfigItem, Tooltip("Settings for the cloud rendering")]
         CloudsMaterial settings = null;
 
+        [ConfigItem, Optional, Tooltip("Settings to enable/disable clouds temporally")]
+        TimeSettings timeSettings = null;
+
         [ConfigItem, Optional]
         Clouds2D layer2D = null;
 
@@ -93,7 +158,6 @@ namespace Atmosphere
         private CelestialBody celestialBody;
         private Transform scaledCelestialTransform;
 
-        
 
         public void LoadConfigNode(ConfigNode node)
         {
@@ -112,7 +176,7 @@ namespace Atmosphere
             rotationAxis.SetRow(0, rotationAxis0);
             rotationAxis.SetRow(1, rotationAxis1);
             rotationAxis.SetRow(2, rotationAxis2);
-            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolume, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation);   //make it so it works without this so we can add it to gas giants
+            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolume, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation, timeSettings);
         }
 
         public void Remove()
