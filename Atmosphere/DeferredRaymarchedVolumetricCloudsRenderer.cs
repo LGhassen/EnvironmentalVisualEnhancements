@@ -307,7 +307,11 @@ namespace Atmosphere
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
                 DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, useFlipScreenBuffer ? secondaryHistoryFlipRT : secondaryHistoryFlopRT);
-                DeferredRaymarchedRendererToScreen.material.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
+                DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
+
+
+                // Set texture for scatterer sunflare: temporary
+                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
