@@ -175,6 +175,8 @@ namespace Atmosphere
                 intersections.Clear();
                 float innerReprojectionRadius = float.MaxValue, outerRepojectionRadius = float.MinValue;
 
+                float cloudFade = 1f;
+
                 foreach (var elt in volumesAdded)
                 {
                     //calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
@@ -197,7 +199,11 @@ namespace Atmosphere
 
                     innerReprojectionRadius = Mathf.Min(innerReprojectionRadius, elt.InnerSphereRadius);
                     outerRepojectionRadius = Mathf.Max(outerRepojectionRadius, elt.OuterSphereRadius);
+
+                    cloudFade = Mathf.Min(cloudFade, elt.VolumetricLayerScaledFade);
                 }
+
+                DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
 
                 // now sort our intersections front to back
                 intersections = intersections.OrderBy(x => x.distance).ToList();
@@ -446,6 +452,11 @@ namespace Atmosphere
                 compositeMR.enabled = active;    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable (and enable) this after 2 frames
 
             isActive = active;
+        }
+
+        public void SetFade(float fade)
+        {
+            material.SetFloat("cloudFade", fade); //TODO: property
         }
     }
 }
