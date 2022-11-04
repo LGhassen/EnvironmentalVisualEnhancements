@@ -220,7 +220,7 @@ namespace Atmosphere
                 bool isFirstLayerRendered  = true;
 
                 // have to use these to build the motion vector because the unity provided one in shader will be flipped
-                var currentP = GL.GetGPUProjectionMatrix(targetCamera.projectionMatrix, false);
+                var currentP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
                 var currentV = targetCamera.worldToCameraMatrix;
 
                 //handle floatingOrigin changes
@@ -360,7 +360,7 @@ namespace Atmosphere
                     targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
                     volumesAdded.Clear();
 
-                    previousP = GL.GetGPUProjectionMatrix(targetCamera.projectionMatrix, false);
+                    previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
                     previousV = targetCamera.worldToCameraMatrix;
 
                     previousFloatingOriginOffset = FloatingOrigin.TerrainShaderOffset;
