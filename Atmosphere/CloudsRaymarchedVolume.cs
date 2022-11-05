@@ -304,9 +304,17 @@ namespace Atmosphere
 
         public void ConfigureTextures()
         {
-            baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
-            raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoiseRT);
+            if (noise != null && noise.GetNoiseMode() != NoiseMode.None)
+            { 
+                baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
+                CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
+                raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoiseRT);
+                raymarchedCloudMaterial.EnableKeyword("NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("NOISE_OFF");
+            }
+            else
+            {
+                raymarchedCloudMaterial.EnableKeyword("NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("NOISE_ON");
+            }
 
             if (coverageMap != null)    //have to apply this last because it sets the MAP type keywords
             {
