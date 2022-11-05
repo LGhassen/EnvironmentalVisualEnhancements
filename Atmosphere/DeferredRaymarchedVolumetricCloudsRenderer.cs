@@ -224,7 +224,14 @@ namespace Atmosphere
                 var currentV = targetCamera.worldToCameraMatrix;
 
                 //handle floatingOrigin changes
-                Vector3d currentOffset = FloatingOrigin.TerrainShaderOffset - previousFloatingOriginOffset;
+                Vector3d currentOffset = Vector3d.zero;
+
+                if (FloatingOrigin.OffsetNonKrakensbane != previousFloatingOriginOffset)
+                    currentOffset = FloatingOrigin.OffsetNonKrakensbane;    // this is the frame-to-frame difference in offset, but it's not updated if there is no change
+                                                                            // this isn't the best way to check for it, as if we're moving at constant speed and it changes every frame then there's no way to detect it
+                                                                            // but it seems to work ok
+
+                previousFloatingOriginOffset = FloatingOrigin.OffsetNonKrakensbane;
 
                 //transform to camera space
                 Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
@@ -363,7 +370,6 @@ namespace Atmosphere
                     previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
                     previousV = targetCamera.worldToCameraMatrix;
 
-                    previousFloatingOriginOffset = FloatingOrigin.TerrainShaderOffset;
                     renderingEnabled = false;
                 }
 

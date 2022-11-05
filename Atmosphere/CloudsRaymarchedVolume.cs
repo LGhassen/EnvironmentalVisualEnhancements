@@ -248,7 +248,7 @@ namespace Atmosphere
 
         private MeshRenderer volumeMeshrenderer;
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)//, Vector3 speed, Matrix4x4 rotationAxis)
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)
         {
             planetRadius = parentRadius;
             parentTransform = parent;
@@ -265,7 +265,6 @@ namespace Atmosphere
 
             SetShaderParams(raymarchedCloudMaterial);
 
-            //check if need this
             Remove();
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -283,8 +282,7 @@ namespace Atmosphere
             volumeMeshrenderer = volumeHolder.GetComponent<MeshRenderer>();
             volumeMeshrenderer.material = new Material(InvisibleShader);
             
-            raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO
-            //raymarchedCloudMaterial.renderQueue = (int)Tools.Queue.Transparent + 2; //check this
+            raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO eclipses
 
             volumeMeshrenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             volumeMeshrenderer.receiveShadows = false;
@@ -293,7 +291,7 @@ namespace Atmosphere
             MeshFilter filter = volumeHolder.GetComponent<MeshFilter>();
             filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(Mathf.Infinity, Mathf.Infinity, Mathf.Infinity));
 
-            volumeHolder.transform.parent = parent; //probably parent this to the camera instead, if you want it to render before scatterer sky at least
+            volumeHolder.transform.parent = parent;
             volumeHolder.transform.localPosition = Vector3.zero;
             volumeHolder.transform.localScale = Vector3.one;
             volumeHolder.transform.localRotation = Quaternion.identity;
