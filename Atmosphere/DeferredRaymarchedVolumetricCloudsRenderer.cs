@@ -101,50 +101,51 @@ namespace Atmosphere
         public void Initialize()
         {
             targetCamera = GetComponent<Camera>();
-            if (!ReferenceEquals(targetCamera.activeTexture, null))
+
+            if (targetCamera == null || targetCamera.activeTexture == null)
+                return;
+
+            if ((targetCamera.activeTexture.width % reprojectionXfactor != 0) || (targetCamera.activeTexture.height % reprojectionYfactor != 0))
             {
-                if ((targetCamera.activeTexture.width % reprojectionXfactor != 0) || (targetCamera.activeTexture.height % reprojectionYfactor != 0))
-                {
-                    Debug.LogError ("Error: Screen dimensions not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString() + ": " + targetCamera.targetTexture.width.ToString() + " " + targetCamera.targetTexture.height.ToString());
-                    return;
-                }
-
-                reconstructCloudsMaterial = new Material(ReconstructionShader);
-
-                int width = targetCamera.activeTexture.width;
-                int height = targetCamera.activeTexture.height;
-                
-                historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
-                historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
-
-                secondaryHistoryFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
-                secondaryHistoryFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
-
-                historyMotionVectorsFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
-                historyMotionVectorsFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
-
-                newRaysFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
-                newRaysFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
-
-                newRaysSecondaryFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
-                newRaysSecondaryFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
-
-                newMotionVectorsFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-                newMotionVectorsFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-
-                reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-                reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
-
-                DeferredRaymarchedRendererToScreen.material.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-                DeferredRaymarchedRendererToScreen.material.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
-
-                reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
-                reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
-                
-                commandBuffer = new CommandBuffer();
-
-                isInitialized = true;
+                Debug.LogError("Error: Screen dimensions not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString() + ": " + targetCamera.activeTexture.width.ToString() + " " + targetCamera.activeTexture.height.ToString());
+                return;
             }
+
+            reconstructCloudsMaterial = new Material(ReconstructionShader);
+
+            int width = targetCamera.activeTexture.width;
+            int height = targetCamera.activeTexture.height;
+
+            historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+            historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+
+            secondaryHistoryFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+            secondaryHistoryFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+
+            historyMotionVectorsFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
+            historyMotionVectorsFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
+
+            newRaysFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
+            newRaysFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
+
+            newRaysSecondaryFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
+            newRaysSecondaryFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
+
+            newMotionVectorsFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+            newMotionVectorsFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+
+            reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
+            reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
+
+            DeferredRaymarchedRendererToScreen.material.SetVector("reconstructedTextureResolution", new Vector2(width, height));
+            DeferredRaymarchedRendererToScreen.material.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
+
+            reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
+            reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
+
+            commandBuffer = new CommandBuffer();
+
+            isInitialized = true;
         }
 
         public void EnableForThisFrame(CloudsRaymarchedVolume volume)
