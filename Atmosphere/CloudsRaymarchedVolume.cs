@@ -123,8 +123,6 @@ namespace Atmosphere
         float adaptiveStepSizeFactor = 0.012f;
         [ConfigItem]
         float maxStepSize = 180f;
-
-        public float baseMipLevel = 0f, lightRayMipLevel = 0f;
         //////////////////////////////
 
         ///noise and texture params
@@ -145,7 +143,7 @@ namespace Atmosphere
         [ConfigItem]
         float absorptionMultiplier = 1.0f;
         [ConfigItem]
-        float skylightMultiplier = 0.5f;
+        float skylightMultiplier = 1.0f;
         
         [ConfigItem]
         float upwardsCloudSpeed = 11.0f;
@@ -373,8 +371,6 @@ namespace Atmosphere
             //mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
-            mat.SetFloat("baseMipLevel", baseMipLevel);
-            mat.SetFloat("lightRayMipLevel", lightRayMipLevel);
 
             mat.SetFloat("baseStepSize", baseStepSize);
             mat.SetFloat("maxStepSize", maxStepSize);
@@ -564,8 +560,11 @@ namespace Atmosphere
                 return false;
             }
 
-            volumetricLayerScaledFade = Mathf.Lerp(1f, 0f, Mathf.Clamp01((camAltitude - scaledFadeStartAltitude) / (scaledFadeEndAltitude - scaledFadeStartAltitude)));
-            scaledLayerFade = 1f - volumetricLayerScaledFade;
+            volumetricLayerScaledFade = 1f - (camAltitude - scaledFadeStartAltitude) / (scaledFadeEndAltitude - scaledFadeStartAltitude);
+            
+            scaledLayerFade = Mathf.Clamp01(4f * (1f - volumetricLayerScaledFade));                 // completely fade in the 2d layer by the first 25% of the transition
+            volumetricLayerScaledFade = Mathf.Clamp01(1.33333333f * volumetricLayerScaledFade);     // fade out the volumetric layer starting from 25% to the rest of the way
+
             return true;
         }
 
