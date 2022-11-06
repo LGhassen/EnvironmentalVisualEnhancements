@@ -277,7 +277,9 @@ namespace Atmosphere
                 CloudMaterial.renderQueue = (int)Tools.Queue.Transparent -1;
             }
 
-            if(isMainMenu)
+            CloudMaterial.SetFloat("scaledCloudFade", 1f);
+
+            if (isMainMenu)
             {
                 try
                 {
@@ -394,7 +396,7 @@ namespace Atmosphere
 
         internal void SetOrbitFade(float fade)
         {
-            CloudMaterial.SetFloat("cloudFade", fade); // still need to do this in shader
+            CloudMaterial.SetFloat("scaledCloudFade", fade); // TODO: property
         }
 
         Vector4 UniversalTimeVector()

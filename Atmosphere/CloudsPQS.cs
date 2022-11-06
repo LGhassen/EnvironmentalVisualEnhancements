@@ -315,7 +315,6 @@ namespace Atmosphere
                         }
 
                         // TODO pass currentTimeFade
-
                         if (scaledLayerFade > 0f)
                         {
                             layer2D.SetOrbitFade(scaledLayerFade);
