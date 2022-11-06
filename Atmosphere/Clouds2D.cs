@@ -278,6 +278,7 @@ namespace Atmosphere
             }
 
             CloudMaterial.SetFloat("scaledCloudFade", 1f);
+            CloudMaterial.SetFloat("cloudTimeFade", 1f);
 
             if (isMainMenu)
             {
@@ -301,6 +302,9 @@ namespace Atmosphere
                 ShadowProjector.material.SetFloat("_Radius", (float)radiusScaleLocal);
                 ShadowProjector.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius*worldScale);
                 ShadowProjector.transform.parent = parent;
+
+                ShadowProjector.material.SetFloat("cloudTimeFade", 1f);
+                screenSpaceShadow.material.SetFloat("cloudTimeFade", 1f);
 
                 ShadowProjectorGO.layer = (int)Tools.Layer.Scaled; //move these to init since no longer need to change
                 if (layer == Tools.Layer.Scaled)
@@ -397,6 +401,17 @@ namespace Atmosphere
         internal void SetOrbitFade(float fade)
         {
             CloudMaterial.SetFloat("scaledCloudFade", fade); // TODO: property
+        }
+
+        internal void SetTimeFade(float fade)
+        {
+            CloudMaterial.SetFloat("cloudTimeFade", fade);   // TODO: property
+
+            if (ShadowProjector != null)
+            {
+                ShadowProjector.material.SetFloat("cloudTimeFade", fade);
+                screenSpaceShadow.material.SetFloat("cloudTimeFade", fade);
+            }
         }
 
         Vector4 UniversalTimeVector()

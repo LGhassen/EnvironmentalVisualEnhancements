@@ -59,6 +59,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			float _Radius;
 			float _PlanetRadius;
 			float _ShadowFactor;
+			float cloudTimeFade;
 
 			float3 _PlanetOrigin;
 
@@ -138,7 +139,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
 
-				return lerp(1, color, shadowCheck*fadeout);
+				return lerp(1, color, shadowCheck*fadeout*cloudTimeFade);
 			}
 
 			ENDCG

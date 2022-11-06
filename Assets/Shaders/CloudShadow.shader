@@ -60,6 +60,7 @@ Shader "EVE/CloudShadow" {
 			float _Radius;
 			float _PlanetRadius;
 			float _ShadowFactor;
+			float cloudTimeFade;
 
 			float3 _PlanetOrigin;
 			uniform float4x4 unity_Projector;
@@ -136,7 +137,7 @@ Shader "EVE/CloudShadow" {
 
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
-				return lerp(1, color, shadowCheck);
+				return lerp(1, color, shadowCheck*cloudTimeFade);
 			}
 
 			ENDCG

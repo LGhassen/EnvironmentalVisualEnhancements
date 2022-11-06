@@ -314,7 +314,6 @@ namespace Atmosphere
 
                         }
 
-                        // TODO pass currentTimeFade
                         if (scaledLayerFade > 0f)
                         {
                             layer2D.SetOrbitFade(scaledLayerFade);
@@ -325,6 +324,8 @@ namespace Atmosphere
                             layer2D.enabled = true; // todo merge these two lines 
                             layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows
                         }
+
+                        layer2D.SetTimeFade(currentTimeFade);
                     }
                 }
             }
