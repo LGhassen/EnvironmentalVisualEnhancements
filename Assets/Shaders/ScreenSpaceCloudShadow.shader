@@ -59,7 +59,9 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			float _Radius;
 			float _PlanetRadius;
 			float _ShadowFactor;
-			float cloudTimeFade;
+
+			float cloudTimeFadeCoverage;
+			float cloudTimeFadeDensity;
 
 			float3 _PlanetOrigin;
 
@@ -87,6 +89,12 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				o.uv = ComputeScreenPos(o.pos);
 
 				return o;
+			}
+
+			float RemapClamped (float value, float original_min, float original_max, float new_min, float new_max)
+			{
+				value = clamp(value, original_min, original_max);
+				return new_min + (((value - original_min) / (original_max - original_min)) * (new_max - new_min));
 			}
 
 			fixed4 frag(v2f IN) : COLOR
@@ -134,12 +142,14 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				half detailLevel = saturate(2 * _DetailDist*viewDist);
 				fixed4 color = _Color * main.rgba * lerp(detail.rgba, 1, detailLevel);
 
+				color.a = RemapClamped(color.a, 1.0 - cloudTimeFadeCoverage, 1.0, 0.0, 1.0);
+
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
 
 				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
 
-				return lerp(1, color, shadowCheck*fadeout*cloudTimeFade);
+				return lerp(1, color, shadowCheck*fadeout*cloudTimeFadeDensity);
 			}
 
 			ENDCG

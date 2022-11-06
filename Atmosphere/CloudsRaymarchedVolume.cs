@@ -193,6 +193,9 @@ namespace Atmosphere
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
 
+        private float currentTimeFadeDensity = 1f;
+        private float currentTimeFadeCoverage = 1f;
+
         public bool enabled
         {
             get { return _enabled; }
@@ -243,6 +246,8 @@ namespace Atmosphere
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
         public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
         public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
+        public float CurrentTimeFadeDensity { get => currentTimeFadeDensity; }
+        public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
 
         private MeshRenderer volumeMeshrenderer;
 
@@ -387,6 +392,9 @@ namespace Atmosphere
 
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
             mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
+
+            mat.SetFloat("timeFadeDensity", 1f);
+            mat.SetFloat("timeFadeCoverage", 1f);
         }
 
         private void ProcessCloudTypes()
@@ -536,7 +544,12 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
 
             if (shadowCasterLayerRaymarchedVolume != null)
-                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix); // this may be 1-2 frames behind
+            {
+                // these may be 1-2 frames behind
+                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix); 
+                raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
+                raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
+            }
         }
 
         public void Remove()
@@ -585,10 +598,19 @@ namespace Atmosphere
             }
         }
 
-        internal void SetTimeFade(float currentTimeFade)
+        internal void SetTimeFade(float currentTimeFade, TimeFadeMode mode)
         {
-            // TODO: fade mode
-            raymarchedCloudMaterial.SetFloat("timeFade", currentTimeFade); // TODO: shader params
+            if (mode == TimeFadeMode.Density)
+            {
+                currentTimeFadeDensity = currentTimeFade;
+                raymarchedCloudMaterial.SetFloat("timeFadeDensity", currentTimeFade); // TODO: shader params
+            }
+            else if (mode == TimeFadeMode.Coverage)
+            {
+                currentTimeFadeCoverage = currentTimeFade;
+                raymarchedCloudMaterial.SetFloat("timeFadeCoverage", currentTimeFade); // TODO: shader params
+            }
+
         }
 
         // TODO: move to utils

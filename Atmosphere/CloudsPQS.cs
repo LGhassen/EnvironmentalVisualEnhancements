@@ -233,8 +233,6 @@ namespace Atmosphere
                                                        detailRotationMatrix);
                             layerVolume.enabled = true;
                         }
-
-                        // TODO pass currentTimeFade
                     }
 
                     //here check it's enabling and disabling conditions of raymarchedLayer
@@ -261,8 +259,6 @@ namespace Atmosphere
                             Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
                             oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
 
-                            // TODO pass currentTimeFade
-
                             layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
                                                    world2SphereMatrix,
                                                    mainRotationQ,
@@ -271,7 +267,11 @@ namespace Atmosphere
                                                    oppositeFrameDeltaRotationMatrix,
                                                    detailRotationMatrix);
 
-                            layerRaymarchedVolume.SetTimeFade(currentTimeFade);
+                            if (timeSettings != null)
+                            {
+                                layerRaymarchedVolume.SetTimeFade(currentTimeFade, timeSettings.GetFadeMode());
+                            }
+
                             layerRaymarchedVolume.enabled = true;
                         }
                         else
@@ -325,7 +325,10 @@ namespace Atmosphere
                             layer2D.setCloudMeshEnabled(false); // only disable the 2d layer, don't disable shadows
                         }
 
-                        layer2D.SetTimeFade(currentTimeFade);
+                        if (timeSettings != null)
+                        {
+                            layer2D.SetTimeFade(currentTimeFade, timeSettings.GetFadeMode());
+                        }
                     }
                 }
             }

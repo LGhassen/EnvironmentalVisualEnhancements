@@ -60,7 +60,9 @@ Shader "EVE/CloudShadow" {
 			float _Radius;
 			float _PlanetRadius;
 			float _ShadowFactor;
-			float cloudTimeFade;
+
+			float cloudTimeFadeCoverage;
+			float cloudTimeFadeDensity;
 
 			float3 _PlanetOrigin;
 			uniform float4x4 unity_Projector;
@@ -79,6 +81,12 @@ Shader "EVE/CloudShadow" {
 				float3 mainPos : TEXCOORD4;
 				float3 detailPos : TEXCOORD5;
 			};
+
+			float RemapClamped (float value, float original_min, float original_max, float new_min, float new_max)
+			{
+				value = clamp(value, original_min, original_max);
+				return new_min + (((value - original_min) / (original_max - original_min)) * (new_max - new_min));
+			}
 
 			v2f vert(appdata_t v)
 			{
@@ -135,9 +143,11 @@ Shader "EVE/CloudShadow" {
 				half detailLevel = saturate(2 * _DetailDist*viewDist);
 				fixed4 color = _Color * main.rgba * lerp(detail.rgba, 1, detailLevel);
 
+				color.a = RemapClamped(color.a, 1.0 - cloudTimeFadeCoverage, 1.0, 0.0, 1.0);
+
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
-				return lerp(1, color, shadowCheck*cloudTimeFade);
+				return lerp(1, color, shadowCheck*cloudTimeFadeDensity);
 			}
 
 			ENDCG

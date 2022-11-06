@@ -95,6 +95,9 @@ Shader "EVE/Cloud" {
 				sampler2D _CameraDepthTexture;
 				float _DepthPull;
 
+				float cloudTimeFadeDensity;
+				float cloudTimeFadeCoverage;
+
 				struct appdata_t {
 					float4 vertex : POSITION;
 					fixed4 color : COLOR;
@@ -156,6 +159,12 @@ Shader "EVE/Cloud" {
 #endif
 				};
 
+				float RemapClamped (float value, float original_min, float original_max, float new_min, float new_max)
+				{
+					value = clamp(value, original_min, original_max);
+					return new_min + (((value - original_min) / (original_max - original_min)) * (new_max - new_min));
+				}
+
 				fout frag(v2f IN)
 				{
 					fout OUT;
@@ -177,6 +186,8 @@ Shader "EVE/Cloud" {
 					float viewDist = distance(IN.worldVert,_WorldSpaceCameraPos);
 					half detailLevel = saturate(2 * _DetailDist*viewDist);
 					color = _Color * main.rgba * lerp(detail.rgba, 1, detailLevel);
+
+					color.a = RemapClamped(color.a, 1.0 - cloudTimeFadeCoverage, 1.0, 0.0, 1.0) * cloudTimeFadeDensity;
 
 					float rim = saturate(abs(dot(IN.viewDir, worldNormal)));
 					rim = saturate(pow(_FalloffScale*rim,_FalloffPow));

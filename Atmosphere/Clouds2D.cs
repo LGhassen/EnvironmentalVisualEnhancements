@@ -278,7 +278,8 @@ namespace Atmosphere
             }
 
             CloudMaterial.SetFloat("scaledCloudFade", 1f);
-            CloudMaterial.SetFloat("cloudTimeFade", 1f);
+            CloudMaterial.SetFloat("cloudTimeFadeDensity", 1f);
+            CloudMaterial.SetFloat("cloudTimeFadeCoverage", 1f);
 
             if (isMainMenu)
             {
@@ -303,8 +304,10 @@ namespace Atmosphere
                 ShadowProjector.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius*worldScale);
                 ShadowProjector.transform.parent = parent;
 
-                ShadowProjector.material.SetFloat("cloudTimeFade", 1f);
-                screenSpaceShadow.material.SetFloat("cloudTimeFade", 1f);
+                ShadowProjector.material.SetFloat("cloudTimeFadeDensity", 1f);
+                ShadowProjector.material.SetFloat("cloudTimeFadeCoverage", 1f);
+                screenSpaceShadow.material.SetFloat("cloudTimeFadeDensity", 1f);
+                screenSpaceShadow.material.SetFloat("cloudTimeFadeCoverage", 1f);
 
                 ShadowProjectorGO.layer = (int)Tools.Layer.Scaled; //move these to init since no longer need to change
                 if (layer == Tools.Layer.Scaled)
@@ -403,14 +406,27 @@ namespace Atmosphere
             CloudMaterial.SetFloat("scaledCloudFade", fade); // TODO: property
         }
 
-        internal void SetTimeFade(float fade)
+        internal void SetTimeFade(float fade, TimeFadeMode mode)
         {
-            CloudMaterial.SetFloat("cloudTimeFade", fade);   // TODO: property
+            if (mode == TimeFadeMode.Density)
+            { 
+                CloudMaterial.SetFloat("cloudTimeFadeDensity", fade);   // TODO: property
 
-            if (ShadowProjector != null)
+                if (ShadowProjector != null)
+                {
+                    ShadowProjector.material.SetFloat("cloudTimeFadeDensity", fade);
+                    screenSpaceShadow.material.SetFloat("cloudTimeFadeDensity", fade);
+                }
+            }
+            if (mode == TimeFadeMode.Coverage)
             {
-                ShadowProjector.material.SetFloat("cloudTimeFade", fade);
-                screenSpaceShadow.material.SetFloat("cloudTimeFade", fade);
+                CloudMaterial.SetFloat("cloudTimeFadeCoverage", fade);   // TODO: property
+
+                if (ShadowProjector != null)
+                {
+                    ShadowProjector.material.SetFloat("cloudTimeFadeCoverage", fade);
+                    screenSpaceShadow.material.SetFloat("cloudTimeFadeCoverage", fade);
+                }
             }
         }
 
