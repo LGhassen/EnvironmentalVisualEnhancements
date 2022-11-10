@@ -7,80 +7,6 @@ using Utils;
 
 namespace Atmosphere
 {
-    public class CloudTexture
-    {
-        [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
-        TextureWrapper globalTexture;
-
-        [ConfigItem, Optional]
-        TextureWrapper tiledTexture;
-
-        [ConfigItem, Optional]
-        NoiseWrapper generatedTiledTexture;
-
-        public TextureWrapper GlobalTexture { get => globalTexture; }
-        public TextureWrapper TiledTexture { get => tiledTexture; }
-        public NoiseWrapper GeneratedTiledTexture { get => generatedTiledTexture; }
-    }
-
-    public class TiledCloudTexture
-    {
-        [ConfigItem, Optional]
-        TextureWrapper tiledTexture;
-
-        [ConfigItem, Optional]
-        NoiseWrapper generatedTiledTexture;
-
-        public TextureWrapper TiledTexture { get => tiledTexture; }
-        public NoiseWrapper GeneratedTiledTexture { get => generatedTiledTexture; }
-    }
-
-    public class CloudType
-    {
-        [ConfigItem]
-        string typeName = "New cloud type";
-        
-        [ConfigItem]
-        float minAltitude = 0f;
-        [ConfigItem]
-        float maxAltitude = 0f;
-
-        [ConfigItem]
-        float baseTiling = 1000f;
-        [ConfigItem]
-        float detailTiling = 100f;
-
-        //these aren't used yet, using global for now
-        [ConfigItem]
-        float detailHeightGradient;
-        [ConfigItem]
-        float detailStrength;
-
-        [ConfigItem]
-        float density = 0.15f;
-
-        [ConfigItem]
-        bool interpolateCloudHeights = true;
-
-        [ConfigItem]
-        FloatCurve densityCurve;
-
-        /*
-        [ConfigItem]
-        float curlNoiseTiling;
-        [ConfigItem]
-        float curlNoiseStrength;
-        */
-
-        public FloatCurve DensityCurve { get => densityCurve; }
-        public float MinAltitude { get => minAltitude; }
-        public float MaxAltitude { get => maxAltitude; }
-        public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
-        public float BaseTiling { get => baseTiling; }
-        public float DetailTiling { get => detailTiling; }
-        public float Density { get => density; }
-    }
-
     public class CloudsRaymarchedVolume
     {
         public GameObject volumeHolder;
@@ -107,25 +33,8 @@ namespace Atmosphere
         private int baseNoiseDimension = 128;
         private RenderTexture baseNoiseRT;
 
-        [ConfigItem]
-        float deTilifyBaseNoise = 1f;
+        private float deTilifyBaseNoise = 1f;
 
-        //TODO: move these to global quality settings or something like that
-        [ConfigItem]
-        float lightMarchSteps = 4;
-
-        [ConfigItem]
-        float lightMarchDistance = 700f;
-
-        [ConfigItem]
-        float baseStepSize = 32f;
-        [ConfigItem]
-        float adaptiveStepSizeFactor = 0.012f;
-        [ConfigItem]
-        float maxStepSize = 180f;
-        //////////////////////////////
-
-        ///noise and texture params
         [ConfigItem]
         NoiseWrapper noise;
 
@@ -134,17 +43,27 @@ namespace Atmosphere
 
         public TextureWrapper CoverageMap { get => coverageMap; }
 
-        [ConfigItem, Optional]
-        CloudTexture cloudTypeMap;
+        [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
+        TextureWrapper cloudTypeMap;
 
-        ///cloud params
         [ConfigItem]
-        Color cloudColor = Color.white;
+        RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
+
+        [ConfigItem]
+        Color color = Color.white;
         [ConfigItem]
         float absorptionMultiplier = 1.0f;
         [ConfigItem]
         float skylightMultiplier = 1.0f;
-        
+
+        [ConfigItem]
+        string receiveShadowsFromLayer = "";
+
+        public string ReceiveShadowsFromLayer { get => receiveShadowsFromLayer; }
+
+        [ConfigItem]
+        float receivedShadowsDensity = 100f;
+
         [ConfigItem]
         float upwardsCloudSpeed = 11.0f;
 
@@ -164,22 +83,14 @@ namespace Atmosphere
         //potentially move these to be per cloud type as well?
 
         [ConfigItem]
-        float secondaryNoiseTiling = 1f;
+        float detailNoiseTiling = 1f;
         [ConfigItem]
-        float secondaryNoiseStrength = 1f;
+        float detailNoiseStrength = 1f;
         //[ConfigItem]
         //float secondaryNoiseGradient = 1f;
 
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
-
-        [ConfigItem]
-        string receiveShadowsFromLayer = "";
-
-        public string ReceiveShadowsFromLayer { get => receiveShadowsFromLayer; }
-
-        [ConfigItem]
-        float receivedShadowsDensity = 100f;
 
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
@@ -188,7 +99,7 @@ namespace Atmosphere
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
-        private Texture densityCurvesTexture;
+        private Texture coverageCurvesTexture;
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
@@ -338,19 +249,11 @@ namespace Atmosphere
                 shadowCasterLayerRaymarchedVolume = cloudsRaymarchedVolume;
         }
 
-        private void ApplyCloudTexture(CloudTexture cloudTexture, string propertyName, Material mat)
+        private void ApplyCloudTexture(TextureWrapper cloudTexture, string propertyName, Material mat)
         {
-            if (cloudTexture.GlobalTexture != null)
+            if (cloudTexture != null)
             {
-                cloudTexture.GlobalTexture.ApplyTexture(mat, propertyName);
-            }
-            else if (cloudTexture.GeneratedTiledTexture != null)
-            {
-                GenerateAndAssignTexture(cloudTexture.GeneratedTiledTexture, propertyName, mat);
-            }
-            else if (cloudTexture.TiledTexture != null)
-            {
-                cloudTexture.TiledTexture.ApplyTexture(mat, propertyName);
+                cloudTexture.ApplyTexture(mat, propertyName);
             }
             else
             {
@@ -369,20 +272,20 @@ namespace Atmosphere
 
         public void SetShaderParams(Material mat)
         {
-            mat.SetColor("cloudColor", cloudColor);
+            mat.SetColor("cloudColor", color);
 
-            mat.SetFloat("detailTiling", 1f / secondaryNoiseTiling);
-            mat.SetFloat("detailStrength", secondaryNoiseStrength);
+            mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
+            mat.SetFloat("detailStrength", detailNoiseStrength);
             //mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
-            mat.SetFloat("baseStepSize", baseStepSize);
-            mat.SetFloat("maxStepSize", maxStepSize);
-            mat.SetFloat("adaptiveStepSizeFactor", adaptiveStepSizeFactor);
+            mat.SetFloat("baseStepSize", raymarchingSettings.BaseStepSize);
+            mat.SetFloat("maxStepSize", raymarchingSettings.MaxStepSize);
+            mat.SetFloat("adaptiveStepSizeFactor", raymarchingSettings.AdaptiveStepSizeFactor);
 
-            mat.SetFloat("lightMarchDistance", lightMarchDistance);
-            mat.SetInt("lightMarchSteps", (int)lightMarchSteps);
+            mat.SetFloat("lightMarchDistance", raymarchingSettings.LightMarchDistance);
+            mat.SetInt("lightMarchSteps", (int)raymarchingSettings.LightMarchSteps);
 
             Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false); //TODO: remove/replace with lower res texture?
             mat.SetTexture("BlueNoise", tex);
@@ -414,20 +317,20 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
             raymarchedCloudMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
 
-            densityCurvesTexture = BakeDensityCurvesTexture();
-            raymarchedCloudMaterial.SetTexture("DensityCurve", densityCurvesTexture);
+            coverageCurvesTexture = BakeCoverageCurvesTexture();
+            raymarchedCloudMaterial.SetTexture("DensityCurve", coverageCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
             Vector4[] cloudTypePropertiesArray1 = new Vector4[cloudTypes.Count];
 
-            Vector2 minMaxNoiseTilings = new Vector2(1f / secondaryNoiseTiling, 1f / secondaryNoiseTiling);
+            Vector2 minMaxNoiseTilings = new Vector2(1f / detailNoiseTiling, 1f / detailNoiseTiling);
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseTiling, 0f, 0f);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, 0f, 0f);
                 cloudTypePropertiesArray1[i] = new Vector4(0f, 0f, 0f, 0f);
 
-                minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseTiling));
+                minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties1", cloudTypePropertiesArray1);
@@ -437,7 +340,7 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
-        private Texture2D BakeDensityCurvesTexture()
+        private Texture2D BakeCoverageCurvesTexture()
         {
             int resolution = 128;
 
@@ -487,7 +390,7 @@ namespace Atmosphere
             if (currentAltitude <= maxAltitude && currentAltitude >= minAltitude)
             {
                 float t = (currentAltitude - minAltitude) / (maxAltitude - minAltitude);
-                return cloudTypes[cloudIndex].DensityCurve.Evaluate(t);
+                return cloudTypes[cloudIndex].CoverageCurve.Evaluate(t);
             }
 
             return 0f;
@@ -514,14 +417,14 @@ namespace Atmosphere
             Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                double noiseXOffset = xOffset / (double)cloudTypes[i].BaseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseTiling;
+                double noiseXOffset = xOffset / (double)cloudTypes[i].BaseNoiseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseNoiseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseNoiseTiling;
 
                 baseNoiseOffsets[i] = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float) (noiseYOffset - Math.Truncate(noiseYOffset)),
                     (float) (noiseZOffset - Math.Truncate(noiseZOffset)), 0f);
 
-                double noTileXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
-                double noTileYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
-                double noTileZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseTiling);
+                double noTileXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
+                double noTileYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
+                double noTileZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
 
                 noTileNoiseOffsets[i] = new Vector4((float)(noTileXOffset - Math.Truncate(noTileXOffset)), (float)(noTileYOffset - Math.Truncate(noTileYOffset)),
                     (float)(noTileZOffset - Math.Truncate(noTileZOffset)), 0f);
@@ -529,14 +432,14 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
             raymarchedCloudMaterial.SetVectorArray("noTileNoiseOffsets", noTileNoiseOffsets);
 
-            double detailXOffset = xOffset / (double) secondaryNoiseTiling, detailYOffset = yOffset / (double)secondaryNoiseTiling, detailZOffset = zOffset / (double)secondaryNoiseTiling;
+            double detailXOffset = xOffset / (double) detailNoiseTiling, detailYOffset = yOffset / (double)detailNoiseTiling, detailZOffset = zOffset / (double)detailNoiseTiling;
 
             raymarchedCloudMaterial.SetVector("detailOffset", new Vector4((float)(detailXOffset - Math.Truncate(detailXOffset)),
                 (float)(detailYOffset - Math.Truncate(detailYOffset)), (float)(detailZOffset - Math.Truncate(detailZOffset)), 0f));
 
-            detailXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
-            detailYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
-            detailZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)secondaryNoiseTiling);
+            detailXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
+            detailYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
+            detailZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
 
             Vector3 noTileNoiseDetailOffset = new Vector3((float)(detailXOffset - Math.Truncate(detailXOffset)),
                 (float)(detailYOffset - Math.Truncate(detailYOffset)), (float)(detailZOffset - Math.Truncate(detailZOffset)));

@@ -1,9 +1,5 @@
 ﻿using EVEManager;
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 using Utils;
 
@@ -46,7 +42,6 @@ namespace Atmosphere
         Coverage,
         Density,
     }
-
 
     public class TimeSettings   // all in seconds for now
     {
@@ -146,13 +141,12 @@ namespace Atmosphere
         Clouds2D layer2D = null;
 
         [ConfigItem, Optional]
+        CloudsVolume layerVolume = null;
+
+        [ConfigItem, Optional]
         CloudsRaymarchedVolume layerRaymarchedVolume = null;
 
         public CloudsRaymarchedVolume LayerRaymarchedVolume { get => layerRaymarchedVolume;}
-        
-
-        [ConfigItem, Optional]
-        CloudsVolume layerVolume = null;
 
         private CloudsPQS cloudsPQS = null;
         private CelestialBody celestialBody;
