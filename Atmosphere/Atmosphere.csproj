@@ -143,6 +143,8 @@
     <Compile Include="DeferredRaymarchedVolumetricCloudsRenderer.cs" />
     <Compile Include="DeferredVolumetricCloudsRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RaymarchedClouds\RaymarchedCloudsQualityManager.cs" />
+    <Compile Include="RaymarchedClouds\RaymarchedCloudsQuality.cs" />
     <Compile Include="VolumeManager.cs" />
     <Compile Include="CloudNoiseGen.cs" />
     <Compile Include="VolumeSection.cs" />

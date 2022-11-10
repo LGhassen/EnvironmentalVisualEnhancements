@@ -53,6 +53,17 @@ namespace Atmosphere
             }
         }
 
+        public static void ReinitAll()
+        {
+            foreach (var renderer in CameraToDeferredRaymarchedVolumetricCloudsRenderer.Values)
+            {
+                if (renderer != null)
+                {
+                    renderer.Cleanup();
+                }
+            }
+        }
+
         bool renderingEnabled = false;
         bool isInitialized = false;
 
@@ -75,6 +86,7 @@ namespace Atmosphere
 
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
+        ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
         //manually made sampling sequences that distribute samples in a cross pattern for reprojection
         int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
@@ -105,13 +117,31 @@ namespace Atmosphere
             if (targetCamera == null || targetCamera.activeTexture == null)
                 return;
 
+            var reprojectionFactors = RaymarchedCloudsQualityManager.GetReprojectionFactors();
+            reprojectionXfactor = reprojectionFactors.Item1;
+            reprojectionYfactor = reprojectionFactors.Item2;
+
+            reprojectionQuality = RaymarchedCloudsQualityManager.ReprojectionQuality;
+
             if ((targetCamera.activeTexture.width % reprojectionXfactor != 0) || (targetCamera.activeTexture.height % reprojectionYfactor != 0))
             {
                 Debug.LogError("Error: Screen dimensions not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString() + ": " + targetCamera.activeTexture.width.ToString() + " " + targetCamera.activeTexture.height.ToString());
+                CameraToDeferredRaymarchedVolumetricCloudsRenderer.Remove(targetCamera);
+                Component.Destroy(this);
                 return;
             }
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
+            if (reprojectionQuality == ReprojectionQuality.accurate)
+            {
+                reconstructCloudsMaterial.EnableKeyword("REPROJECTION_HQ");
+                reconstructCloudsMaterial.DisableKeyword("REPROJECTION_FAST");
+            }
+            else
+            {
+                reconstructCloudsMaterial.DisableKeyword("REPROJECTION_HQ");
+                reconstructCloudsMaterial.EnableKeyword("REPROJECTION_FAST");
+            }
 
             int width = targetCamera.activeTexture.width;
             int height = targetCamera.activeTexture.height;
@@ -379,17 +409,39 @@ namespace Atmosphere
 
         }
 
-        public void OnDestroy()
+        void Cleanup()
         {
-            if (!ReferenceEquals(targetCamera, null))
-            {
-                //TODO: here don't forget to release all the textures
+            historyFlipRT.Release();
+            historyFlopRT.Release();
 
+            secondaryHistoryFlipRT.Release();
+            secondaryHistoryFlopRT.Release();
+
+            historyMotionVectorsFlipRT.Release();
+            historyMotionVectorsFlopRT.Release();
+
+            newRaysFlipRT.Release();
+            newRaysFlopRT.Release();
+
+            newRaysSecondaryFlipRT.Release();
+            newRaysSecondaryFlopRT.Release();
+
+            newMotionVectorsFlipRT.Release();
+            newMotionVectorsFlopRT.Release();
+
+            if (targetCamera != null)
+            {
                 targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
                 volumesAdded.Clear();
-
-                renderingEnabled = false;
             }
+
+            renderingEnabled = false;
+            isInitialized = false;
+        }
+
+        public void OnDestroy()
+        {
+            Cleanup();
         }
 
         // TODO: move to utils

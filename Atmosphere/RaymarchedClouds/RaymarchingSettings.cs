@@ -8,12 +8,12 @@ namespace Atmosphere
         float lightMarchSteps = 4;
 
         [ConfigItem]
-        float lightMarchDistance = 700f;
+        float lightMarchDistance = 800f;
 
         [ConfigItem]
-        float baseStepSize = 32f;
+        float baseStepSize = 45f;
         [ConfigItem]
-        float adaptiveStepSizeFactor = 0.012f;
+        float adaptiveStepSizeFactor = 0.0022f;
         [ConfigItem]
         float maxStepSize = 180f;
 
