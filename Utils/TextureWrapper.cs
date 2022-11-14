@@ -191,15 +191,16 @@ namespace Utils
 
         }
 
-        public void ApplyTexture(Material mat, string name)
+        public void ApplyTexture(Material mat, string name, int? overrideIndex = null)
         {
+            int indexToUse = overrideIndex.HasValue ? overrideIndex.Value : index;
             GameDatabase.TextureInfo texture = null;
             if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
                 CubemapWrapper cubeMap = CubemapWrapper.fetchCubeMap(this);
                 if (cubeMap != null)
                 {
-                    cubeMap.ApplyCubeMap(mat, name, index);
+                    cubeMap.ApplyCubeMap(mat, name, indexToUse);
                 }
             }
             else
@@ -213,14 +214,14 @@ namespace Utils
             }
             if ((type & TextureTypeEnum.AlphaMapMask) > 0)
             {
-                mat.EnableKeyword(alphaMask+"_"+ index);
-                mat.EnableKeyword("ALPHAMAP_" + index);
+                mat.EnableKeyword(alphaMask+"_"+ indexToUse);
+                mat.EnableKeyword("ALPHAMAP_" + indexToUse);
                 Vector4 alphaMaskVector;
                 alphaMaskVector.x = alphaMask == AlphaMaskEnum.ALPHAMAP_R ? 1 : 0;
                 alphaMaskVector.y = alphaMask == AlphaMaskEnum.ALPHAMAP_G ? 1 : 0;
                 alphaMaskVector.z = alphaMask == AlphaMaskEnum.ALPHAMAP_B ? 1 : 0;
                 alphaMaskVector.w = alphaMask == AlphaMaskEnum.ALPHAMAP_A ? 1 : 0;
-                mat.SetVector("alphaMask" + index, alphaMaskVector);
+                mat.SetVector("alphaMask" + indexToUse, alphaMaskVector);
             }
         }
 

@@ -43,7 +43,7 @@ namespace Atmosphere
 
         public TextureWrapper CoverageMap { get => coverageMap; }
 
-        [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
+        [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
 
         [ConfigItem]
@@ -128,7 +128,7 @@ namespace Atmosphere
             if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
                 // this will break if using different map types, TODO: fix it
-                shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage");
+                shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage", 3);
                 raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
                 raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
@@ -230,9 +230,9 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("NOISE_ON");
             }
 
-            if (coverageMap != null)    //have to apply this last because it sets the MAP type keywords
+            if (coverageMap != null)
             {
-                coverageMap.ApplyTexture(raymarchedCloudMaterial, "CloudCoverage");
+                coverageMap.ApplyTexture(raymarchedCloudMaterial, "CloudCoverage", 1);
             }
             else
             {
@@ -240,7 +240,7 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("MAP_TYPE_1");
             }
 
-            ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial);
+            ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial, 2);
         }
 
         public void SetShadowCasterLayerRaymarchedVolume(CloudsRaymarchedVolume cloudsRaymarchedVolume)
@@ -249,25 +249,16 @@ namespace Atmosphere
                 shadowCasterLayerRaymarchedVolume = cloudsRaymarchedVolume;
         }
 
-        private void ApplyCloudTexture(TextureWrapper cloudTexture, string propertyName, Material mat)
+        private void ApplyCloudTexture(TextureWrapper cloudTexture, string propertyName, Material mat, int index)
         {
             if (cloudTexture != null)
             {
-                cloudTexture.ApplyTexture(mat, propertyName);
+                cloudTexture.ApplyTexture(mat, propertyName, index);
             }
             else
             {
                 mat.SetTexture(propertyName, Texture2D.whiteTexture);
             }
-        }
-
-        private void GenerateAndAssignTexture(NoiseWrapper noiseWrapper, string propertyName, Material mat)
-        {
-            RenderTexture rt = CreateRT(512, 512, 0, RenderTextureFormat.R8);
-            CloudNoiseGen.RenderNoiseToTexture(rt, noiseWrapper);
-            //var tex = TextureUtils.CompressSingleChannelRenderTextureToBC4(LocalCoverage, true);	//compress to BC4, increases fps a tiny bit, just disabled for now because it's slow
-                                                                                                    //delete this because it doesn't work in 3d and I removed every 2d case
-            mat.SetTexture(propertyName, rt);
         }
 
         public void SetShaderParams(Material mat)
