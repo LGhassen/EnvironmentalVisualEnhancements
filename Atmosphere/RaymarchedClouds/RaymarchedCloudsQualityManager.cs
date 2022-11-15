@@ -9,11 +9,15 @@ namespace Atmosphere
         static TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
         static ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
+        static bool nonTiling3DNoise = true;
+
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
 
         internal static TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal static ReprojectionQuality ReprojectionQuality { get => reprojectionQuality; }
+
+        internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal static Tuple<int, int> GetReprojectionFactors()
         {
@@ -42,10 +46,15 @@ namespace Atmosphere
         {
             if (ObjectList.Count > 0)
             {
+
                 temporalUpscaling = ObjectList[0].TemporalUpscaling;
                 reprojectionQuality = ObjectList[0].ReprojectionQuality;
 
+                nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
+
                 DeferredRaymarchedVolumetricCloudsRenderer.ReinitAll();
+
+                CloudsManager.Instance.Apply();
             }
         }
     }

@@ -29,8 +29,12 @@ namespace Atmosphere
         //[ConfigItem]
         ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
+        [ConfigItem]
+        bool nonTiling3DNoise = true;
+
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal ReprojectionQuality ReprojectionQuality { get => reprojectionQuality; }
+        internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         public void LoadConfigNode(ConfigNode node)
         {

@@ -289,6 +289,15 @@ namespace Atmosphere
 
             mat.SetFloat("timeFadeDensity", 1f);
             mat.SetFloat("timeFadeCoverage", 1f);
+
+            if (RaymarchedCloudsQualityManager.NonTiling3DNoise)
+            {
+                mat.EnableKeyword("NOISE_UNTILING_ON");mat.DisableKeyword("NOISE_UNTILING_OFF");
+            }
+            else
+            {
+                mat.EnableKeyword("NOISE_UNTILING_OFF"); mat.DisableKeyword("NOISE_UNTILING_ON");
+            }
         }
 
         private void ProcessCloudTypes()
