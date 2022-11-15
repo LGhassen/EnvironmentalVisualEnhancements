@@ -41,7 +41,12 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
 
+        TextureWrapper detailTex;
+        float detailScale = 0f;
+
         public TextureWrapper CoverageMap { get => coverageMap; }
+
+        public TextureWrapper DetailTex { get => detailTex; }
 
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
@@ -72,6 +77,9 @@ namespace Atmosphere
 
         [ConfigItem]
         float scaledFadeEndAltitude = 55000.0f;
+
+        [ConfigItem]
+        bool useDetailTex = false;
 
         float volumetricLayerScaledFade = 1.0f;
 
@@ -133,6 +141,17 @@ namespace Atmosphere
                 raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
 
+                if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
+                {
+                        shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(raymarchedCloudMaterial, "_ShadowDetailTex");
+                        raymarchedCloudMaterial.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
+                        raymarchedCloudMaterial.EnableKeyword("SHADOW_DETAILTEX_ON"); raymarchedCloudMaterial.DisableKeyword("SHADOW_DETAILTEX_OFF");
+                }
+                else
+                {
+                    raymarchedCloudMaterial.EnableKeyword("SHADOW_DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("SHADOW_DETAILTEX_ON");
+                }
+
                 shadowCasterTextureSet = true;
             }
         }
@@ -155,10 +174,14 @@ namespace Atmosphere
         public Vector3 NoiseReprojectionOffset { get => noiseReprojectionOffset; }
 
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
+        Matrix4x4 mainDetailRotationMatrix = Matrix4x4.identity;
         public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
+
+        public Matrix4x4 MainDetailRotationMatrix { get => mainDetailRotationMatrix; }
         public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
         public float CurrentTimeFadeDensity { get => currentTimeFadeDensity; }
         public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
+        public float DetailScale { get => detailScale; }
 
         private MeshRenderer volumeMeshrenderer;
 
@@ -172,6 +195,19 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
             raymarchedCloudMaterial.SetFloat("blueNoiseResolution", ShaderLoader.ShaderLoaderClass.stbnDimensions.x);
             raymarchedCloudMaterial.SetFloat("blueNoiseSlices", ShaderLoader.ShaderLoaderClass.stbnDimensions.z);
+
+            if (useDetailTex && material.DetailTex != null)
+            {
+                detailTex = material.DetailTex;
+                detailScale = material.DetailScale;
+                material.DetailTex.ApplyTexture(raymarchedCloudMaterial, "_DetailTex");
+                raymarchedCloudMaterial.SetFloat("_DetailScale", material.DetailScale);
+                raymarchedCloudMaterial.EnableKeyword("DETAILTEX_ON"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_OFF");
+            }
+            else
+            {
+                raymarchedCloudMaterial.EnableKeyword("DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_ON");
+            }
 
             ConfigureTextures();
 
@@ -449,7 +485,8 @@ namespace Atmosphere
             if (shadowCasterLayerRaymarchedVolume != null)
             {
                 // these may be 1-2 frames behind
-                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix); 
+                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix);
+                raymarchedCloudMaterial.SetMatrix("_ShadowDetailRotation", shadowCasterLayerRaymarchedVolume.MainDetailRotationMatrix);
                 raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
                 raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
             }
@@ -489,14 +526,13 @@ namespace Atmosphere
             if (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER)
             {
                 Matrix4x4 rotationMatrix = mainRotationMatrix * World2Planet;
-                raymarchedCloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotationMatrix);
-                raymarchedCloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotationMatrix);
+                Matrix4x4 mainDetailRotationMatrix = detailRotationMatrix * World2Planet;
 
-                volumeHolder.transform.localRotation = rotation;                                            // don't need this I think
-                raymarchedCloudMaterial.SetMatrix(ShaderProperties._PosRotation_Property, rotationMatrix);  // or this
+                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                                // TODO: shader params
+                raymarchedCloudMaterial.SetMatrix("cloudDetailRotation", mainDetailRotationMatrix);             // TODO: shader params
 
-                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                         // TODO: shader params
                 cloudRotationMatrix = rotationMatrix;
+                this.mainDetailRotationMatrix = mainDetailRotationMatrix;
                 oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
             }
         }

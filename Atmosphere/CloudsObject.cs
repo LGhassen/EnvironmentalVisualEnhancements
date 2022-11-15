@@ -35,6 +35,9 @@ namespace Atmosphere
         float _UVNoiseStrength = 0.002f;
         [ConfigItem]
         Vector2 _UVNoiseAnimation = new Vector2(0.4f, 0.2f);
+
+        public float DetailScale { get => _DetailScale; }
+        public TextureWrapper DetailTex { get => _DetailTex; }
     }
 
     public enum TimeFadeMode
