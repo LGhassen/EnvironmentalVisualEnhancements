@@ -137,19 +137,21 @@ namespace Atmosphere
             {
                 // this will break if using different map types, TODO: fix it
                 shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage", 3);
-                raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
-                raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
 
                 if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
                 {
-                        shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(raymarchedCloudMaterial, "_ShadowDetailTex");
-                        raymarchedCloudMaterial.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
-                        raymarchedCloudMaterial.EnableKeyword("SHADOW_DETAILTEX_ON"); raymarchedCloudMaterial.DisableKeyword("SHADOW_DETAILTEX_OFF");
+                    shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(raymarchedCloudMaterial, "_ShadowDetailTex");
+                    raymarchedCloudMaterial.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
+                    raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
                 }
                 else
                 {
-                    raymarchedCloudMaterial.EnableKeyword("SHADOW_DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("SHADOW_DETAILTEX_ON");
+                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+                    raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
                 }
 
                 shadowCasterTextureSet = true;
@@ -334,6 +336,10 @@ namespace Atmosphere
             {
                 mat.EnableKeyword("NOISE_UNTILING_OFF"); mat.DisableKeyword("NOISE_UNTILING_ON");
             }
+
+            raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+            raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
+            raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
         }
 
         private void ProcessCloudTypes()
