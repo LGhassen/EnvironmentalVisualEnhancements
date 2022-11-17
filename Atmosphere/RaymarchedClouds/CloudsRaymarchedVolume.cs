@@ -51,6 +51,9 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
 
+        [ConfigItem, Optional, Index(4), ValueFilter("isClamped|format|type")]
+        TextureWrapper cloudColorMap;
+
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
 
@@ -279,6 +282,16 @@ namespace Atmosphere
             }
 
             ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial, 2);
+
+            if (cloudColorMap!= null)
+            {
+                raymarchedCloudMaterial.EnableKeyword("COLORMAP_ON"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_OFF");
+                ApplyCloudTexture(cloudColorMap, "CloudColorMap", raymarchedCloudMaterial, 4);
+            }
+            else
+            { 
+                raymarchedCloudMaterial.EnableKeyword("COLORMAP_OFF"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_ON");
+            }
         }
 
         public void SetShadowCasterLayerRaymarchedVolume(CloudsRaymarchedVolume cloudsRaymarchedVolume)
