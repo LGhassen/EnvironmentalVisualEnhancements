@@ -21,6 +21,7 @@ namespace EVEManager
         public override String ToString() { return this.GetType().Name; }
 
         protected static List<T> ObjectList = new List<T>();
+
         protected static UrlDir.UrlConfig[] configs;
         protected override UrlDir.UrlConfig[] Configs { get { return configs; } set { configs = value; } }
         protected static List<ConfigWrapper> configFiles = new List<ConfigWrapper>();
@@ -235,6 +236,8 @@ namespace EVEManager
         {
             Instance.ILog(message);
         }
+
+        public static List<T> GetObjectList() { return ObjectList; }
     }
 
 }

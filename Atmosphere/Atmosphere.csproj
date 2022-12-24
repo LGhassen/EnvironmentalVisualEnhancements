@@ -119,6 +119,18 @@
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\KSPResources\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\KSPResources\UnityEngine.ImageConversionModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\KSPResources\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\KSPResources\UnityEngine.InputLegacyModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\Steam\steamapps\common\Kerbal Space Program\KSP_x64_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
@@ -128,6 +140,7 @@
     <Compile Include="..\_BuildManager\Properties\AssemblyVersionInfo.cs">
       <Link>Properties\AssemblyVersionInfo.cs</Link>
     </Compile>
+    <Compile Include="Painting\CloudsPainterManager.cs" />
     <Compile Include="CloudsPQS.cs" />
     <Compile Include="CloudsManager.cs" />
     <Compile Include="AtmosphereManager.cs" />
@@ -136,11 +149,12 @@
     <Compile Include="AtmosphereObject.cs" />
     <Compile Include="AtmosphereVolume.cs" />
     <Compile Include="Clouds2D.cs" />
+    <Compile Include="Painting\CloudsPainter.cs" />
     <Compile Include="RaymarchedClouds\RaymarchingSettings.cs" />
     <Compile Include="RaymarchedClouds\CloudType.cs" />
     <Compile Include="RaymarchedClouds\CloudsRaymarchedVolume.cs" />
     <Compile Include="CloudsVolume.cs" />
-    <Compile Include="DeferredRaymarchedVolumetricCloudsRenderer.cs" />
+    <Compile Include="RaymarchedClouds\DeferredRaymarchedVolumetricCloudsRenderer.cs" />
     <Compile Include="DeferredVolumetricCloudsRenderer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RaymarchedClouds\RaymarchedCloudsQualityManager.cs" />

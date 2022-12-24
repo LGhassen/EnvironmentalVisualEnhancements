@@ -225,6 +225,30 @@ namespace Utils
             }
         }
 
+        public Texture2D GetTexture()
+        {
+            if ((type & TextureTypeEnum.CubeMapMask) > 0)
+            {
+                return null;
+            }
+            else
+            {
+                return GameDatabase.Instance.GetTextureInfo(value)?.texture;
+            }
+        }
+
+        public CubemapWrapper GetCubemapWrapper()
+        {
+            if ((type & TextureTypeEnum.CubeMapMask) > 0)
+            {
+                return CubemapWrapper.fetchCubeMap(this);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public bool isValid()
         {
             if (value == null || value == "")

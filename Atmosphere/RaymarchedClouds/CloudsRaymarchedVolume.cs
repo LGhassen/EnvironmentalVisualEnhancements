@@ -51,8 +51,12 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
 
+        public TextureWrapper CloudTypeMap { get => cloudTypeMap; }
+
         [ConfigItem, Optional, Index(4), ValueFilter("isClamped|format|type")]
         TextureWrapper cloudColorMap;
+
+        public TextureWrapper CloudColorMap { get => cloudColorMap; }
 
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
@@ -103,6 +107,8 @@ namespace Atmosphere
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
+        public List<CloudType> CloudTypes { get { return cloudTypes; } }
+
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
         ///////////
@@ -124,7 +130,7 @@ namespace Atmosphere
             set
             {
                 if (!shadowCasterTextureSet && (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER))
-                { 
+                {
                     SetShadowCasterTextureParams();
                 }
 
@@ -134,12 +140,18 @@ namespace Atmosphere
             }
         }
 
-        private void SetShadowCasterTextureParams()
+        public void SetShadowCasterTextureParams(RenderTexture editorTexture = null)
         {
             if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
                 // this will break if using different map types, TODO: fix it
                 shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage", 3);
+
+                if (editorTexture != null)
+                {
+                    raymarchedCloudMaterial.SetTexture("ShadowCasterCloudCoverage", editorTexture);
+                }
+
                 raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
 
                 if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
@@ -183,6 +195,7 @@ namespace Atmosphere
         public Matrix4x4 CloudRotationMatrix { get => cloudRotationMatrix; }
 
         public Matrix4x4 MainDetailRotationMatrix { get => mainDetailRotationMatrix; }
+
         public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
         public float CurrentTimeFadeDensity { get => currentTimeFadeDensity; }
         public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
@@ -547,8 +560,8 @@ namespace Atmosphere
                 Matrix4x4 rotationMatrix = mainRotationMatrix * World2Planet;
                 Matrix4x4 mainDetailRotationMatrix = detailRotationMatrix * World2Planet;
 
-                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                                // TODO: shader params
-                raymarchedCloudMaterial.SetMatrix("cloudDetailRotation", mainDetailRotationMatrix);             // TODO: shader params
+                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                                 // TODO: shader params
+                raymarchedCloudMaterial.SetMatrix("cloudDetailRotation", mainDetailRotationMatrix);                 // TODO: shader params
 
                 cloudRotationMatrix = rotationMatrix;
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
@@ -561,12 +574,12 @@ namespace Atmosphere
             if (mode == TimeFadeMode.Density)
             {
                 currentTimeFadeDensity = currentTimeFade;
-                raymarchedCloudMaterial.SetFloat("timeFadeDensity", currentTimeFade); // TODO: shader params
+                raymarchedCloudMaterial.SetFloat("timeFadeDensity", currentTimeFade);   // TODO: shader params
             }
             else if (mode == TimeFadeMode.Coverage)
             {
                 currentTimeFadeCoverage = currentTimeFade;
-                raymarchedCloudMaterial.SetFloat("timeFadeCoverage", currentTimeFade); // TODO: shader params
+                raymarchedCloudMaterial.SetFloat("timeFadeCoverage", currentTimeFade);  // TODO: shader params
             }
 
         }

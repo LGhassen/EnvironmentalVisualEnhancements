@@ -40,5 +40,6 @@ namespace Atmosphere
         public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
         public float BaseNoiseTiling { get => baseNoiseTiling; }
         public float Density { get => density; }
+        public string TypeName { get => typeName; }
     }
 }

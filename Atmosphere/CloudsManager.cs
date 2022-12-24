@@ -5,7 +5,6 @@ using Utils;
 
 namespace Atmosphere
 {
-
     public class CloudsManager : GenericEVEManager<CloudsObject>
     {
         public override ObjectType objectType { get { return ObjectType.BODY | ObjectType.MULTIPLE; } }
@@ -47,6 +46,11 @@ namespace Atmosphere
                         cloudsObject.LayerRaymarchedVolume.SetShadowCasterLayerRaymarchedVolume(shadowCaster.LayerRaymarchedVolume);
                     }
                 }
+            }
+
+            foreach(CloudPainterManager CloudPainterManager in GlobalEVEManager.GetManagersOfType(typeof(CloudPainterManager)))
+            {
+                CloudPainterManager.RetargetClouds();
             }
         }
 
