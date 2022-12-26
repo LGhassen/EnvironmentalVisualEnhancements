@@ -9,6 +9,10 @@ namespace Atmosphere
         static TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
         static ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
+        public override int LoadOrder { get { return 120; } }
+
+        public override int DisplayOrder { get { return 92; } }
+
         static bool nonTiling3DNoise = true;
 
         public override ObjectType objectType { get { return ObjectType.STATIC; } }

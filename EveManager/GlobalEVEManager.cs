@@ -158,7 +158,7 @@ namespace EVEManager
             float height = _mainWindowRect.height - 10;
             Rect placementBase = new Rect(10, 25, width, height);
 
-            currentManager = GUIHelper.DrawSelector<EVEManagerBase>(Managers, ref selectedManagerIndex, 4, placementBase, ref placement);
+            currentManager = GUIHelper.DrawSelector<EVEManagerBase>(Managers.OrderBy(m => m.DisplayOrder).ToList(), ref selectedManagerIndex, 4, placementBase, ref placement);
 
             if (currentManager != null)
             {

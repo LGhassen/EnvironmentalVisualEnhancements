@@ -11,7 +11,9 @@ namespace Atmosphere
     {
         public override bool DelayedLoad { get { return true; } }
         public override GameScenes SceneLoad { get { return GameScenes.MAINMENU; } }
-        public override int LoadOrder { get { return 100; } }
+        public override int LoadOrder { get { return 110; } }
+
+        public override int DisplayOrder { get { return 91; } }
 
         public override String ToString() { return this.GetType().Name; }
         

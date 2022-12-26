@@ -18,6 +18,8 @@ namespace EVEManager
         public override GameScenes SceneLoad { get { return GameScenes.MAINMENU; } }
         public override int LoadOrder { get { return 100; } }
 
+        public override int DisplayOrder { get { return 100; } }
+
         public override String ToString() { return this.GetType().Name; }
 
         protected static List<T> ObjectList = new List<T>();

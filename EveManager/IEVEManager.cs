@@ -52,6 +52,8 @@ namespace EVEManager
         public abstract GameScenes SceneLoad { get; }
         public abstract int LoadOrder { get; }
 
+        public abstract int DisplayOrder { get; }
+
         protected abstract UrlDir.UrlConfig[] Configs { get; set; }
         protected abstract List<ConfigWrapper> ConfigFiles { get; }
         public abstract void Setup();
