@@ -160,7 +160,9 @@ namespace Atmosphere
             float currentTimeFade = 1f;
 
             if (timeSettings!=null)
+            {
                 visible = visible && timeSettings.IsEnabled(out currentTimeFade);
+            }
 
             if (visible)
             {

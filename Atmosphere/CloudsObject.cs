@@ -76,7 +76,8 @@ namespace Atmosphere
                 ut = Planetarium.GetUniversalTime();
             }
 
-            ut -= offset;
+            ut += repeatInterval - offset;
+
             ut = ut % repeatInterval;
 
             if (ut > duration)
