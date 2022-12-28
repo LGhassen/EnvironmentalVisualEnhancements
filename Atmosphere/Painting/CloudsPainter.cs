@@ -38,6 +38,7 @@ namespace Atmosphere
         public Color colorValue = Color.white;
 
         bool initialized = false;
+        bool paintEnabled = true;
         List<EditingMode> editingModes = new List<EditingMode>();
 
         public RenderTexture cloudCoverage, cloudType, cloudColorMap;
@@ -183,12 +184,16 @@ namespace Atmosphere
 
         public void Paint()
         {
-            if (initialized && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null)
+            if (initialized && paintEnabled && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null)
             {
                 Vector3d sphereCenter = layerRaymarchedVolume.ParentTransform.position;
                 Vector3d cameraPos = FlightCamera.fetch.mainCamera.transform.position;
 
-                double sphereRadius = cloudMaterial.GetFloat("innerSphereRadius");
+                var planetRadius = cloudMaterial.GetFloat("planetRadius");
+                // TODO: maybe detect if planet has ocean to do this
+                float innerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("innerSphereRadius"));
+                float outerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("outerSphereRadius"));
+                double sphereRadius = innerSphereRadius;
 
                 // Ray ray = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition); // inaccurate due to using the low near plane so calculate it by ourselves
                 var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, -10f));
@@ -201,22 +206,42 @@ namespace Atmosphere
 
                 Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePoint.normalized);
 
-                double intersectDistance = IntersectSphere(cameraPos, rayDir, sphereCenter, sphereRadius);
+                double intersectDistance = Mathf.Infinity;
 
-                if (intersectDistance < 0f)
+                RaycastHit hit;
+                var hitStatus = Physics.Raycast(FlightCamera.fetch.mainCamera.transform.position, rayDir, out hit, Mathf.Infinity, (int)((1 << 15) + (1 << 0)));
+
+                if(hitStatus)
                 {
-                    sphereRadius = cloudMaterial.GetFloat("outerSphereRadius");
-                    intersectDistance = IntersectSphere(cameraPos, rayDir, sphereCenter, sphereRadius);
+                    var hitAltitude = (hit.point - sphereCenter).magnitude;
+                    if (hitAltitude <= outerSphereRadius && hitAltitude >= innerSphereRadius)
+                    { 
+                        var hitDistance = (hit.point - FlightCamera.fetch.mainCamera.transform.position).magnitude;
+                        intersectDistance = Math.Min(hitDistance, hitDistance);
+                    }
                 }
 
-                if (intersectDistance > 0f)
+                intersectDistance = Math.Min(intersectDistance, IntersectSphere(cameraPos, rayDir, sphereCenter, innerSphereRadius));
+
+                if (intersectDistance == Mathf.Infinity)
+                {
+                    intersectDistance = IntersectSphere(cameraPos, rayDir, sphereCenter, outerSphereRadius);
+                }
+
+                if (intersectDistance != Mathf.Infinity)
                 {
                     Vector3d intersectPosition = cameraPos + rayDir * intersectDistance;
 
-                    Quaternion rotation = Quaternion.LookRotation(Vector3.Normalize(intersectPosition - sphereCenter));
+                    Vector3 upDirection = Vector3.Normalize(intersectPosition - sphereCenter);
+                    Quaternion rotation = Quaternion.LookRotation(upDirection);
                     Vector3 scale = new Vector3(brushSize * 2f, brushSize * 2f, brushSize * 2f);
+
                     Matrix4x4 matrix = Matrix4x4.TRS(intersectPosition, rotation, scale);
                     Graphics.DrawMesh(cursorMesh, matrix, cursorMaterial, 0, FlightCamera.fetch.mainCamera);
+
+                    //intersectPosition = intersectPosition + upDirection * (topIntersect ? -1f : 1f) * 1f * (outerSphereRadius - innerSphereRadius);
+                    //matrix = Matrix4x4.TRS(intersectPosition, rotation, scale);
+                    //Graphics.DrawMesh(cursorMesh, matrix, cursorMaterial, 0, FlightCamera.fetch.mainCamera);
 
                     if (Input.GetMouseButton(0) && Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y)
                     {
@@ -285,7 +310,7 @@ namespace Atmosphere
 
             if (test < 0)
             {
-                return -1.0;
+                return Mathf.Infinity;
             }
 
             double u = (-b - Math.Sqrt(test)) / (2.0 * a);
@@ -329,6 +354,9 @@ namespace Atmosphere
             {
                 DrawColorField(placementBase, ref placement, "Color ", ref colorValue);
             }
+
+            paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");
+            placement.y += 1;
 
             if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Reset current mode textures"))
             {
@@ -427,15 +455,15 @@ namespace Atmosphere
         {
             if (cloudCoverage != null)
             {
-                SaveRTToFile(cloudCoverage, layerRaymarchedVolume.CoverageMap.Name);
+                SaveRTToFile(cloudCoverage, layerRaymarchedVolume.CoverageMap.Name + "CloudCoverage");
             }
             if (cloudType != null)
             {
-                SaveRTToFile(cloudType, layerRaymarchedVolume.CloudTypeMap.Name);
+                SaveRTToFile(cloudType, layerRaymarchedVolume.CloudTypeMap.Name + "CloudType");
             }
             if (cloudColorMap != null)
             {
-                SaveRTToFile(cloudColorMap, layerRaymarchedVolume.CloudColorMap.Name);
+                SaveRTToFile(cloudColorMap, layerRaymarchedVolume.CloudColorMap.Name + "ColorMap");
             }
         }
 

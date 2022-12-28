@@ -20,8 +20,13 @@ namespace EVEManager
 
         protected bool guiLoad { get { return HighLogic.LoadedScene == GameScenes.MAINMENU || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.TRACKSTATION; } }
 
-        private static bool useEditor = false;
         
+
+        private static bool useEditor = false;
+
+        private static bool mouseIsOverWindow = false;
+
+        public static bool MouseIsOverWindow { get => mouseIsOverWindow; }
 
         private Texture2D ToolTipBackground;
 
@@ -180,8 +185,18 @@ namespace EVEManager
                 
             }
             GUI.DragWindow(new Rect(0, 0, 10000, 20));
+
+            mouseIsOverWindow = CheckMouseIsOverWindow(_mainWindowRect);
         }
-        
+
+        private bool CheckMouseIsOverWindow(Rect rect)
+        {
+            Vector2 mousePos = Input.mousePosition;
+            mousePos.x = Input.mousePosition.x;
+            mousePos.y = Screen.height - Input.mousePosition.y;
+            return rect.Contains(mousePos);
+        }
+
 
         public static void Log(String message)
         {

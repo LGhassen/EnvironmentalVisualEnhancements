@@ -71,7 +71,8 @@ namespace Atmosphere
                 {
                     var painter = paintersDictionary[key];
                     painter.DrawGUI(placementBase, ref placement);
-                    painter.Paint();
+                    if (!GlobalEVEManager.MouseIsOverWindow)
+                        painter.Paint();
                 }
                 else
                 {
