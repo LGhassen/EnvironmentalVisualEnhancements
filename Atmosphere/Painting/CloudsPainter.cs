@@ -3,6 +3,7 @@ using System.Linq;
 using ShaderLoader;
 using Utils;
 using System;
+using System.IO;
 using System.Collections.Generic;
 
 namespace Atmosphere
@@ -442,36 +443,40 @@ namespace Atmosphere
         {
             if (editingMode == EditingMode.coverage && cloudCoverage != null)
             {
-                SaveRTToFile(cloudCoverage, layerRaymarchedVolume.CoverageMap.Name);
+                SaveRTToFile(cloudCoverage, "CloudCoverage");
             }
             else if (editingMode == EditingMode.cloudType && cloudType != null)
             {
-                SaveRTToFile(cloudType, layerRaymarchedVolume.CloudTypeMap.Name);
+                SaveRTToFile(cloudType, "CloudType");
             }
             else if (editingMode == EditingMode.coverageAndCloudType && cloudType != null && cloudCoverage != null)
             {
-                SaveRTToFile(cloudCoverage, layerRaymarchedVolume.CoverageMap.Name);
-                SaveRTToFile(cloudType, layerRaymarchedVolume.CloudTypeMap.Name);
+                SaveRTToFile(cloudCoverage, "CloudCoverage");
+                SaveRTToFile(cloudType, "CloudType");
             }
             else if (editingMode == EditingMode.colorMap && cloudColorMap != null)
             {
-                SaveRTToFile(cloudColorMap, layerRaymarchedVolume.CloudColorMap.Name);
+                SaveRTToFile(cloudColorMap, "CloudColor");
             }
         }
 
         private void SaveAllTextures()
         {
+            // these filenames are a bad idea because they compound when I reuse the previous file
+            // instead output to a EVETextureExports folder
+            // name with the body + layername + maptype + date
+            // or a folder by body
             if (cloudCoverage != null)
             {
-                SaveRTToFile(cloudCoverage, layerRaymarchedVolume.CoverageMap.Name + "CloudCoverage");
+                SaveRTToFile(cloudCoverage, "CloudCoverage");
             }
             if (cloudType != null)
             {
-                SaveRTToFile(cloudType, layerRaymarchedVolume.CloudTypeMap.Name + "CloudType");
+                SaveRTToFile(cloudType, "CloudType");
             }
             if (cloudColorMap != null)
             {
-                SaveRTToFile(cloudColorMap, layerRaymarchedVolume.CloudColorMap.Name + "ColorMap");
+                SaveRTToFile(cloudColorMap, "ColorMap");
             }
         }
 
@@ -516,7 +521,7 @@ namespace Atmosphere
             placement.y += 1;
         }
 
-        private void SaveRTToFile(RenderTexture rt, string name)
+        private void SaveRTToFile(RenderTexture rt, string mapType)
         {
             RenderTexture.active = rt;
 
@@ -544,7 +549,13 @@ namespace Atmosphere
 
             string datetime = DateTime.Now.ToString("yyyy-MM-dd\\THH-mm-ss\\Z");
 
-            string path = System.IO.Path.Combine("GameData", name + datetime + ".png");
+            string path = System.IO.Path.Combine("GameData","EVETextureExports", body);
+
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
+
+            path = System.IO.Path.Combine(path, layerName + "_" + mapType + "_" + datetime + ".png");
+
             System.IO.File.WriteAllBytes(path, bytes);
             Debug.Log("Saved to " + path);
         }
