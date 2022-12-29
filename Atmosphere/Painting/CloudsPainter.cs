@@ -257,6 +257,8 @@ namespace Atmosphere
                         paintMaterial.SetFloat("innerSphereRadius", (float)sphereRadius);
                         paintMaterial.SetMatrix("cloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix);
 
+                        var active = RenderTexture.active;
+
                         if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
                         {
                             paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
@@ -272,6 +274,8 @@ namespace Atmosphere
                             paintMaterial.SetColor("paintValue", colorValue);
                             Graphics.Blit(null, cloudColorMap, paintMaterial);
                         }
+
+                        RenderTexture.active = active;
                     }
                 }
             }
@@ -297,7 +301,11 @@ namespace Atmosphere
             targetRT.wrapMode = TextureWrapMode.Repeat;
             targetRT.Create();
 
+            var active = RenderTexture.active;
+
             Graphics.Blit(targetTexture2D, targetRT);
+
+            RenderTexture.active = active;
         }
 
         private double IntersectSphere(Vector3d origin, Vector3d d, Vector3d sphereCenter, double r)

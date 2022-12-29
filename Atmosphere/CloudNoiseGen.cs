@@ -100,6 +100,8 @@ namespace Atmosphere
             NoiseMaterial.SetInt("_TargetChannel", 0);
             NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
 
+            var active = RenderTexture.active;
+
             if (RT.dimension == TextureDimension.Tex3D)
             {
                 for (int i = 0; i < RT.volumeDepth; i++)
@@ -114,6 +116,8 @@ namespace Atmosphere
             }
 
             RT.GenerateMips();
+
+            RenderTexture.active = active;
         }
 
         /*public static Texture2D CompressSingleChannelTextureToBC4(Texture2D input, bool mipMaps)
