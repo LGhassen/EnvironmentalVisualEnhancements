@@ -84,7 +84,6 @@ namespace EVEManager
                     catch(Exception e)
                     {
                         ILog("Unable to parse config node:\n" + node.ToString());
-                        throw new UnityException("Unable to apply node!", e);
                     }
                 }
             }
