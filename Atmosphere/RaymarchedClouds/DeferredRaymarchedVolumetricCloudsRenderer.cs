@@ -476,6 +476,7 @@ namespace Atmosphere
 
         MeshRenderer compositeMR;
         bool isActive = false;
+        bool activationRequested = false;
 
         public void Init()
         {
@@ -508,10 +509,19 @@ namespace Atmosphere
         {
             material.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
 
-            if (isActive == active)
-                compositeMR.enabled = active;    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable (and enable) this after 2 frames
+            if (active)
+            {
+                if (activationRequested && active)
+                {
+                    compositeMR.enabled = active;    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable (and enable) this after 2 frames
+                    isActive = true;
+                    activationRequested = false;
+                }
 
-            isActive = active;
+                activationRequested = true;
+            }
+            else
+                isActive = false;
         }
 
         public void SetFade(float fade)
