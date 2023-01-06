@@ -92,17 +92,9 @@ namespace Atmosphere
 
         //[ConfigItem]
         //float curlNoiseTiling = 1f;
-        //[ConfigItem]
-        //float curlNoiseStrength = 1f;
-
-        //potentially move these to be per cloud type as well?
 
         [ConfigItem]
         float detailNoiseTiling = 1f;
-        [ConfigItem]
-        float detailNoiseStrength = 1f;
-        //[ConfigItem]
-        //float secondaryNoiseGradient = 1f;
 
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
@@ -330,8 +322,6 @@ namespace Atmosphere
             mat.SetColor("cloudColor", color);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
-            mat.SetFloat("detailStrength", detailNoiseStrength);
-            //mat.SetFloat("detailHeightGradient", secondaryNoiseGradient);
             mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
@@ -389,19 +379,16 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetTexture("DensityCurve", coverageCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
-            Vector4[] cloudTypePropertiesArray1 = new Vector4[cloudTypes.Count];
 
             Vector2 minMaxNoiseTilings = new Vector2(1f / detailNoiseTiling, 1f / detailNoiseTiling);
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, 0f, 0f);
-                cloudTypePropertiesArray1[i] = new Vector4(0f, 0f, 0f, 0f);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, cloudTypes[i].NoiseDistortStrength);
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
             raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
-            raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties1", cloudTypePropertiesArray1);
             raymarchedCloudMaterial.SetInt("numberOfCloudTypes", cloudTypes.Count);
             raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
 
