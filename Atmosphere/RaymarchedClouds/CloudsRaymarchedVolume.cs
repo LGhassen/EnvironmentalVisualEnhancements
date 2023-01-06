@@ -58,6 +58,9 @@ namespace Atmosphere
 
         public TextureWrapper CloudColorMap { get => cloudColorMap; }
 
+        //[ConfigItem, Optional, Index(5), ValueFilter("isClamped|format|type")]
+        //TextureWrapper noiseDistortTexture;
+
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
 
@@ -297,6 +300,17 @@ namespace Atmosphere
             { 
                 raymarchedCloudMaterial.EnableKeyword("COLORMAP_OFF"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_ON");
             }
+
+            /*
+            if (noiseDistortTexture != null)
+            {
+                ApplyCloudTexture(noiseDistortTexture, "CurlNoise", raymarchedCloudMaterial, 5);
+            }
+            else
+            {
+                raymarchedCloudMaterial.SetTexture("CurlNoise", Texture2D.blackTexture);
+            }
+            */
         }
 
         public void SetShadowCasterLayerRaymarchedVolume(CloudsRaymarchedVolume cloudsRaymarchedVolume)
@@ -384,7 +398,7 @@ namespace Atmosphere
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, cloudTypes[i].NoiseDistortStrength);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, 0f);
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }

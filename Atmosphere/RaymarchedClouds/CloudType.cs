@@ -21,8 +21,8 @@ namespace Atmosphere
         [ConfigItem]
         float detailNoiseStrength = 0.5f;
 
-        [ConfigItem]
-        float noiseDistortStrength = 0.5f;
+        //[ConfigItem]
+        //float noiseDistortStrength = 0.5f;
 
         [ConfigItem]
         bool interpolateCloudHeights = true;
@@ -36,7 +36,7 @@ namespace Atmosphere
         public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
         public float BaseNoiseTiling { get => baseNoiseTiling; }
         public float DetailNoiseStrength { get => detailNoiseStrength; }
-        public float NoiseDistortStrength { get => noiseDistortStrength; }
+        //public float NoiseDistortStrength { get => noiseDistortStrength; }
 
         public float Density { get => density; }
         public string TypeName { get => typeName; }
