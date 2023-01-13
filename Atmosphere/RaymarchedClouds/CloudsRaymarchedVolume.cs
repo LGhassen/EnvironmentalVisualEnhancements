@@ -67,8 +67,6 @@ namespace Atmosphere
         [ConfigItem]
         Color color = Color.white;
         [ConfigItem]
-        float absorptionMultiplier = 1.0f;
-        [ConfigItem]
         float skylightMultiplier = 1.0f;
 
         [ConfigItem]
@@ -336,7 +334,7 @@ namespace Atmosphere
             mat.SetColor("cloudColor", color);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
-            mat.SetFloat("absorptionMultiplier", absorptionMultiplier);
+            mat.SetFloat("absorptionMultiplier", 1.0f);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
             mat.SetFloat("baseStepSize", raymarchingSettings.BaseStepSize);
