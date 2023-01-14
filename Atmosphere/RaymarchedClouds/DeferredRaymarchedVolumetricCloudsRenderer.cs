@@ -73,12 +73,27 @@ namespace Atmosphere
         // list of intersections sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
         List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
 
+        private RenderTexture SelectRenderTexture(RenderTexture leftEyeFlip, RenderTexture leftEyeFlop, RenderTexture rightEyeFlip, RenderTexture rightEyeFlop, bool flip, bool isRightEye)
+		{
+            if (isRightEye)
+			{
+                return flip ? rightEyeFlip : rightEyeFlop;
+			}
+            else
+			{
+                return flip ? leftEyeFlip : leftEyeFlop;
+			}
+		}
+
         private RenderTexture historyFlipRT, historyFlopRT, secondaryHistoryFlipRT, secondaryHistoryFlopRT, historyMotionVectorsFlipRT, historyMotionVectorsFlopRT, newRaysFlipRT, newRaysFlopRT, newRaysSecondaryFlipRT, newRaysSecondaryFlopRT, newMotionVectorsFlipRT, newMotionVectorsFlopRT;
+        private RenderTexture historyFlipRT_RightEye, historyFlopRT_RightEye, secondaryHistoryFlipRT_RightEye, secondaryHistoryFlopRT_RightEye, historyMotionVectorsFlipRT_RightEye, historyMotionVectorsFlopRT_RightEye;
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
         Matrix4x4 previousV = Matrix4x4.identity;
         Matrix4x4 previousP = Matrix4x4.identity;
+        Matrix4x4 previousV_RightEye = Matrix4x4.identity;
+        Matrix4x4 previousP_RightEye = Matrix4x4.identity;
         Vector3d previousFloatingOriginOffset = Vector3d.zero;
 
         int reprojectionXfactor = 4;
@@ -146,11 +161,20 @@ namespace Atmosphere
             historyFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
             historyFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
 
+            historyFlipRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+            historyFlopRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+
             secondaryHistoryFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
             secondaryHistoryFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
 
+            secondaryHistoryFlipRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+            secondaryHistoryFlopRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.ARGB32, false, FilterMode.Bilinear);
+
             historyMotionVectorsFlipRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
             historyMotionVectorsFlopRT = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
+
+            historyMotionVectorsFlipRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
+            historyMotionVectorsFlopRT_RightEye = CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Bilinear);
 
             newRaysFlipRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
             newRaysFlopRT = CreateRenderTexture(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, false, FilterMode.Point);
@@ -236,6 +260,8 @@ namespace Atmosphere
                 // now sort our intersections front to back
                 intersections = intersections.OrderBy(x => x.distance).ToList();
 
+                bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
+
                 // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
                 RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newMotionVectorsFlipRT), new RenderTargetIdentifier(newRaysSecondaryFlipRT) };
                 RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlopRT), new RenderTargetIdentifier(newMotionVectorsFlopRT), new RenderTargetIdentifier(newRaysSecondaryFlopRT) };
@@ -265,9 +291,21 @@ namespace Atmosphere
                 Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
 
                 //inject in the previous view matrix
-                previousV.m03 += floatOffset.x;
-                previousV.m13 += floatOffset.y;
-                previousV.m23 += floatOffset.z;
+                if (isRightEye)
+                {
+                    previousV_RightEye.m03 += floatOffset.x;
+                    previousV_RightEye.m13 += floatOffset.y;
+                    previousV_RightEye.m23 += floatOffset.z;
+                }
+                else
+                {
+                    previousV.m03 += floatOffset.x;
+                    previousV.m13 += floatOffset.y;
+                    previousV.m23 += floatOffset.z;
+                }
+
+                var prevP = isRightEye ? previousP_RightEye : previousP;
+                var prevV = isRightEye ? previousV_RightEye : previousV;
 
                 foreach (var intersection in intersections)
                 {
@@ -287,7 +325,7 @@ namespace Atmosphere
                     cloudMaterial.SetFloat("frameNumber", (float)(frame));
 
                     Vector3 noiseReprojectionOffset = targetCamera.worldToCameraMatrix.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
-                    Matrix4x4 cloudPreviousV = previousV;
+                    Matrix4x4 cloudPreviousV = isRightEye ? previousV_RightEye : previousV;
 
                     // inject upwards noise offset
                     cloudPreviousV.m03 += noiseReprojectionOffset.x;
@@ -295,7 +333,7 @@ namespace Atmosphere
                     cloudPreviousV.m23 += noiseReprojectionOffset.z;
 
                     cloudMaterial.SetMatrix("currentVP", currentP * currentV);
-                    cloudMaterial.SetMatrix("previousVP", previousP * cloudPreviousV * intersection.layer.OppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
+                    cloudMaterial.SetMatrix("previousVP", prevP * cloudPreviousV * intersection.layer.OppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
 
                     // handle the actual rendering
                     commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysFlipRT.depthBuffer);
@@ -312,17 +350,18 @@ namespace Atmosphere
                 }
 
                 //reconstruct full frame from history and new rays texture
-                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyFlipRT), new RenderTargetIdentifier(secondaryHistoryFlipRT), new RenderTargetIdentifier(historyMotionVectorsFlipRT) };
-                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyFlopRT), new RenderTargetIdentifier(secondaryHistoryFlopRT), new RenderTargetIdentifier(historyMotionVectorsFlopRT) };
+                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(isRightEye ? historyFlipRT_RightEye : historyFlipRT), new RenderTargetIdentifier(isRightEye ? secondaryHistoryFlipRT_RightEye : secondaryHistoryFlipRT), new RenderTargetIdentifier(isRightEye ? historyMotionVectorsFlipRT_RightEye : historyMotionVectorsFlipRT) };
+                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(isRightEye ? historyFlopRT_RightEye : historyFlopRT), new RenderTargetIdentifier(isRightEye ? secondaryHistoryFlopRT_RightEye : secondaryHistoryFlopRT), new RenderTargetIdentifier(isRightEye ? historyMotionVectorsFlopRT_RightEye : historyMotionVectorsFlopRT) };
                 RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
 
-                reconstructCloudsMaterial.SetMatrix("previousVP", previousP * previousV);
+                reconstructCloudsMaterial.SetMatrix("previousVP", prevP * prevV);
 
-                reconstructCloudsMaterial.SetTexture("historyBuffer", useFlipScreenBuffer ? historyFlopRT : historyFlipRT);
-                reconstructCloudsMaterial.SetTexture("historySecondaryBuffer", useFlipScreenBuffer ? secondaryHistoryFlopRT : secondaryHistoryFlipRT);
-                reconstructCloudsMaterial.SetTexture("historyMotionVectors", useFlipScreenBuffer ? historyMotionVectorsFlopRT : historyMotionVectorsFlipRT);
+                bool readFromFlip = !useFlipScreenBuffer; // "useFlipScreenBuffer" means the *target* is flip, and we should be reading from flop
+                reconstructCloudsMaterial.SetTexture("historyBuffer", SelectRenderTexture(historyFlipRT, historyFlopRT, historyFlipRT_RightEye, historyFlopRT_RightEye, readFromFlip, isRightEye));
+                reconstructCloudsMaterial.SetTexture("historySecondaryBuffer", SelectRenderTexture(secondaryHistoryFlipRT, secondaryHistoryFlopRT, secondaryHistoryFlipRT_RightEye, secondaryHistoryFlopRT_RightEye, readFromFlip, isRightEye));
+                reconstructCloudsMaterial.SetTexture("historyMotionVectors", SelectRenderTexture(historyMotionVectorsFlipRT, historyMotionVectorsFlopRT, historyMotionVectorsFlipRT_RightEye, historyMotionVectorsFlopRT_RightEye, readFromFlip, isRightEye));
                 reconstructCloudsMaterial.SetTexture("newRaysBuffer", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
                 reconstructCloudsMaterial.SetTexture("newRaysBufferBilinear", useFlipRaysBuffer ? newRaysFlopRT : newRaysFlipRT);
                 reconstructCloudsMaterial.SetTexture("newRaysMotionVectors", useFlipRaysBuffer ? newMotionVectorsFlopRT : newMotionVectorsFlipRT);
@@ -341,12 +380,15 @@ namespace Atmosphere
                 var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
-                DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, useFlipScreenBuffer ? secondaryHistoryFlipRT : secondaryHistoryFlopRT);
+
+                DeferredRaymarchedRendererToScreen.SetRenderTextures(
+                    SelectRenderTexture(historyFlipRT, historyFlopRT, historyFlipRT_RightEye, historyFlopRT_RightEye, useFlipScreenBuffer, isRightEye),
+                    SelectRenderTexture(secondaryHistoryFlipRT, secondaryHistoryFlopRT, secondaryHistoryFlipRT_RightEye, secondaryHistoryFlopRT_RightEye, useFlipScreenBuffer, isRightEye));
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
 
 
                 // Set texture for scatterer sunflare: temporary
-                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
+                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", SelectRenderTexture(historyFlipRT, historyFlopRT, historyFlipRT_RightEye, historyFlopRT_RightEye, useFlipScreenBuffer, isRightEye));
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -391,17 +433,32 @@ namespace Atmosphere
             {
                 if (renderingEnabled)
                 {
-                    useFlipScreenBuffer = !useFlipScreenBuffer;
                     targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
-                    volumesAdded.Clear();
 
-                    previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
-                    previousV = targetCamera.worldToCameraMatrix;
+                    if (targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right)
+                    {
+                        previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
+                        previousV = targetCamera.worldToCameraMatrix;
+                    }
+                    else
+					{
+                        previousP_RightEye = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
+                        previousV_RightEye = targetCamera.worldToCameraMatrix;
+                    }
 
-                    renderingEnabled = false;
+                    // if we're drawing the left eye only, we're not done yet
+                    if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                    {
+                        renderingEnabled = false;
+                        volumesAdded.Clear();
+                        useFlipScreenBuffer = !useFlipScreenBuffer;
+                    }
                 }
 
-                DeferredRaymarchedRendererToScreen.SetActive(false);
+                if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                {
+                    DeferredRaymarchedRendererToScreen.SetActive(false);
+                }
             }
 
         }
@@ -411,11 +468,14 @@ namespace Atmosphere
             historyFlipRT.Release();
             historyFlopRT.Release();
 
-            secondaryHistoryFlipRT.Release();
-            secondaryHistoryFlopRT.Release();
+            historyFlipRT_RightEye.Release();
+            historyFlopRT_RightEye.Release();
 
-            historyMotionVectorsFlipRT.Release();
-            historyMotionVectorsFlopRT.Release();
+            secondaryHistoryFlipRT_RightEye.Release();
+            secondaryHistoryFlopRT_RightEye.Release();
+
+            historyMotionVectorsFlipRT_RightEye.Release();
+            historyMotionVectorsFlopRT_RightEye.Release();
 
             newRaysFlipRT.Release();
             newRaysFlopRT.Release();
