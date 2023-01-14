@@ -311,6 +311,9 @@ namespace Atmosphere
                     useFlipRaysBuffer = !useFlipRaysBuffer;
                 }
 
+                // Set texture for scatterer sunflare: temporary
+                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
+
                 //reconstruct full frame from history and new rays texture
                 RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyFlipRT), new RenderTargetIdentifier(secondaryHistoryFlipRT), new RenderTargetIdentifier(historyMotionVectorsFlipRT) };
                 RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyFlopRT), new RenderTargetIdentifier(secondaryHistoryFlopRT), new RenderTargetIdentifier(historyMotionVectorsFlopRT) };
@@ -343,10 +346,6 @@ namespace Atmosphere
 
                 DeferredRaymarchedRendererToScreen.SetRenderTextures(useFlipScreenBuffer ? historyFlipRT : historyFlopRT, useFlipScreenBuffer ? secondaryHistoryFlipRT : secondaryHistoryFlopRT);
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
-
-
-                // Set texture for scatterer sunflare: temporary
-                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", useFlipScreenBuffer ? historyFlipRT : historyFlopRT);
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -397,6 +396,8 @@ namespace Atmosphere
 
                     previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
                     previousV = targetCamera.worldToCameraMatrix;
+
+                    Shader.SetGlobalTexture("scattererReconstructedCloud", Texture2D.whiteTexture);
 
                     renderingEnabled = false;
                 }
