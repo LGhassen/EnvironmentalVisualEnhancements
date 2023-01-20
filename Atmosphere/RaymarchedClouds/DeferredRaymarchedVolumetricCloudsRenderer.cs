@@ -65,7 +65,7 @@ namespace Atmosphere
         bool isInitialized = false;
 
         private Camera targetCamera;
-        private CommandBuffer commandBuffer;
+        private CommandBuffer commandBuffer, commandBuffer_RightEye;
 
         // raw list of volumes added
         List<CloudsRaymarchedVolume> volumesAdded = new List<CloudsRaymarchedVolume>();
@@ -195,6 +195,10 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
 
             commandBuffer = new CommandBuffer();
+            commandBuffer_RightEye = new CommandBuffer();
+
+            commandBuffer.name = "DeferredRaymarchedVolumetricCloudsRenderer_Left";
+            commandBuffer_RightEye.name = "DeferredRaymarchedVolumetricCloudsRenderer_Right";
 
             isInitialized = true;
         }
@@ -215,6 +219,18 @@ namespace Atmosphere
             public float distance;
             public CloudsRaymarchedVolume layer;
             public bool isSecondIntersect;
+        }
+
+        static Matrix4x4 GetNonJitteredProjectionMatrixForCamera(Camera cam)
+		{
+            if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
+			{
+                return cam.nonJitteredProjectionMatrix;
+			}
+            else
+			{
+                return cam.GetStereoNonJitteredProjectionMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
+			}
         }
 
         void OnPreRender()
@@ -265,6 +281,7 @@ namespace Atmosphere
                 // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
                 RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlipRT), new RenderTargetIdentifier(newMotionVectorsFlipRT), new RenderTargetIdentifier(newRaysSecondaryFlipRT) };
                 RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysFlopRT), new RenderTargetIdentifier(newMotionVectorsFlopRT), new RenderTargetIdentifier(newRaysSecondaryFlopRT) };
+                var commandBuffer = isRightEye ? commandBuffer_RightEye : this.commandBuffer;
                 commandBuffer.Clear();
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
@@ -274,7 +291,7 @@ namespace Atmosphere
                 bool isFirstLayerRendered  = true;
 
                 // have to use these to build the motion vector because the unity provided one in shader will be flipped
-                var currentP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
+                var currentP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                 var currentV = targetCamera.worldToCameraMatrix;
 
                 //handle floatingOrigin changes
@@ -354,7 +371,7 @@ namespace Atmosphere
                 RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(isRightEye ? historyFlopRT_RightEye : historyFlopRT), new RenderTargetIdentifier(isRightEye ? secondaryHistoryFlopRT_RightEye : secondaryHistoryFlopRT), new RenderTargetIdentifier(isRightEye ? historyMotionVectorsFlopRT_RightEye : historyMotionVectorsFlopRT) };
                 RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
-                commandBuffer.SetRenderTarget(targetIdentifiers, historyFlipRT.depthBuffer);
+                commandBuffer.SetRenderTarget(targetIdentifiers, isRightEye ? historyFlipRT_RightEye.depthBuffer : historyFlipRT.depthBuffer);
 
                 reconstructCloudsMaterial.SetMatrix("previousVP", prevP * prevV);
 
@@ -380,10 +397,10 @@ namespace Atmosphere
                 var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
-
-                DeferredRaymarchedRendererToScreen.SetRenderTextures(
-                    SelectRenderTexture(historyFlipRT, historyFlopRT, historyFlipRT_RightEye, historyFlopRT_RightEye, useFlipScreenBuffer, isRightEye),
-                    SelectRenderTexture(secondaryHistoryFlipRT, secondaryHistoryFlopRT, secondaryHistoryFlipRT_RightEye, secondaryHistoryFlopRT_RightEye, useFlipScreenBuffer, isRightEye));
+                //DeferredRaymarchedRendererToScreen.SetRenderTextures(
+                commandBuffer.SetGlobalTexture("colorBuffer", SelectRenderTexture(historyFlipRT, historyFlopRT, historyFlipRT_RightEye, historyFlopRT_RightEye, useFlipScreenBuffer, isRightEye));
+                commandBuffer.SetGlobalTexture("secondaryColorBuffer", SelectRenderTexture(secondaryHistoryFlipRT, secondaryHistoryFlopRT, secondaryHistoryFlipRT_RightEye, secondaryHistoryFlopRT_RightEye, useFlipScreenBuffer, isRightEye));
+                commandBuffer.SetGlobalVector("reconstructedTextureResolution", new Vector2(historyFlipRT.width, historyFlipRT.height));
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
 
 
@@ -431,23 +448,27 @@ namespace Atmosphere
             }
             else
             {
+                bool doneRendering = targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
+
                 if (renderingEnabled)
                 {
+                    bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
+                    var commandBuffer = isRightEye ? commandBuffer_RightEye : this.commandBuffer;
+
                     targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
 
-                    if (targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right)
+                    if (isRightEye)
                     {
-                        previousP = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
+                        previousP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                         previousV = targetCamera.worldToCameraMatrix;
                     }
                     else
 					{
-                        previousP_RightEye = GL.GetGPUProjectionMatrix(targetCamera.nonJitteredProjectionMatrix, false);
+                        previousP_RightEye = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                         previousV_RightEye = targetCamera.worldToCameraMatrix;
                     }
 
-                    // if we're drawing the left eye only, we're not done yet
-                    if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                    if (doneRendering)
                     {
                         renderingEnabled = false;
                         volumesAdded.Clear();
@@ -455,7 +476,7 @@ namespace Atmosphere
                     }
                 }
 
-                if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                if (doneRendering)
                 {
                     DeferredRaymarchedRendererToScreen.SetActive(false);
                 }
