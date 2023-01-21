@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using ShaderLoader;
 using Utils;
-
+using UnityEngine.XR;
 
 namespace Atmosphere
 {
@@ -217,10 +217,18 @@ namespace Atmosphere
                 reconstructCloudsMaterial.EnableKeyword("REPROJECTION_FAST");
             }
 
-            width = targetCamera.activeTexture.width;
-            height = targetCamera.activeTexture.height;
+            bool supportVR = XRSettings.loadedDeviceName != string.Empty;
 
-            bool supportVR = true;
+            if (supportVR)
+            {
+                width = XRSettings.eyeTextureWidth;
+                height = XRSettings.eyeTextureHeight;
+            }
+            else
+            {
+                width = targetCamera.activeTexture.width;
+                height = targetCamera.activeTexture.height;
+            }
 
             historyRT = CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
             secondaryHistoryRT = CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
