@@ -233,6 +233,18 @@ namespace Atmosphere
 			}
         }
 
+        static Matrix4x4 GetViewMatrixForCamera(Camera cam)
+		{
+            if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
+			{
+                return cam.worldToCameraMatrix;
+			}
+            else
+			{
+                return cam.GetStereoViewMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
+			}
+		}
+
         void OnPreRender()
         {
             if (renderingEnabled)
@@ -292,7 +304,7 @@ namespace Atmosphere
 
                 // have to use these to build the motion vector because the unity provided one in shader will be flipped
                 var currentP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
-                var currentV = targetCamera.worldToCameraMatrix;
+                var currentV = GetViewMatrixForCamera(targetCamera);
 
                 //handle floatingOrigin changes
                 Vector3d currentOffset = Vector3d.zero;
@@ -305,7 +317,7 @@ namespace Atmosphere
                 previousFloatingOriginOffset = FloatingOrigin.OffsetNonKrakensbane;
 
                 //transform to camera space
-                Vector3 floatOffset = targetCamera.worldToCameraMatrix.MultiplyVector(currentOffset);
+                Vector3 floatOffset = currentV.MultiplyVector(currentOffset);
 
                 //inject in the previous view matrix
                 if (isRightEye)
@@ -341,7 +353,7 @@ namespace Atmosphere
                     cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
                     cloudMaterial.SetFloat("frameNumber", (float)(frame));
 
-                    Vector3 noiseReprojectionOffset = targetCamera.worldToCameraMatrix.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
+                    Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
                     Matrix4x4 cloudPreviousV = isRightEye ? previousV_RightEye : previousV;
 
                     // inject upwards noise offset
@@ -459,13 +471,13 @@ namespace Atmosphere
 
                     if (isRightEye)
                     {
-                        previousP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
-                        previousV = targetCamera.worldToCameraMatrix;
+                        previousP_RightEye = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
+                        previousV_RightEye = GetViewMatrixForCamera(targetCamera);
                     }
                     else
 					{
-                        previousP_RightEye = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
-                        previousV_RightEye = targetCamera.worldToCameraMatrix;
+                        previousP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
+                        previousV = GetViewMatrixForCamera(targetCamera);
                     }
 
                     if (doneRendering)
