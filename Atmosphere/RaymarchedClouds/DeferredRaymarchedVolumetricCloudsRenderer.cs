@@ -4,32 +4,9 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using ShaderLoader;
 using Utils;
-using UnityEngine.XR;
 
 namespace Atmosphere
 {
-    struct FlipFlop<T>
-    {
-        public FlipFlop(T flip, T flop)
-        {
-            this.flip = flip;
-            this.flop = flop;
-        }
-
-        public T this[bool useFlip]
-        {
-            get => useFlip ? flip : flop;
-            set
-            {
-                if (useFlip) flip = value;
-                else flop = value;
-            }
-        }
-
-        T flip;
-        T flop;
-    }
-
     class DeferredRaymarchedVolumetricCloudsRenderer : MonoBehaviour
     {
         private static Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer> CameraToDeferredRaymarchedVolumetricCloudsRenderer = new Dictionary<Camera, DeferredRaymarchedVolumetricCloudsRenderer>();
@@ -136,42 +113,6 @@ namespace Atmosphere
         {
         }
 
-        FlipFlop<RenderTexture> CreateFlipFlopRT(int width, int height, RenderTextureFormat format, FilterMode filterMode)
-        {
-            return new FlipFlop<RenderTexture>(
-                CreateRenderTexture(width, height, format, false, filterMode),
-                CreateRenderTexture(width, height, format, false, filterMode));
-        }
-
-        FlipFlop<FlipFlop<RenderTexture>> CreateVRFlipFlopRT(bool supportVR, int width, int height, RenderTextureFormat format, FilterMode filterMode)
-        {
-            return new FlipFlop<FlipFlop<RenderTexture>>(
-                supportVR ? CreateFlipFlopRT(width, height, format, filterMode) : new FlipFlop<RenderTexture>(null, null),
-                CreateFlipFlopRT(width, height, format, filterMode));
-        }
-
-        void ReleaseFlipFlopRT(ref FlipFlop<RenderTexture> flipFlop)
-        {
-            RenderTexture rt;
-
-            rt = flipFlop[false];
-            if (rt != null) rt.Release();
-            rt = flipFlop[true];
-            if (rt != null) rt.Release();
-
-            flipFlop = new FlipFlop<RenderTexture>(null, null);
-        }
-
-        void ReleaseVRFlipFlopRT(ref FlipFlop<FlipFlop<RenderTexture>> flipFlop)
-        {
-            var ff = flipFlop[false];
-            ReleaseFlipFlopRT(ref ff);
-            ff = flipFlop[true];
-            ReleaseFlipFlopRT(ref ff);
-
-            flipFlop = new FlipFlop<FlipFlop<RenderTexture>>(ff, ff);
-        }
-
         public void Initialize()
         {
             targetCamera = GetComponent<Camera>();
@@ -205,12 +146,11 @@ namespace Atmosphere
                 reconstructCloudsMaterial.EnableKeyword("REPROJECTION_FAST");
             }
 
-            bool supportVR = XRSettings.loadedDeviceName != string.Empty;
+            bool supportVR = VRUtils.VREnabled();
 
             if (supportVR)
             {
-                width = XRSettings.eyeTextureWidth;
-                height = XRSettings.eyeTextureHeight;
+                VRUtils.GetEyeTextureResolution(out width, out height);
             }
             else
             {
@@ -218,13 +158,13 @@ namespace Atmosphere
                 height = targetCamera.activeTexture.height;
             }
 
-            historyRT = CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
-            secondaryHistoryRT = CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
-            historyMotionVectorsRT = CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
+            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
+            secondaryHistoryRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
+            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
 
-            newRaysRT = CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
-            newRaysSecondaryRT = CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
-            newMotionVectorsRT = CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
+            newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
+            newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
+            newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
             
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
@@ -258,30 +198,6 @@ namespace Atmosphere
             public float distance;
             public CloudsRaymarchedVolume layer;
             public bool isSecondIntersect;
-        }
-
-        static Matrix4x4 GetNonJitteredProjectionMatrixForCamera(Camera cam)
-        {
-            if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
-            {
-                return cam.nonJitteredProjectionMatrix;
-            }
-            else
-            {
-                return cam.GetStereoNonJitteredProjectionMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
-            }
-        }
-
-        static Matrix4x4 GetViewMatrixForCamera(Camera cam)
-        {
-            if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
-            {
-                return cam.worldToCameraMatrix;
-            }
-            else
-            {
-                return cam.GetStereoViewMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
-            }
         }
 
         void OnPreRender()
@@ -395,7 +311,7 @@ namespace Atmosphere
                     cloudMaterial.SetMatrix("previousVP", prevP * cloudPreviousV * intersection.layer.OppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
 
                     // handle the actual rendering
-                    commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysRT[true].depthBuffer); // REVIEW: this always uses flip - why?
+                    commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysRT[true].depthBuffer);
                     commandBuffer.SetGlobalFloat("isFirstLayerRendered", isFirstLayerRendered ? 1f : 0f);
                     commandBuffer.SetGlobalFloat("renderSecondLayerIntersect", intersection.isSecondIntersect ? 1f : 0f);
                     commandBuffer.SetGlobalTexture("PreviousLayerRays", newRaysRT[!useFlipRaysBuffer]);
@@ -416,7 +332,7 @@ namespace Atmosphere
                 RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(secondaryHistoryRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
                 RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
-                commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer); // REVIEW: this always uses flip - why?
+                commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
 
                 reconstructCloudsMaterial.SetMatrix("previousVP", prevP * prevV);
 
@@ -520,12 +436,12 @@ namespace Atmosphere
 
         void Cleanup()
         {
-            ReleaseVRFlipFlopRT(ref historyRT);
-            ReleaseVRFlipFlopRT(ref secondaryHistoryRT);
-            ReleaseVRFlipFlopRT(ref historyMotionVectorsRT);
-            ReleaseFlipFlopRT(ref newRaysRT);
-            ReleaseFlipFlopRT(ref newRaysSecondaryRT);
-            ReleaseFlipFlopRT(ref newMotionVectorsRT);
+            VRUtils.ReleaseVRFlipFlopRT(ref historyRT);
+            VRUtils.ReleaseVRFlipFlopRT(ref secondaryHistoryRT);
+            VRUtils.ReleaseVRFlipFlopRT(ref historyMotionVectorsRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysSecondaryRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newMotionVectorsRT);
             
             if (targetCamera != null)
             {
@@ -544,21 +460,6 @@ namespace Atmosphere
         public void OnDestroy()
         {
             Cleanup();
-        }
-
-        // TODO: move to utils
-        RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool mips, FilterMode filterMode)
-        {
-            var rt = new RenderTexture(width, height, 0, format);
-            rt.anisoLevel = 1;
-            rt.antiAliasing = 1;
-            rt.volumeDepth = 0;
-            rt.useMipMap = mips;
-            rt.autoGenerateMips = mips;
-            rt.filterMode = filterMode;
-            rt.Create();
-
-            return rt;
         }
     }
 
