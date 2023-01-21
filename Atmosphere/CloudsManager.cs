@@ -26,8 +26,6 @@ namespace Atmosphere
         {
             Clean();
 
-            bodiesWithRaymarchedVolumetrics.Clear();
-
             foreach (UrlDir.UrlConfig config in Configs)
             {
                 foreach (ConfigNode node in config.config.nodes)
@@ -59,6 +57,8 @@ namespace Atmosphere
                     }
                 }
             }
+
+            bodiesWithRaymarchedVolumetrics.Clear();
 
             PostApplyConfigNodes();
         }
