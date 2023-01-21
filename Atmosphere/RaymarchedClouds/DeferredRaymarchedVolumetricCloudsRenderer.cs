@@ -408,6 +408,9 @@ namespace Atmosphere
                     useFlipRaysBuffer = !useFlipRaysBuffer;
                 }
 
+                // Set texture for scatterer sunflare: temporary
+                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", historyRT[isRightEye][useFlipScreenBuffer]);
+
                 //reconstruct full frame from history and new rays texture
                 RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(secondaryHistoryRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
                 RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(secondaryHistoryRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
@@ -443,10 +446,6 @@ namespace Atmosphere
                 commandBuffer.SetGlobalTexture("secondaryColorBuffer", secondaryHistoryRT[isRightEye][useFlipScreenBuffer]);
                 commandBuffer.SetGlobalVector("reconstructedTextureResolution", new Vector2(width, height));
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
-
-
-                // Set texture for scatterer sunflare: temporary
-                commandBuffer.SetGlobalTexture("scattererReconstructedCloud",  historyRT[isRightEye][useFlipScreenBuffer]);
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
@@ -500,9 +499,9 @@ namespace Atmosphere
 
                     previousP[isRightEye] = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                     previousV[isRightEye] = GetViewMatrixForCamera(targetCamera);
-
                     if (doneRendering)
                     {
+                        Shader.SetGlobalTexture("scattererReconstructedCloud", Texture2D.whiteTexture);
                         renderingEnabled = false;
                         volumesAdded.Clear();
                         useFlipScreenBuffer = !useFlipScreenBuffer;
@@ -512,6 +511,8 @@ namespace Atmosphere
                 if (doneRendering)
                 {
                     DeferredRaymarchedRendererToScreen.SetActive(false);
+
+                    renderingEnabled = false;
                 }
             }
 

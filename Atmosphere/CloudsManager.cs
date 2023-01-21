@@ -2,6 +2,7 @@
 using System;
 using UnityEngine;
 using Utils;
+using System.Collections.Generic;
 
 namespace Atmosphere
 {
@@ -14,9 +15,52 @@ namespace Atmosphere
 
         public static EventVoid onApply;
 
+        private HashSet<string> bodiesWithRaymarchedVolumetrics = new HashSet<string>();
+
         public CloudsManager():base()
         {
             onApply = new EventVoid("onCloudsApply");
+        }
+
+        public override void Apply()
+        {
+            Clean();
+
+            bodiesWithRaymarchedVolumetrics.Clear();
+
+            foreach (UrlDir.UrlConfig config in Configs)
+            {
+                foreach (ConfigNode node in config.config.nodes)
+                {
+                    if (node.HasNode("layerRaymarchedVolume"))
+                    {
+                        bodiesWithRaymarchedVolumetrics.Add(node.GetValue(ConfigHelper.BODY_FIELD));
+                    }
+                }
+            }
+
+            foreach (UrlDir.UrlConfig config in Configs)
+            {
+                foreach (ConfigNode node in config.config.nodes)
+                {
+
+                    if (node.HasNode("layerVolume") && bodiesWithRaymarchedVolumetrics.Contains(node.GetValue(ConfigHelper.BODY_FIELD)))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        ApplyConfigNode(node);
+                    }
+                    catch (Exception e)
+                    {
+                        ILog("Unable to parse config node:\n" + node.ToString());
+                    }
+                }
+            }
+
+            PostApplyConfigNodes();
         }
 
         protected override void ApplyConfigNode(ConfigNode node)
