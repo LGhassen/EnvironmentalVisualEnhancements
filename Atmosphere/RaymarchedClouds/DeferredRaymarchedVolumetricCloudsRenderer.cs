@@ -258,8 +258,8 @@ namespace Atmosphere
                 bool isFirstLayerRendered  = true;
 
                 // have to use these to build the motion vector because the unity provided one in shader will be flipped
-                var currentP = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
-                var currentV = GetViewMatrixForCamera(targetCamera);
+                var currentP = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
+                var currentV = VRUtils.GetViewMatrixForCamera(targetCamera);
 
                 //handle floatingOrigin changes
                 Vector3d currentOffset = Vector3d.zero;
@@ -413,8 +413,8 @@ namespace Atmosphere
 
                     targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
 
-                    previousP[isRightEye] = GL.GetGPUProjectionMatrix(GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
-                    previousV[isRightEye] = GetViewMatrixForCamera(targetCamera);
+                    previousP[isRightEye] = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
+                    previousV[isRightEye] = VRUtils.GetViewMatrixForCamera(targetCamera);
                     if (doneRendering)
                     {
                         Shader.SetGlobalTexture("scattererReconstructedCloud", Texture2D.whiteTexture);
