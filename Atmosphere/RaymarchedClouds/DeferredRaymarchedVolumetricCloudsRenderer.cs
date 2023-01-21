@@ -9,26 +9,26 @@ using UnityEngine.XR;
 namespace Atmosphere
 {
     struct FlipFlop<T>
-	{
+    {
         public FlipFlop(T flip, T flop)
-		{
+        {
             this.flip = flip;
             this.flop = flop;
-		}
+        }
 
         public T this[bool useFlip]
-		{
+        {
             get => useFlip ? flip : flop;
             set
-			{
+            {
                 if (useFlip) flip = value;
                 else flop = value;
-			}
+            }
         }
 
         T flip;
         T flop;
-	}
+    }
 
     class DeferredRaymarchedVolumetricCloudsRenderer : MonoBehaviour
     {
@@ -95,18 +95,6 @@ namespace Atmosphere
         // list of intersections sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
         List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
 
-        private RenderTexture SelectRenderTexture(RenderTexture leftEyeFlip, RenderTexture leftEyeFlop, RenderTexture rightEyeFlip, RenderTexture rightEyeFlop, bool flip, bool isRightEye)
-		{
-            if (isRightEye)
-			{
-                return flip ? rightEyeFlip : rightEyeFlop;
-			}
-            else
-			{
-                return flip ? leftEyeFlip : leftEyeFlop;
-			}
-		}
-
         // these are indexed by [isRightEye][flip]
         private FlipFlop<FlipFlop<RenderTexture>> historyRT, secondaryHistoryRT, historyMotionVectorsRT;
         // these are indexed by [flip]
@@ -149,21 +137,21 @@ namespace Atmosphere
         }
 
         FlipFlop<RenderTexture> CreateFlipFlopRT(int width, int height, RenderTextureFormat format, FilterMode filterMode)
-		{
+        {
             return new FlipFlop<RenderTexture>(
                 CreateRenderTexture(width, height, format, false, filterMode),
                 CreateRenderTexture(width, height, format, false, filterMode));
-		}
+        }
 
         FlipFlop<FlipFlop<RenderTexture>> CreateVRFlipFlopRT(bool supportVR, int width, int height, RenderTextureFormat format, FilterMode filterMode)
-		{
+        {
             return new FlipFlop<FlipFlop<RenderTexture>>(
                 supportVR ? CreateFlipFlopRT(width, height, format, filterMode) : new FlipFlop<RenderTexture>(null, null),
                 CreateFlipFlopRT(width, height, format, filterMode));
-		}
+        }
 
         void ReleaseFlipFlopRT(ref FlipFlop<RenderTexture> flipFlop)
-		{
+        {
             RenderTexture rt;
 
             rt = flipFlop[false];
@@ -172,17 +160,17 @@ namespace Atmosphere
             if (rt != null) rt.Release();
 
             flipFlop = new FlipFlop<RenderTexture>(null, null);
-		}
+        }
 
         void ReleaseVRFlipFlopRT(ref FlipFlop<FlipFlop<RenderTexture>> flipFlop)
-		{
+        {
             var ff = flipFlop[false];
             ReleaseFlipFlopRT(ref ff);
             ff = flipFlop[true];
             ReleaseFlipFlopRT(ref ff);
 
             flipFlop = new FlipFlop<FlipFlop<RenderTexture>>(ff, ff);
-		}
+        }
 
         public void Initialize()
         {
@@ -273,28 +261,28 @@ namespace Atmosphere
         }
 
         static Matrix4x4 GetNonJitteredProjectionMatrixForCamera(Camera cam)
-		{
+        {
             if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
-			{
+            {
                 return cam.nonJitteredProjectionMatrix;
-			}
+            }
             else
-			{
+            {
                 return cam.GetStereoNonJitteredProjectionMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
-			}
+            }
         }
 
         static Matrix4x4 GetViewMatrixForCamera(Camera cam)
-		{
+        {
             if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)
-			{
+            {
                 return cam.worldToCameraMatrix;
-			}
+            }
             else
-			{
+            {
                 return cam.GetStereoViewMatrix(cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Left ? Camera.StereoscopicEye.Left : Camera.StereoscopicEye.Right);
-			}
-		}
+            }
+        }
 
         void OnPreRender()
         {
