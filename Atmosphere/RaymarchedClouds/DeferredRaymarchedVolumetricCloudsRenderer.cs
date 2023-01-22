@@ -212,10 +212,12 @@ namespace Atmosphere
 
                 float cloudFade = 1f;
 
+                float camDistanceToPlanetOrigin = float.MaxValue;
+
                 foreach (var elt in volumesAdded)
                 {
                     //calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
-                    float camDistanceToPlanetOrigin = (gameObject.transform.position - elt.ParentTransform.position).magnitude;
+                    camDistanceToPlanetOrigin = (gameObject.transform.position - elt.ParentTransform.position).magnitude;
 
                     if (camDistanceToPlanetOrigin >= elt.InnerSphereRadius && camDistanceToPlanetOrigin <= elt.OuterSphereRadius)
                     {
@@ -237,6 +239,9 @@ namespace Atmosphere
 
                     cloudFade = Mathf.Min(cloudFade, elt.VolumetricLayerScaledFade);
                 }
+
+                // if the camera is higher than the highest layer by as high as it is from the ground, enable orbitMode
+                bool orbitMode = camDistanceToPlanetOrigin - outerRepojectionRadius > outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius;
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
 
@@ -299,6 +304,8 @@ namespace Atmosphere
                     cloudMaterial.SetVector("reprojectionUVOffset", uvOffset);
                     cloudMaterial.SetFloat("frameNumber", (float)(frame));
 
+                    cloudMaterial.SetFloat("useOrbitMode", orbitMode ? 1f : 0f);
+
                     Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
                     Matrix4x4 cloudPreviousV = prevV;
 
@@ -354,6 +361,7 @@ namespace Atmosphere
                 reconstructCloudsMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
 
                 reconstructCloudsMaterial.SetFloat("frameNumber", (float)(frame));
+                reconstructCloudsMaterial.SetFloat("useOrbitMode", orbitMode ? 1f : 0f);
 
                 var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
