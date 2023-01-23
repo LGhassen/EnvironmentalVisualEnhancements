@@ -68,6 +68,8 @@ namespace Atmosphere
         Color color = Color.white;
         [ConfigItem]
         float skylightMultiplier = 1.0f;
+        [ConfigItem]
+        float skylightTintMultiplier = 1.0f;
 
         [ConfigItem]
         string receiveShadowsFromLayer = "";
@@ -348,6 +350,7 @@ namespace Atmosphere
             mat.SetTexture("BlueNoise", tex);
             mat.SetFloat("deTilifyBaseNoise", deTilifyBaseNoise * 0.01f);
             mat.SetFloat("skylightMultiplier", skylightMultiplier);
+            mat.SetFloat("skylightTintMultiplier", skylightTintMultiplier);
             mat.SetFloat("shadowCasterDensity", receivedShadowsDensity);
 
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
