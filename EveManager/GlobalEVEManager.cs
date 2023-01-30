@@ -57,6 +57,12 @@ namespace EVEManager
             GameEvents.onGUIApplicationLauncherUnreadifying.Add(RemoveButton);
         }
 
+        void OnDestroy()
+        {
+            GameEvents.onGUIApplicationLauncherReady.Remove(AddButton);
+            GameEvents.onGUIApplicationLauncherUnreadifying.Remove(RemoveButton);
+        }
+
         static ApplicationLauncherButton button = null;
 
         void AddButton()
