@@ -50,7 +50,7 @@ namespace Utils
             flipFlop = new FlipFlop<RenderTexture>(null, null);
         }
 
-        static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool mips, FilterMode filterMode)
+        public static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool mips, FilterMode filterMode)
         {
             var rt = new RenderTexture(width, height, 0, format);
             rt.anisoLevel = 1;

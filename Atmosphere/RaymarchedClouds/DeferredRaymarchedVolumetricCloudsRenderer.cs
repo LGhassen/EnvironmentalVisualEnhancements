@@ -26,9 +26,20 @@ namespace Atmosphere
                 {
                     CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = null;
                 }
+                else if (!Tools.IsUnifiedCameraMode() && cam.name == "Camera 01")
+                {
+                    CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = null;
+                    cam.gameObject.AddComponent<DepthToDistanceCommandBuffer>();
+                }
                 else
                 {
                     CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = (DeferredRaymarchedVolumetricCloudsRenderer)cam.gameObject.AddComponent(typeof(DeferredRaymarchedVolumetricCloudsRenderer));
+
+                    if (!Tools.IsUnifiedCameraMode() && cam.name == "Camera 00")
+                    {
+                        CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam].useCombinedOpenGLDistanceBuffer = true;
+                        cam.gameObject.AddComponent<DepthToDistanceCommandBuffer>();
+                    }
                 }
             }
         }
@@ -87,7 +98,6 @@ namespace Atmosphere
 
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
-        ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
         //manually made sampling sequences that distribute samples in a cross pattern for reprojection
         int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
@@ -109,6 +119,8 @@ namespace Atmosphere
             }
         }
 
+        private bool useCombinedOpenGLDistanceBuffer = false;
+
         public DeferredRaymarchedVolumetricCloudsRenderer()
         {
         }
@@ -124,8 +136,6 @@ namespace Atmosphere
             reprojectionXfactor = reprojectionFactors.Item1;
             reprojectionYfactor = reprojectionFactors.Item2;
 
-            reprojectionQuality = RaymarchedCloudsQualityManager.ReprojectionQuality;
-
             if ((targetCamera.activeTexture.width % reprojectionXfactor != 0) || (targetCamera.activeTexture.height % reprojectionYfactor != 0))
             {
                 Debug.LogError("Error: Screen dimensions not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString() + ": " + targetCamera.activeTexture.width.ToString() + " " + targetCamera.activeTexture.height.ToString());
@@ -135,15 +145,16 @@ namespace Atmosphere
             }
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
-            if (reprojectionQuality == ReprojectionQuality.accurate)
+
+            if (useCombinedOpenGLDistanceBuffer)
             {
-                reconstructCloudsMaterial.EnableKeyword("REPROJECTION_HQ");
-                reconstructCloudsMaterial.DisableKeyword("REPROJECTION_FAST");
+                reconstructCloudsMaterial.EnableKeyword("OPENGL_COMBINEDBUFFER_ON");
+                reconstructCloudsMaterial.DisableKeyword("OPENGL_COMBINEDBUFFER_OFF");
             }
             else
             {
-                reconstructCloudsMaterial.DisableKeyword("REPROJECTION_HQ");
-                reconstructCloudsMaterial.EnableKeyword("REPROJECTION_FAST");
+                reconstructCloudsMaterial.DisableKeyword("OPENGL_COMBINEDBUFFER_ON");
+                reconstructCloudsMaterial.EnableKeyword("OPENGL_COMBINEDBUFFER_OFF");
             }
 
             bool supportVR = VRUtils.VREnabled();
@@ -175,9 +186,7 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
             reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
 
-            commandBuffer = new FlipFlop<CommandBuffer>(
-                supportVR ? new CommandBuffer() : null,
-                new CommandBuffer());
+            commandBuffer = new FlipFlop<CommandBuffer>(supportVR ? new CommandBuffer() : null, new CommandBuffer());
 
             isInitialized = true;
         }
@@ -306,6 +315,11 @@ namespace Atmosphere
 
                     cloudMaterial.SetFloat("useOrbitMode", orbitMode ? 1f : 0f);
 
+                    cloudMaterial.SetFloat("useCombinedOpenGLDistanceBuffer", useCombinedOpenGLDistanceBuffer ? 1f : 0f);
+
+                    if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
+                        cloudMaterial.SetTexture("combinedOpenGLDistanceBuffer", DepthToDistanceCommandBuffer.RenderTexture);
+
                     Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
                     Matrix4x4 cloudPreviousV = prevV;
 
@@ -362,6 +376,9 @@ namespace Atmosphere
 
                 reconstructCloudsMaterial.SetFloat("frameNumber", (float)(frame));
                 reconstructCloudsMaterial.SetFloat("useOrbitMode", orbitMode ? 1f : 0f);
+
+                if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
+                    reconstructCloudsMaterial.SetTexture("combinedOpenGLDistanceBuffer", DepthToDistanceCommandBuffer.RenderTexture);
 
                 var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);

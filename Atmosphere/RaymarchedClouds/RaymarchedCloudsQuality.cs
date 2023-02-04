@@ -14,26 +14,16 @@ namespace Atmosphere
         x32,
     }
 
-    enum ReprojectionQuality
-    {
-        fast,
-        accurate
-    }
-
     [ConfigName("name")]
     public class RaymarchedCloudsQuality : IEVEObject 
     {
         [ConfigItem]
         TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
 
-        //[ConfigItem]
-        ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
-
         [ConfigItem]
         bool nonTiling3DNoise = true;
 
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
-        internal ReprojectionQuality ReprojectionQuality { get => reprojectionQuality; }
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         public void LoadConfigNode(ConfigNode node)

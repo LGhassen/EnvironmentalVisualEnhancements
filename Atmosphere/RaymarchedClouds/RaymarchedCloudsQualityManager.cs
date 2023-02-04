@@ -7,7 +7,6 @@ namespace Atmosphere
     public class RaymarchedCloudsQualityManager : GenericEVEManager<RaymarchedCloudsQuality>
     {
         static TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
-        static ReprojectionQuality reprojectionQuality = ReprojectionQuality.accurate;
 
         public override int LoadOrder { get { return 120; } }
 
@@ -19,7 +18,6 @@ namespace Atmosphere
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
 
         internal static TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
-        internal static ReprojectionQuality ReprojectionQuality { get => reprojectionQuality; }
 
         internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
@@ -52,7 +50,6 @@ namespace Atmosphere
             {
 
                 temporalUpscaling = ObjectList[0].TemporalUpscaling;
-                reprojectionQuality = ObjectList[0].ReprojectionQuality;
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
 
