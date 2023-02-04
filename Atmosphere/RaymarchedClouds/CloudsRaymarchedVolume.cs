@@ -65,7 +65,7 @@ namespace Atmosphere
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
 
         [ConfigItem]
-        Color color = Color.white;
+        Color color = Color.white * 255f;
         [ConfigItem]
         float skylightMultiplier = 1.0f;
         [ConfigItem]
@@ -333,7 +333,7 @@ namespace Atmosphere
 
         public void SetShaderParams(Material mat)
         {
-            mat.SetColor("cloudColor", color);
+            mat.SetColor("cloudColor", color / 255f);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
             mat.SetFloat("absorptionMultiplier", 1.0f);
