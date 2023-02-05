@@ -598,7 +598,6 @@ namespace Atmosphere
                 RT.volumeDepth = volume;
             }
 
-            RT.enableRandomWrite = true;
             RT.useMipMap = true;
             RT.autoGenerateMips = false;
             RT.wrapMode = TextureWrapMode.Repeat;
