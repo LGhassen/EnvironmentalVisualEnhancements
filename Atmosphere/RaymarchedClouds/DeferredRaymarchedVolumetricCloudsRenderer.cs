@@ -132,17 +132,7 @@ namespace Atmosphere
             if (targetCamera == null || targetCamera.activeTexture == null)
                 return;
 
-            var reprojectionFactors = RaymarchedCloudsQualityManager.GetReprojectionFactors();
-            reprojectionXfactor = reprojectionFactors.Item1;
-            reprojectionYfactor = reprojectionFactors.Item2;
-
-            if ((targetCamera.activeTexture.width % reprojectionXfactor != 0) || (targetCamera.activeTexture.height % reprojectionYfactor != 0))
-            {
-                Debug.LogError("Error: Screen dimensions not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString() + ": " + targetCamera.activeTexture.width.ToString() + " " + targetCamera.activeTexture.height.ToString());
-                CameraToDeferredRaymarchedVolumetricCloudsRenderer.Remove(targetCamera);
-                Component.Destroy(this);
-                return;
-            }
+            SetReprojectionFactors();
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
 
@@ -176,7 +166,7 @@ namespace Atmosphere
             newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
             newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
             newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
-            
+
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
 
@@ -189,6 +179,36 @@ namespace Atmosphere
             commandBuffer = new FlipFlop<CommandBuffer>(supportVR ? new CommandBuffer() : null, new CommandBuffer());
 
             isInitialized = true;
+        }
+
+        private void SetReprojectionFactors()
+        {
+            var reprojectionFactors = RaymarchedCloudsQualityManager.GetReprojectionFactors();
+            reprojectionXfactor = reprojectionFactors.Item1;
+            reprojectionYfactor = reprojectionFactors.Item2;
+
+            var adaptedReprojectionXFactor = FindAdaptedReprojectionFactor(targetCamera.activeTexture.width,  reprojectionXfactor);
+            var adaptedReprojectionYFactor = FindAdaptedReprojectionFactor(targetCamera.activeTexture.height, reprojectionYfactor);
+
+            if ((adaptedReprojectionXFactor != reprojectionXfactor) || (adaptedReprojectionYFactor != reprojectionYfactor))
+            {
+                Debug.LogWarning("[EVE] Temporal reprojection switched to: " + (adaptedReprojectionXFactor * adaptedReprojectionYFactor).ToString() + " on camera " + targetCamera.name +
+                    " because screen dimensions " + targetCamera.activeTexture.width.ToString() + " and " + targetCamera.activeTexture.height.ToString() +
+                    " are not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString());
+            }
+
+            reprojectionXfactor = adaptedReprojectionXFactor;
+            reprojectionYfactor = adaptedReprojectionYFactor;
+        }
+
+        private int FindAdaptedReprojectionFactor(int cameraDimension, int reprojectionFactor)
+        {
+            while (cameraDimension % reprojectionFactor != 0)
+            {
+                reprojectionFactor /= 2;
+            }
+
+            return reprojectionFactor;
         }
 
         public void EnableForThisFrame(CloudsRaymarchedVolume volume)
