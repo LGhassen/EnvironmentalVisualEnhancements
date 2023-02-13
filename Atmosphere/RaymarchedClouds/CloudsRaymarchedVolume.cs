@@ -69,7 +69,7 @@ namespace Atmosphere
         [ConfigItem]
         float skylightMultiplier = 1.0f;
         [ConfigItem]
-        float skylightTintMultiplier = 1.0f;
+        float skylightTintMultiplier = 0.0f;
 
         [ConfigItem]
         string receiveShadowsFromLayer = "";
