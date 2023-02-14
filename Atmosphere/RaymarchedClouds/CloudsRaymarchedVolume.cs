@@ -64,6 +64,9 @@ namespace Atmosphere
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
 
+        [ConfigItem, Optional]
+        ParticleField particleField = null;
+
         [ConfigItem]
         Color color = Color.white * 255f;
         [ConfigItem]
@@ -263,6 +266,9 @@ namespace Atmosphere
             volumeHolder.SetActive(false);
 
             SetShadowCasterTextureParams();
+
+            if (particleField != null)
+                particleField.Apply();
         }
 
         public void ConfigureTextures()
@@ -524,6 +530,9 @@ namespace Atmosphere
                 raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
                 raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
             }
+
+            if (particleField != null)
+                particleField.Update(); // TODO: move this out of here
         }
 
         public void Remove()
@@ -533,6 +542,11 @@ namespace Atmosphere
                 volumeHolder.transform.parent = null;
                 GameObject.Destroy(volumeHolder);
                 volumeHolder = null;
+            }
+
+            if (particleField != null)
+            {
+                particleField.Remove();
             }
         }
 
