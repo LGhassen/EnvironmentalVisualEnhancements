@@ -7,6 +7,21 @@ using Random = UnityEngine.Random;
 
 namespace Atmosphere
 {
+	public class Splashes
+	{
+		[ConfigItem]
+		Vector2 splashesSize = new Vector3(1f, 1f);
+
+		[ConfigItem]
+		Vector2 splashesSheetCount = new Vector3(1f, 1f);
+
+		[ConfigItem]
+		TextureWrapper splashesTextureSheet = null;
+		public Vector2 SplashesSize { get => splashesSize; }
+		public Vector2 SplashesSheetCount { get => splashesSheetCount; }
+		public TextureWrapper SplashesTextureSheet { get => splashesTextureSheet; }
+	}
+
 	public class ParticleField
 	{
 		[ConfigItem]
@@ -14,12 +29,6 @@ namespace Atmosphere
 
 		[ConfigItem]
 		float fieldParticleCount = 10000f;
-
-		[ConfigItem]
-		float particleSize = 0.02f;
-
-		[ConfigItem]
-		float particleStretch = 0.0f;
 
 		[ConfigItem]
 		float fallSpeed = 1f;
@@ -31,7 +40,19 @@ namespace Atmosphere
 		Color color = Color.white * 255f;
 
 		[ConfigItem]
-		TextureWrapper particleTexture = null;
+		float particleSize = 0.02f;
+
+		[ConfigItem]
+		Vector2 particleSheetCount = new Vector3(1f, 1f);
+
+		[ConfigItem]
+		float particleStretch = 0.0f;
+
+		[ConfigItem]
+		TextureWrapper particleTextureSheet = null;
+
+		[ConfigItem, Optional]
+		Splashes splashes = null;
 
 		static Shader particleFieldShader = null;
 		static Shader ParticleFieldShader
@@ -43,7 +64,17 @@ namespace Atmosphere
 			}
 		}
 
-		public Material material;
+		static Shader particleFieldSplashesShader = null;
+		static Shader ParticleFieldSplashesShader
+		{
+			get
+			{
+				if (particleFieldSplashesShader == null) particleFieldSplashesShader = ShaderLoaderClass.FindShader("EVE/ParticleFieldSplashes");
+				return particleFieldSplashesShader;
+			}
+		}
+
+		public Material particleFieldMaterial, particleFieldSplashesMaterial;
 		Vector3 fieldSizeVector = Vector3.one;
 
 		GameObject fieldHolder;
@@ -59,7 +90,7 @@ namespace Atmosphere
 			parentTransform = parent;
             fieldSizeVector = new Vector3(fieldSize, fieldSize, fieldSize);
 
-            InitMaterial();
+            InitMaterials();
             InitGameObject(parent);
         }
 
@@ -76,7 +107,7 @@ namespace Atmosphere
 		public void UpdateForCamera(Camera cam)
         {
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
-			material.SetVector("gravityVector", gravityVector);
+			particleFieldMaterial.SetVector("gravityVector", gravityVector);
 
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
@@ -85,17 +116,17 @@ namespace Atmosphere
 			worldToCameraMatrix.m13 = 0f;
 			worldToCameraMatrix.m23 = 0f;
 
-			material.SetMatrix("rotationMatrix", worldToCameraMatrix);
+			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 
 			var offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedTimeOffset;
 			offset.x = repeatDouble(offset.x, fieldSize);
 			offset.y = repeatDouble(offset.y, fieldSize);
 			offset.z = repeatDouble(offset.z, fieldSize);
-			material.SetVector("offset", new Vector3((float) offset.x, (float)offset.y, (float)offset.z));
+			particleFieldMaterial.SetVector("offset", new Vector3((float) offset.x, (float)offset.y, (float)offset.z));
 
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
-			material.SetFloat("fade", fade);
+			particleFieldMaterial.SetFloat("fade", fade);
 		}
 
 		double repeatDouble(double t, double length)
@@ -115,36 +146,59 @@ namespace Atmosphere
 			accumulatedTimeOffset += gravityVector * Time.deltaTime * TimeWarp.CurrentRate * fallSpeed;
 		}
 
-		void InitMaterial()
+		void InitMaterials()
         {
-			material = new Material(ParticleFieldShader);
-			material.renderQueue = 9000;
+			particleFieldMaterial = new Material(ParticleFieldShader);
+			particleFieldMaterial.renderQueue = 9000;
 
-			material.SetVector("fieldSize", fieldSizeVector);
-            material.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
+			particleFieldMaterial.SetVector("fieldSize", fieldSizeVector);
+            particleFieldMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
 
-            material.SetFloat("particleSize", particleSize);
-			material.SetFloat("particleStretch", particleStretch);
-			material.SetFloat("fallSpeed", fallSpeed);
+			particleFieldMaterial.SetVector("particleSheetCount", particleSheetCount);
+			particleFieldMaterial.SetFloat("particleSize", particleSize);
+			particleFieldMaterial.SetFloat("particleStretch", particleStretch);
+			particleFieldMaterial.SetFloat("fallSpeed", fallSpeed);
 
-            material.SetFloat("randomDirectionStrength", randomDirectionStrength);
+            particleFieldMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
 
-			material.SetColor("particleColor", color / 255f);
+			particleFieldMaterial.SetColor("particleColor", color / 255f);
 
 			if (particleStretch > 0f)
             {
-				material.EnableKeyword("STRETCH_ON");
-				material.DisableKeyword("STRETCH_OFF");
+				particleFieldMaterial.EnableKeyword("STRETCH_ON");
+				particleFieldMaterial.DisableKeyword("STRETCH_OFF");
 			}
 			else
             {
-				material.DisableKeyword("STRETCH_ON");
-				material.EnableKeyword("STRETCH_OFF");
+				particleFieldMaterial.DisableKeyword("STRETCH_ON");
+				particleFieldMaterial.EnableKeyword("STRETCH_OFF");
 			}
 
-			if (particleTexture != null)
+			if (particleTextureSheet != null)
 			{
-				particleTexture.ApplyTexture(material, "_MainTex");
+				particleTextureSheet.ApplyTexture(particleFieldMaterial, "_MainTex");
+			}
+
+			if (splashes != null)
+            {
+				particleFieldSplashesMaterial = new Material(ParticleFieldSplashesShader);
+				particleFieldSplashesMaterial.renderQueue = 9000;
+
+				particleFieldSplashesMaterial.SetVector("fieldSize", fieldSizeVector);
+				particleFieldSplashesMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
+
+				particleFieldSplashesMaterial.SetVector("splashesSheetCount", splashes.SplashesSheetCount);
+				particleFieldSplashesMaterial.SetVector("splashesSize", splashes.SplashesSize);
+				particleFieldSplashesMaterial.SetFloat("fallSpeed", fallSpeed);
+
+				particleFieldSplashesMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
+
+				particleFieldSplashesMaterial.SetColor("particleColor", color / 255f);
+
+				if (splashes.SplashesTextureSheet != null)
+				{
+					splashes.SplashesTextureSheet.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
+				}
 			}
 		}
 
@@ -158,7 +212,7 @@ namespace Atmosphere
 				GameObject.Destroy(fieldHolder.GetComponent<Collider>());
 
 			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
-			fieldMeshRenderer.material = material;
+			fieldMeshRenderer.material = particleFieldMaterial;
 
 			fieldMeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 			fieldMeshRenderer.receiveShadows = false;                                               // In the future needs to be enabled probably
