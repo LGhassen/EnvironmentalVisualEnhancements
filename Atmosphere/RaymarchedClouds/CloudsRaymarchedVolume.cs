@@ -201,7 +201,7 @@ namespace Atmosphere
 
         private MeshRenderer volumeMeshrenderer;
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius)
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody)
         {
             planetRadius = parentRadius;
             parentTransform = parent;
@@ -268,7 +268,7 @@ namespace Atmosphere
             SetShadowCasterTextureParams();
 
             if (particleField != null)
-                particleField.Apply();
+                particleField.Apply(parent, celestialBody);
         }
 
         public void ConfigureTextures()
