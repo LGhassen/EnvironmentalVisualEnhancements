@@ -135,6 +135,11 @@ namespace Atmosphere
                 _enabled = value;
                 volumeHolder.SetActive(value);
                 volumeMeshrenderer.enabled = value;
+
+                if (particleField != null)
+                {
+                    particleField.SetEnabled(value);
+                }
             }
         }
 

@@ -53,7 +53,7 @@ namespace Atmosphere
                     }
                     catch (Exception e)
                     {
-                        ILog("Unable to parse config node:\n" + node.ToString());
+                        ILog("Unable to parse config node:\n" + node.ToString()+"\nException:\n" + e.ToString());
                     }
                 }
             }

@@ -3,23 +3,30 @@ using UnityEngine.Rendering;
 using Utils;
 using ShaderLoader;
 using System;
+using System.Collections.Generic;
 using Random = UnityEngine.Random;
 
 namespace Atmosphere
 {
 	public class Splashes
-	{
+    {
 		[ConfigItem]
-		Vector2 splashesSize = new Vector3(1f, 1f);
+		Vector2 splashesSize = new Vector2(1f, 1f);
 
 		[ConfigItem]
-		Vector2 splashesSheetCount = new Vector3(1f, 1f);
+		Vector2 splashesSheetCount = new Vector2(1f, 1f);
 
 		[ConfigItem]
-		TextureWrapper splashesTextureSheet = null;
+		Color color = Color.white * 255f;
+
+		[ConfigItem, Optional]
+		TextureWrapper splashTexture = null;
+
 		public Vector2 SplashesSize { get => splashesSize; }
 		public Vector2 SplashesSheetCount { get => splashesSheetCount; }
-		public TextureWrapper SplashesTextureSheet { get => splashesTextureSheet; }
+
+		public Color Color { get => color; }
+		public TextureWrapper SplashTexture { get => splashTexture; }
 	}
 
 	public class ParticleField
@@ -43,13 +50,13 @@ namespace Atmosphere
 		float particleSize = 0.02f;
 
 		[ConfigItem]
-		Vector2 particleSheetCount = new Vector3(1f, 1f);
+		Vector2 particleSheetCount = new Vector2(1f, 1f);
 
 		[ConfigItem]
 		float particleStretch = 0.0f;
 
-		[ConfigItem]
-		TextureWrapper particleTextureSheet = null;
+		[ConfigItem, Optional]
+		TextureWrapper particleTexture = null;
 
 		[ConfigItem, Optional]
 		Splashes splashes = null;
@@ -107,7 +114,6 @@ namespace Atmosphere
 		public void UpdateForCamera(Camera cam)
         {
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
-			particleFieldMaterial.SetVector("gravityVector", gravityVector);
 
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
@@ -116,17 +122,26 @@ namespace Atmosphere
 			worldToCameraMatrix.m13 = 0f;
 			worldToCameraMatrix.m23 = 0f;
 
-			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
-
 			var offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedTimeOffset;
 			offset.x = repeatDouble(offset.x, fieldSize);
 			offset.y = repeatDouble(offset.y, fieldSize);
 			offset.z = repeatDouble(offset.z, fieldSize);
-			particleFieldMaterial.SetVector("offset", new Vector3((float) offset.x, (float)offset.y, (float)offset.z));
-
+			
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
+
+			particleFieldMaterial.SetVector("gravityVector", gravityVector);
+			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
+			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat("fade", fade);
+
+			if (particleFieldSplashesMaterial != null)
+            {
+				particleFieldSplashesMaterial.SetVector("gravityVector", gravityVector);
+				particleFieldSplashesMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
+				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
+				particleFieldSplashesMaterial.SetFloat("fade", fade);
+			}
 		}
 
 		double repeatDouble(double t, double length)
@@ -174,9 +189,9 @@ namespace Atmosphere
 				particleFieldMaterial.EnableKeyword("STRETCH_OFF");
 			}
 
-			if (particleTextureSheet != null)
+			if (particleTexture != null)
 			{
-				particleTextureSheet.ApplyTexture(particleFieldMaterial, "_MainTex");
+				particleTexture.ApplyTexture(particleFieldMaterial, "_MainTex");
 			}
 
 			if (splashes != null)
@@ -193,12 +208,10 @@ namespace Atmosphere
 
 				particleFieldSplashesMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
 
-				particleFieldSplashesMaterial.SetColor("particleColor", color / 255f);
+				particleFieldSplashesMaterial.SetColor("particleColor", splashes.Color / 255f);
 
-				if (splashes.SplashesTextureSheet != null)
-				{
-					splashes.SplashesTextureSheet.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
-				}
+				if (splashes.SplashTexture != null)
+					splashes.SplashTexture.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
 			}
 		}
 
@@ -212,11 +225,20 @@ namespace Atmosphere
 				GameObject.Destroy(fieldHolder.GetComponent<Collider>());
 
 			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
+			var materials = new List<Material>() { particleFieldMaterial };
+
 			fieldMeshRenderer.material = particleFieldMaterial;
+
+			if (particleFieldSplashesMaterial != null)
+            {
+				materials.Add(particleFieldSplashesMaterial);
+			}
+
+			fieldMeshRenderer.materials = materials.ToArray();
 
 			fieldMeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 			fieldMeshRenderer.receiveShadows = false;                                               // In the future needs to be enabled probably
-			fieldMeshRenderer.enabled = true;
+			fieldMeshRenderer.enabled = false;
 
 			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();			
 			filter.mesh = createMesh((int)fieldParticleCount);
@@ -229,17 +251,26 @@ namespace Atmosphere
 			var fieldUpdater = fieldHolder.AddComponent<FieldUpdater>();
 			fieldUpdater.field = this;
 
-			//fieldHolder.SetActive(false);
-			fieldHolder.SetActive(true);
+			fieldHolder.SetActive(false);
 		}
 
-		Mesh createMesh(int particleCount)
+		public void SetEnabled(bool value)
+        {
+			if (fieldHolder!= null && fieldMeshRenderer!=null)
+			{
+				fieldHolder.SetActive(value);
+				fieldMeshRenderer.enabled = value;
+			}
+		}
+
+		private Mesh createMesh(int particleCount)
 		{
 			Mesh mesh = new Mesh();
 			mesh.indexFormat = particleCount > (65536 / 4) ? IndexFormat.UInt32 : IndexFormat.UInt16;
 
 			Vector3[] vertices = new Vector3[particleCount * 4];
 			Vector2[] UVs = new Vector2[particleCount * 4];
+			Vector2[] UVs2 = new Vector2[particleCount * 4];
 			Vector3[] normals = new Vector3[particleCount * 4];
 			int[] triangles = new int[particleCount * 6];
 
@@ -248,6 +279,7 @@ namespace Atmosphere
 				// for every particle create 4 vertices, center them at the same center position
 				Vector3 particlePosition = 0.5f * new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)); // not sure why I need a 0.5f here
 				Vector3 randomDirection = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+				Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
 
 				for (int j = 0; j < 4; j++)
 				{
@@ -261,6 +293,12 @@ namespace Atmosphere
 				UVs[i * 4 + 2] = new Vector2(1f, 1f);
 				UVs[i * 4 + 3] = new Vector2(-1f, 1f);
 
+				// the second UVs are used to store "random" indexes between 0 and 1 used to control particle density on the fly and which texture on the sheet to sample
+				UVs2[i * 4] = randomIndexes;
+				UVs2[i * 4 + 1] = randomIndexes;
+				UVs2[i * 4 + 2] = randomIndexes;
+				UVs2[i * 4 + 3] = randomIndexes;
+
 				// create the triangles
 				// triangle 1 uses vertices 0, 1 and 2
 				triangles[i * 6] = i * 4;
@@ -273,10 +311,12 @@ namespace Atmosphere
 				triangles[i * 6 + 5] = i * 4 + 2;
 			}
 
+
 			mesh.Clear();
 			mesh.vertices = vertices;
 			mesh.normals = normals;
 			mesh.uv = UVs;
+			mesh.uv2 = UVs2;
 			mesh.triangles = triangles;
 
 			return mesh;
