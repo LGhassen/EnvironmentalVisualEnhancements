@@ -115,6 +115,8 @@ namespace Atmosphere
         {
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
 
+			var rainVelocityVector = FlightGlobals.ActiveVessel ? (fallSpeed * gravityVector - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
+
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
 
@@ -130,7 +132,7 @@ namespace Atmosphere
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
 
-			particleFieldMaterial.SetVector("gravityVector", gravityVector);
+			particleFieldMaterial.SetVector("gravityVector", rainVelocityVector);
 			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat("fade", fade);
