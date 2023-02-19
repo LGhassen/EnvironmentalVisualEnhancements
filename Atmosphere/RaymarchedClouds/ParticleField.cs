@@ -55,6 +55,12 @@ namespace Atmosphere
 		[ConfigItem]
 		float particleStretch = 0.0f;
 
+		[ConfigItem]
+		float minCoverageThreshold = 0.3f;
+
+		[ConfigItem]
+		float maxCoverageThreshold = 0.75f;
+
 		[ConfigItem, Optional]
 		TextureWrapper particleTexture = null;
 
@@ -116,6 +122,7 @@ namespace Atmosphere
 		public void UpdateForCamera(Camera cam)
         {
 			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position);
+			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - minCoverageThreshold) / (maxCoverageThreshold - minCoverageThreshold));
 
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
 
