@@ -150,6 +150,56 @@ namespace Utils
                 return null;
             }
         }
+
+        public Color Sample(Vector3 normalizedSphereVector)
+        {
+            if (type != TextureTypeEnum.RGB2_CubeMap)
+            {
+                var uv = GetCubeMapUVAndFaceTosample(normalizedSphereVector, out CubemapFace faceToSample);
+                return texList[(int)faceToSample].GetPixelBilinear(uv.x, uv.y, 0);
+            }
+
+            return Color.white;
+        }
+
+        private Vector2 GetCubeMapUVAndFaceTosample(Vector3 cubeVectNorm, out CubemapFace faceToSample)
+        {
+            Vector3 cubeVectNormAbs = new Vector3(Mathf.Abs(cubeVectNorm.x), Mathf.Abs(cubeVectNorm.y), Mathf.Abs(cubeVectNorm.z));
+            float zxlerp = step(cubeVectNormAbs.x, cubeVectNormAbs.z);
+            float nylerp = step(cubeVectNormAbs.y, Mathf.Max(cubeVectNormAbs.x, cubeVectNormAbs.z));
+            float s = Mathf.Lerp(cubeVectNorm.x, cubeVectNorm.z, zxlerp);
+            s = Mathf.Sign(Mathf.Lerp(cubeVectNorm.y, s, nylerp));
+
+            Vector3 detailCoords = Vector3.Lerp(new Vector3(cubeVectNorm.x, -s * cubeVectNorm.z, -cubeVectNorm.y), new Vector3(cubeVectNorm.z, s * cubeVectNorm.x, -cubeVectNorm.y), zxlerp);
+            detailCoords = Vector3.Lerp(new Vector3(cubeVectNorm.y, cubeVectNorm.x, s * cubeVectNorm.z), detailCoords, nylerp);
+
+            Vector2 uv = (new Vector2(0.5f * detailCoords.y, 0.5f * detailCoords.z) / Mathf.Abs(detailCoords.x)) + new Vector2(0.5f, 0.5f);
+
+            bool positive = s > 0;
+
+            if (nylerp < 0)
+            {
+                faceToSample = positive ? CubemapFace.PositiveY : CubemapFace.NegativeY;
+            }
+            else
+            {
+                if (zxlerp > 0 )
+                {
+                    faceToSample = positive ? CubemapFace.PositiveZ : CubemapFace.NegativeZ;
+                }
+                else
+                {
+                    faceToSample = positive ? CubemapFace.PositiveX : CubemapFace.NegativeX;
+                }
+            }
+
+            return uv;
+        }
+
+        private float step(float a, float x)
+        {
+            return x >= a ? 1f :0f;
+        }
     }
 
     public enum AlphaMaskEnum
@@ -159,7 +209,6 @@ namespace Utils
         ALPHAMAP_B,
         ALPHAMAP_A
     }
-
 
 
     [ValueNode, ValueFilter("isClamped|format")]
@@ -177,6 +226,9 @@ namespace Utils
         TextureTypeEnum type = TextureTypeEnum.RGBA;
         [ConfigItem, Conditional("alphaMaskEval")]
         AlphaMaskEnum alphaMask = AlphaMaskEnum.ALPHAMAP_A;
+
+        Texture2D textureValue = null;
+        CubemapWrapper cubemapWrapper = null;
 
         int index = 1;
         public bool IsNormal { get { return isNormal; } set { isNormal = value; } }
@@ -201,6 +253,7 @@ namespace Utils
                 if (cubeMap != null)
                 {
                     cubeMap.ApplyCubeMap(mat, name, indexToUse);
+                    cubemapWrapper = cubeMap;
                 }
             }
             else
@@ -211,6 +264,7 @@ namespace Utils
             {
                 texture.texture.wrapMode = isClamped ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
                 mat.SetTexture(name, texture.texture);
+                textureValue = texture.texture;
             }
             if ((type & TextureTypeEnum.AlphaMapMask) > 0)
             {
@@ -278,6 +332,47 @@ namespace Utils
             {
                 return false;
             }
+        }
+
+        public Color Sample(Vector3 normalizedSphereVector)
+        {
+            Color result = Color.white;
+
+            if (textureValue != null)
+            {
+                Vector2 uv = GetEquirectangularUV(normalizedSphereVector);
+                result = textureValue.GetPixelBilinear(uv.x, uv.y, 0);
+            }
+            else if ((type & TextureTypeEnum.CubeMapMask) > 0)
+            {
+                result = cubemapWrapper.Sample(normalizedSphereVector);
+            }
+
+            if ((type & TextureTypeEnum.AlphaMapMask) > 0)
+            {
+                float resultComponent = result.r;
+
+                if (alphaMask == AlphaMaskEnum.ALPHAMAP_G)
+                    resultComponent = result.g;
+                else if (alphaMask == AlphaMaskEnum.ALPHAMAP_B)
+                    resultComponent = result.b;
+                else if (alphaMask == AlphaMaskEnum.ALPHAMAP_A)
+                    resultComponent = result.a;
+
+                return new Vector4(resultComponent, resultComponent, resultComponent, resultComponent);
+            }
+
+            return result;
+        }
+
+        private static Vector2 GetEquirectangularUV(Vector3 normalizedSphereVector)
+        {
+            Vector2 uv;
+
+            uv.y = Mathf.Acos(normalizedSphereVector.y) / Mathf.PI;
+            uv.x = 0.5f + (0.5f / Mathf.PI * Mathf.Atan2(normalizedSphereVector.x, normalizedSphereVector.z));
+
+            return uv;
         }
     }
 }
