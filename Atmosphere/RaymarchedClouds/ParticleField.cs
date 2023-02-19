@@ -148,6 +148,7 @@ namespace Atmosphere
 			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat("fade", fade);
 			particleFieldMaterial.SetFloat("coverage", coverageAtPosition);
+			particleFieldMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
 
 			if (particleFieldSplashesMaterial != null)
             {
@@ -156,6 +157,7 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
 				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
+				particleFieldSplashesMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
 			}
 		}
 
@@ -242,8 +244,6 @@ namespace Atmosphere
 			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
 			var materials = new List<Material>() { particleFieldMaterial };
 
-			fieldMeshRenderer.material = particleFieldMaterial;
-
 			if (particleFieldSplashesMaterial != null)
             {
 				materials.Add(particleFieldSplashesMaterial);
@@ -257,7 +257,7 @@ namespace Atmosphere
 
 			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();			
 			filter.mesh = createMesh((int)fieldParticleCount);
-			filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(Mathf.Infinity, Mathf.Infinity, Mathf.Infinity));
+			filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
 
 			fieldHolder.transform.parent = parent;
 			fieldHolder.transform.localPosition = Vector3.zero;
