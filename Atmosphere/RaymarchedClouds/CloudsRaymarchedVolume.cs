@@ -114,7 +114,7 @@ namespace Atmosphere
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
-        private Texture coverageCurvesTexture;
+        private Texture2D coverageCurvesTexture;
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
@@ -273,7 +273,7 @@ namespace Atmosphere
             SetShadowCasterTextureParams();
 
             if (particleField != null)
-                particleField.Apply(parent, celestialBody);
+                particleField.Apply(parent, celestialBody, this);
         }
 
         public void ConfigureTextures()
@@ -603,6 +603,29 @@ namespace Atmosphere
                 raymarchedCloudMaterial.SetFloat("timeFadeCoverage", currentTimeFade);  // TODO: shader params
             }
 
+        }
+
+        public float SampleCoverage(Vector3 worldPosition)
+        {
+            Vector3 sphereVector = cloudRotationMatrix.MultiplyPoint(worldPosition).normalized;
+
+            float altitude = (worldPosition - parentTransform.position).magnitude;
+            float heightFraction = (altitude - innerSphereRadius) / (outerSphereRadius - innerSphereRadius);
+
+            if (heightFraction > 1 || heightFraction < 0)
+                return 0f;
+
+            float result = 1f;
+            if (coverageMap != null)
+                result = coverageMap.Sample(sphereVector).a;
+
+            float cloudType = 0f;
+            if (cloudTypeMap != null)
+                cloudType = cloudTypeMap.Sample(sphereVector).r;
+
+            result *= coverageCurvesTexture.GetPixelBilinear(cloudType, heightFraction).r;
+
+            return result * currentTimeFadeCoverage * currentTimeFadeDensity;
         }
 
         // TODO: move to utils

@@ -90,9 +90,11 @@ namespace Atmosphere
 		Transform parentTransform;
 		CelestialBody parentCelestialBody;
 		Vector3d accumulatedTimeOffset = Vector3d.zero;
+		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
-		public void Apply(Transform parent, CelestialBody celestialBody)
+		public void Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
+			cloudsRaymarchedVolume = volume;
 			parentCelestialBody = celestialBody;
 			parentTransform = parent;
             fieldSizeVector = new Vector3(fieldSize, fieldSize, fieldSize);
@@ -113,6 +115,8 @@ namespace Atmosphere
 
 		public void UpdateForCamera(Camera cam)
         {
+			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position);
+
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
 
 			var rainVelocityVector = FlightGlobals.ActiveVessel ? (fallSpeed * gravityVector - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
@@ -136,6 +140,7 @@ namespace Atmosphere
 			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat("fade", fade);
+			particleFieldMaterial.SetFloat("coverage", coverageAtPosition);
 
 			if (particleFieldSplashesMaterial != null)
             {
@@ -143,6 +148,7 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
+				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
 			}
 		}
 
