@@ -159,6 +159,13 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
 				particleFieldSplashesMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
 			}
+
+			if (coverageAtPosition > 0f)
+            {
+				ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldMaterial);
+				if (particleFieldSplashesMaterial != null)
+					ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldSplashesMaterial);
+			}
 		}
 
 		double repeatDouble(double t, double length)
@@ -181,7 +188,9 @@ namespace Atmosphere
 		void InitMaterials()
         {
 			particleFieldMaterial = new Material(ParticleFieldShader);
-			particleFieldMaterial.renderQueue = 9000;
+			particleFieldMaterial.SetShaderPassEnabled("ForwardBase", false); // Disable main pass, render it only with commandBuffer so it can render after TAA, scondary lights pass is incompatible so leave it here
+			particleFieldMaterial.SetShaderPassEnabled("ForwardAdd", true);
+			particleFieldMaterial.renderQueue = 3200;
 
 			particleFieldMaterial.SetVector("fieldSize", fieldSizeVector);
             particleFieldMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
@@ -214,7 +223,9 @@ namespace Atmosphere
 			if (splashes != null)
             {
 				particleFieldSplashesMaterial = new Material(ParticleFieldSplashesShader);
-				particleFieldSplashesMaterial.renderQueue = 9000;
+				particleFieldSplashesMaterial.SetShaderPassEnabled("ForwardBase", false);
+				particleFieldSplashesMaterial.SetShaderPassEnabled("ForwardAdd", true);
+				particleFieldSplashesMaterial.renderQueue = 3200;
 
 				particleFieldSplashesMaterial.SetVector("fieldSize", fieldSizeVector);
 				particleFieldSplashesMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
@@ -350,6 +361,88 @@ namespace Atmosphere
 					return;
 
 				field.UpdateForCamera(cam);
+			}
+		}
+
+		public class ParticleFieldRenderer : MonoBehaviour
+		{
+			private static Dictionary<Camera, ParticleFieldRenderer> CameraToParticleFieldRendererRenderer = new Dictionary<Camera, ParticleFieldRenderer>();
+
+			public static void EnableForThisFrame(Camera cam, MeshRenderer mr, Material mat)
+			{
+				if (CameraToParticleFieldRendererRenderer.ContainsKey(cam))
+				{
+					CameraToParticleFieldRendererRenderer[cam].AddRenderer(mr, mat);
+				}
+				else
+				{
+					CameraToParticleFieldRendererRenderer[cam] = (ParticleFieldRenderer)cam.gameObject.AddComponent(typeof(ParticleFieldRenderer));
+				}
+			}
+
+			bool renderingEnabled = false;
+
+			private Camera targetCamera;
+			private List<CommandBuffer> commandBuffersAdded = new List<CommandBuffer>();
+
+			public ParticleFieldRenderer()
+			{
+			}
+
+			public void Start()
+			{
+				targetCamera = GetComponent<Camera>();
+			}
+
+			public void AddRenderer(MeshRenderer mr, Material mat)
+			{
+				if (targetCamera != null)
+				{
+					CommandBuffer cb = new CommandBuffer();
+					cb.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
+					cb.DrawRenderer(mr, mat, 0, 0);
+
+					commandBuffersAdded.Add(cb);
+
+					renderingEnabled = true;
+				}
+			}
+
+			public void OnPreRender()
+            {
+				if (renderingEnabled)
+                {
+					foreach (var cb in commandBuffersAdded)
+					{
+						targetCamera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, cb);
+					}
+				}
+            }
+
+			public void OnPostRender()
+			{
+				if (renderingEnabled && targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+				{
+					foreach (var cb in commandBuffersAdded)
+					{
+						targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardAlpha, cb);
+					}
+					commandBuffersAdded.Clear();
+				}
+			}
+
+			public void OnDestroy()
+			{
+				if (targetCamera != null)
+				{
+					foreach (var cb in commandBuffersAdded)
+					{
+						targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardAlpha, cb);
+					}
+					commandBuffersAdded.Clear();
+
+					renderingEnabled = false;
+				}
 			}
 		}
 	}
