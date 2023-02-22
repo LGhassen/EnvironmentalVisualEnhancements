@@ -183,6 +183,12 @@ namespace Atmosphere
 			}
 
 			accumulatedTimeOffset += gravityVector * Time.deltaTime * TimeWarp.CurrentRate * fallSpeed;
+
+			var sphereCenter = cloudsRaymarchedVolume.ParentTransform.position;
+
+			particleFieldMaterial.SetVector("sphereCenter", sphereCenter);
+			if (particleFieldSplashesMaterial != null)
+				particleFieldSplashesMaterial.SetVector("sphereCenter", sphereCenter);
 		}
 
 		void InitMaterials()

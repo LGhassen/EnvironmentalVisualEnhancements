@@ -147,32 +147,43 @@ namespace Atmosphere
         {
             if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
-                // this will break if using different map types, TODO: fix it
-                shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(raymarchedCloudMaterial, "ShadowCasterCloudCoverage", 3);
+                setShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture);
 
-                if (editorTexture != null)
+                if (particleField != null)
                 {
-                    raymarchedCloudMaterial.SetTexture("ShadowCasterCloudCoverage", editorTexture);
-                }
-
-                raymarchedCloudMaterial.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
-
-                if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
-                {
-                    shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(raymarchedCloudMaterial, "_ShadowDetailTex");
-                    raymarchedCloudMaterial.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
-                    raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
-                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
-                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
-                }
-                else
-                {
-                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
-                    raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
-                    raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
+                    setShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture);
+                    setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture);
                 }
 
                 shadowCasterTextureSet = true;
+            }
+        }
+
+        private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture)
+        {
+            // this will break if using different map types, TODO: fix it
+            shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(mat, "ShadowCasterCloudCoverage", 3);
+
+            if (editorTexture != null)
+            {
+                mat.SetTexture("ShadowCasterCloudCoverage", editorTexture);
+            }
+
+            mat.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
+
+            if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
+            {
+                shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(mat, "_ShadowDetailTex");
+                mat.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
+                mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+                mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+                mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
+            }
+            else
+            {
+                mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+                mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+                mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
             }
         }
 
@@ -270,10 +281,10 @@ namespace Atmosphere
 
             volumeHolder.SetActive(false);
 
-            SetShadowCasterTextureParams();
-
             if (particleField != null)
                 particleField.Apply(parent, celestialBody, this);
+
+            SetShadowCasterTextureParams();
         }
 
         public void ConfigureTextures()
@@ -530,14 +541,24 @@ namespace Atmosphere
             if (shadowCasterLayerRaymarchedVolume != null)
             {
                 // these may be 1-2 frames behind
-                raymarchedCloudMaterial.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix);
-                raymarchedCloudMaterial.SetMatrix("_ShadowDetailRotation", shadowCasterLayerRaymarchedVolume.MainDetailRotationMatrix);
-                raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
-                raymarchedCloudMaterial.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
+                updateShadowCasterMaterialProperties(raymarchedCloudMaterial);
+                if (particleField != null)
+                {
+                    updateShadowCasterMaterialProperties(particleField.particleFieldMaterial);
+                    updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
+                }
             }
 
             if (particleField != null)
                 particleField.Update(); // TODO: move this out of here
+        }
+
+        private void updateShadowCasterMaterialProperties(Material mat)
+        {
+            mat.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix);
+            mat.SetMatrix("_ShadowDetailRotation", shadowCasterLayerRaymarchedVolume.MainDetailRotationMatrix);
+            mat.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
+            mat.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
         }
 
         public void Remove()
