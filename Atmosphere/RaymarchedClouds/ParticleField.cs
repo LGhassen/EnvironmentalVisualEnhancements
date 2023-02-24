@@ -22,11 +22,21 @@ namespace Atmosphere
 		[ConfigItem, Optional]
 		TextureWrapper splashTexture = null;
 
+		//[ConfigItem, Optional]
+		TextureWrapper splashDistorsionTexture = null;
+		
+		//[ConfigItem]
+		float distorsionStrength = 1f;
+
 		public Vector2 SplashesSize { get => splashesSize; }
 		public Vector2 SplashesSheetCount { get => splashesSheetCount; }
 
 		public Color Color { get => color; }
 		public TextureWrapper SplashTexture { get => splashTexture; }
+
+		public TextureWrapper SplashDistorsionTexture { get => splashDistorsionTexture; }
+
+		public float DistorsionStrength { get => distorsionStrength; }
 	}
 
 	public class ParticleField
@@ -63,6 +73,12 @@ namespace Atmosphere
 
 		[ConfigItem, Optional]
 		TextureWrapper particleTexture = null;
+
+		//[ConfigItem, Optional]
+		TextureWrapper particleDistorsionTexture = null;
+
+		[ConfigItem]
+		float distorsionStrength = 1f;
 
 		[ConfigItem, Optional]
 		Splashes splashes = null;
@@ -226,6 +242,13 @@ namespace Atmosphere
 				particleTexture.ApplyTexture(particleFieldMaterial, "_MainTex");
 			}
 
+			
+			if (particleDistorsionTexture != null)
+			{
+				particleDistorsionTexture.ApplyTexture(particleFieldMaterial, "distorsionTexture");
+				particleFieldMaterial.SetFloat("distorsionStrength", distorsionStrength);
+			}
+
 			if (splashes != null)
             {
 				particleFieldSplashesMaterial = new Material(ParticleFieldSplashesShader);
@@ -246,6 +269,12 @@ namespace Atmosphere
 
 				if (splashes.SplashTexture != null)
 					splashes.SplashTexture.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
+
+				if (splashes.SplashDistorsionTexture != null)
+				{
+					splashes.SplashDistorsionTexture.ApplyTexture(particleFieldSplashesMaterial, "distorsionTexture");
+					particleFieldSplashesMaterial.SetFloat("distorsionStrength", splashes.DistorsionStrength);
+				}
 			}
 		}
 
@@ -405,7 +434,15 @@ namespace Atmosphere
 				if (targetCamera != null)
 				{
 					CommandBuffer cb = new CommandBuffer();
+
+					/*
+					int screenCopyID = Shader.PropertyToID("_ScreenCopyTexture");
+					cb.GetTemporaryRT(screenCopyID, -1, -1, 0, FilterMode.Bilinear);
+					cb.Blit(BuiltinRenderTextureType.CurrentActive, screenCopyID);
+					*/
+
 					cb.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
+					//cb.SetGlobalTexture("backgroundTexture", screenCopyID);
 					cb.DrawRenderer(mr, mat, 0, 0);
 
 					commandBuffersAdded.Add(cb);
