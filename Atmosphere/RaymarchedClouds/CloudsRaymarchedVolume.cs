@@ -548,9 +548,6 @@ namespace Atmosphere
                     updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
                 }
             }
-
-            if (particleField != null)
-                particleField.Update(); // TODO: move this out of here
         }
 
         private void updateShadowCasterMaterialProperties(Material mat)
@@ -608,6 +605,9 @@ namespace Atmosphere
                 cloudRotationMatrix = rotationMatrix;
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
                 oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
+
+                if (particleField != null)
+                    particleField.Update(oppositeFrameDeltaRotationMatrix);
             }
         }
 

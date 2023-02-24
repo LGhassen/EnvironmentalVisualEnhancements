@@ -51,6 +51,9 @@ namespace Atmosphere
 		float fallSpeed = 1f;
 
 		[ConfigItem]
+		float tangentialSpeed = 1f;
+
+		[ConfigItem]
 		float randomDirectionStrength = 0.1f;
 
 		[ConfigItem]
@@ -114,6 +117,8 @@ namespace Atmosphere
 		Vector3d accumulatedTimeOffset = Vector3d.zero;
 		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
+		Vector3 tangentialMovementDirection = Vector3.zero;
+
 		public void Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
 			cloudsRaymarchedVolume = volume;
@@ -141,8 +146,7 @@ namespace Atmosphere
 			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - minCoverageThreshold) / (maxCoverageThreshold - minCoverageThreshold));
 
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
-
-			var rainVelocityVector = FlightGlobals.ActiveVessel ? (fallSpeed * gravityVector - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
+			var rainVelocityVector = FlightGlobals.ActiveVessel ? (fallSpeed * gravityVector + tangentialMovementDirection * tangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
 
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
@@ -189,7 +193,7 @@ namespace Atmosphere
 			return t - Math.Truncate(t / length) * length;
 		}
 
-		public void Update()
+		public void Update(Matrix4x4 oppositeFrameDeltaRotationMatrix)
 		{
 			Vector3 gravityVector = parentTransform.position.normalized;
 
@@ -198,13 +202,18 @@ namespace Atmosphere
 				gravityVector = (parentTransform.position - FlightCamera.fetch.transform.position).normalized;
 			}
 
-			accumulatedTimeOffset += gravityVector * Time.deltaTime * TimeWarp.CurrentRate * fallSpeed;
+			accumulatedTimeOffset += Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * fallSpeed + tangentialMovementDirection * tangentialSpeed);
 
 			var sphereCenter = cloudsRaymarchedVolume.ParentTransform.position;
 
 			particleFieldMaterial.SetVector("sphereCenter", sphereCenter);
 			if (particleFieldSplashesMaterial != null)
 				particleFieldSplashesMaterial.SetVector("sphereCenter", sphereCenter);
+
+			// calculate the instantaneous movement direction of the cloud at the floating origin
+			Vector3 lastPosition = oppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
+
+			tangentialMovementDirection = (-lastPosition).normalized;
 		}
 
 		void InitMaterials()
@@ -222,7 +231,7 @@ namespace Atmosphere
 			particleFieldMaterial.SetFloat("particleStretch", particleStretch);
 			particleFieldMaterial.SetFloat("fallSpeed", fallSpeed);
 
-            particleFieldMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
+			particleFieldMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
 
 			particleFieldMaterial.SetColor("particleColor", color / 255f);
 
