@@ -355,7 +355,7 @@ namespace Atmosphere
 
         public void SetShaderParams(Material mat)
         {
-            mat.SetColor("cloudColor", color / 255f);
+            mat.SetColor("cloudColor", Tools.IsColorRGB(color) ? color / 255f : color);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
             mat.SetFloat("absorptionMultiplier", 1.0f);

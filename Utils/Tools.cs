@@ -154,5 +154,13 @@ namespace Utils
         {
             return SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
         }
+
+        // true if color appears to be RGB (0-255)
+        // false if float (0-1)
+        // if it gets it wrong the error is only with RGB values < 1, if we assume the RGB input is an int this can only be 0 and there is no error
+        public static bool IsColorRGB(Color color)
+        {
+            return color.r > 1f || color.g > 1f || color.b > 1f || color.a > 1f;
+        }
     }
 }
