@@ -11,6 +11,9 @@ namespace Atmosphere
 	public class Splashes
     {
 		[ConfigItem]
+		float splashesSpeed = 1f;
+
+		[ConfigItem]
 		Vector2 splashesSize = new Vector2(1f, 1f);
 
 		[ConfigItem]
@@ -28,6 +31,7 @@ namespace Atmosphere
 		//[ConfigItem]
 		float distorsionStrength = 1f;
 
+		public float SplashesSpeed { get => splashesSpeed; }
 		public Vector2 SplashesSize { get => splashesSize; }
 		public Vector2 SplashesSheetCount { get => splashesSheetCount; }
 
@@ -115,6 +119,7 @@ namespace Atmosphere
 		Transform parentTransform;
 		CelestialBody parentCelestialBody;
 		Vector3d accumulatedTimeOffset = Vector3d.zero;
+		Vector3d accumulatedSplashesTimeOffset = Vector3d.zero;
 		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
 		Vector3 tangentialMovementDirection = Vector3.zero;
@@ -174,6 +179,12 @@ namespace Atmosphere
             {
 				particleFieldSplashesMaterial.SetVector("gravityVector", gravityVector);
 				particleFieldSplashesMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
+
+				offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedSplashesTimeOffset;
+				offset.x = repeatDouble(offset.x, fieldSize);
+				offset.y = repeatDouble(offset.y, fieldSize);
+				offset.z = repeatDouble(offset.z, fieldSize);
+
 				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
 				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
@@ -202,7 +213,14 @@ namespace Atmosphere
 				gravityVector = (parentTransform.position - FlightCamera.fetch.transform.position).normalized;
 			}
 
-			accumulatedTimeOffset += Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * fallSpeed + tangentialMovementDirection * tangentialSpeed);
+			Vector3 timeOffsetDelta = Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * fallSpeed + tangentialMovementDirection * tangentialSpeed);
+
+			accumulatedTimeOffset += timeOffsetDelta;
+
+			if (splashes!=null)
+            {
+				accumulatedSplashesTimeOffset += timeOffsetDelta *  splashes.SplashesSpeed / fallSpeed;
+			}
 
 			var sphereCenter = cloudsRaymarchedVolume.ParentTransform.position;
 
