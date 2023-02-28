@@ -219,6 +219,7 @@ namespace Atmosphere
 
                 renderingEnabled = true;
                 DeferredRaymarchedRendererToScreen.SetActive(true);
+                Lightning.UpdateExisting();
             }
         }
 

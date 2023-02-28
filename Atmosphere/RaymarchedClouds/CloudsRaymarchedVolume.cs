@@ -67,6 +67,9 @@ namespace Atmosphere
         [ConfigItem, Optional]
         ParticleField particleField = null;
 
+        [ConfigItem, Optional]
+        Lightning lightning = null;
+
         [ConfigItem]
         Color color = Color.white * 255f;
         [ConfigItem]
@@ -139,6 +142,11 @@ namespace Atmosphere
                 if (particleField != null)
                 {
                     particleField.SetEnabled(value);
+                }
+
+                if (lightning != null)
+                {
+                    //lightning.SetEnabled(value);
                 }
             }
         }
@@ -285,6 +293,9 @@ namespace Atmosphere
                 particleField.Apply(parent, celestialBody, this);
 
             SetShadowCasterTextureParams();
+
+            if (lightning != null)
+                lightning.Apply(parent, celestialBody, this);
         }
 
         public void ConfigureTextures()
@@ -608,6 +619,9 @@ namespace Atmosphere
 
                 if (particleField != null)
                     particleField.Update(oppositeFrameDeltaRotationMatrix);
+
+                if (lightning != null)
+                    lightning.Update();
             }
         }
 
