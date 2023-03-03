@@ -312,7 +312,7 @@ namespace Atmosphere
 			var cl = fieldHolder.GetComponent<Collider>();
 
 			if (cl != null)
-				GameObject.Destroy(fieldHolder.GetComponent<Collider>());
+				GameObject.Destroy(cl);
 
 			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
 			var materials = new List<Material>() { particleFieldMaterial };

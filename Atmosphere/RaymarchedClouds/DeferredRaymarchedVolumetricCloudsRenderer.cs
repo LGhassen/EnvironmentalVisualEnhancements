@@ -321,6 +321,8 @@ namespace Atmosphere
                 {
                     var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
 
+                    Lightning.SetShaderParams(cloudMaterial);
+
                     var mr = intersection.layer.volumeHolder.GetComponent<MeshRenderer>(); //TODO: change this to not use a GetComponent
 
                     //set material properties

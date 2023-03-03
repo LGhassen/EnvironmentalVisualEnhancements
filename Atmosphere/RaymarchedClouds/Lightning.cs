@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using ShaderLoader;
+using System.Collections.Generic;
 using UnityEngine;
 using Utils;
 
@@ -7,6 +8,8 @@ namespace Atmosphere
 	public class Lightning
 	{
 		static LinkedList<LightningObject> activeLightningList = new LinkedList<LightningObject>();
+		static Vector4[] activeLightningShaderLights = new Vector4[15];
+
 		static int maxConcurrent = 15;
 		static int currentCount = 0;
 		static int lastUpdateFrame = 0;
@@ -17,20 +20,57 @@ namespace Atmosphere
 
 			if (currentFrame > lastUpdateFrame)
 			{
-				for (var lightningNode = activeLightningList.First; lightningNode != null;)
+				int currentIndex = 0;
+
+				for (var lightningNode = activeLightningList.First; lightningNode != null; )
 				{
 					var nextNode = lightningNode.Next;
 
-					if (lightningNode.Value.ShouldBeDestroyed(Time.deltaTime))
+					if (lightningNode.Value.Update(Time.deltaTime * TimeWarp.CurrentRate))
                     {
 						activeLightningList.Remove(lightningNode);
 						currentCount--;
+					}
+					else
+                    {
+						activeLightningShaderLights[currentIndex] = new Vector4(lightningNode.Value.gameObject.transform.position.x,
+							lightningNode.Value.gameObject.transform.position.y,
+							lightningNode.Value.gameObject.transform.position.z,
+							lightningNode.Value.lifeTime);
+
+						currentIndex++;
 					}
 
 					lightningNode = nextNode;
 				}
 
 				lastUpdateFrame = currentFrame;
+			}
+		}
+
+		public static void SetShaderParams(Material mat)
+        {
+			if (currentCount > 0)
+            {
+				mat.EnableKeyword("LIGHTNING_ON");
+				mat.DisableKeyword("LIGHTNING_OFF");
+				mat.SetInt("lightningCount", currentCount);
+				mat.SetVectorArray("lightningArray", new List<Vector4>(activeLightningShaderLights));
+			}
+			else
+            {
+				mat.EnableKeyword("LIGHTNING_OFF");
+				mat.DisableKeyword("LIGHTNING_ON");
+			}
+        }
+
+		private static Shader lightningBoltShader = null;
+		private static Shader LightningBoltShader
+		{
+			get
+			{
+				if (lightningBoltShader == null) lightningBoltShader = ShaderLoaderClass.FindShader("EVE/LightningBolt");
+				return lightningBoltShader;
 			}
 		}
 
@@ -43,9 +83,11 @@ namespace Atmosphere
 			public GameObject gameObject = null;
 			public Light light = null;
 
-			public bool ShouldBeDestroyed(float deltaTime)
+			// return true if it should be destroyed
+			public bool Update(float deltaTime)
             {
-				Update(deltaTime);
+				lifeTime -= deltaTime;
+				light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
 
 				if (lifeTime <= 0)
 				{
@@ -54,12 +96,6 @@ namespace Atmosphere
 				}
 
 				return false;
-			}
-
-			void Update(float deltaTime)
-            {
-				lifeTime -= Time.deltaTime;
-				light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
 			}
 		}
 
@@ -123,14 +159,17 @@ namespace Atmosphere
 
 			if (nextIndex < lastSpawnedIndex && time > spawnTimesList[lastSpawnedIndex]) return;
 
-			// TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
-			while (nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex])
-			{
-				Spawn();
+			if (TimeWarp.CurrentRate < 5f)
+			{ 
+				// TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
+				while (nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex])
+				{
+					Spawn();
 
-				// move to next
-				lastSpawnedIndex = nextIndex;
-				nextIndex++;
+					// move to next
+					lastSpawnedIndex = nextIndex;
+					nextIndex++;
+				}
 			}
 		}
 
