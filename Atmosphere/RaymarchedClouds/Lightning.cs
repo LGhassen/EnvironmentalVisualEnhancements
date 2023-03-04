@@ -33,9 +33,9 @@ namespace Atmosphere
 					}
 					else
                     {
-						activeLightningShaderLights[currentIndex] = new Vector4(lightningNode.Value.gameObject.transform.position.x,
-							lightningNode.Value.gameObject.transform.position.y,
-							lightningNode.Value.gameObject.transform.position.z,
+						activeLightningShaderLights[currentIndex] = new Vector4(lightningNode.Value.lightGameObject.transform.position.x,
+							lightningNode.Value.lightGameObject.transform.position.y,
+							lightningNode.Value.lightGameObject.transform.position.z,
 							lightningNode.Value.lifeTime);
 
 						currentIndex++;
@@ -80,8 +80,12 @@ namespace Atmosphere
 			public float startLifeTime = 1f;
 
 			public float lifeTime = 0f;
-			public GameObject gameObject = null;
+			public GameObject lightGameObject = null;
 			public Light light = null;
+
+			public GameObject boltGameObject = null;
+			public Material lightningBoltMaterial = null;
+			public Transform parentTransform = null;
 
 			// return true if it should be destroyed
 			public bool Update(float deltaTime)
@@ -89,9 +93,15 @@ namespace Atmosphere
 				lifeTime -= deltaTime;
 				light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
 
+				Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
+				boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
+
+				lightningBoltMaterial.SetFloat("alpha", lifeTime);
+
 				if (lifeTime <= 0)
 				{
-					GameObject.Destroy(gameObject);
+					GameObject.Destroy(lightGameObject);
+					GameObject.Destroy(boltGameObject);
 					return true;
 				}
 
@@ -122,9 +132,19 @@ namespace Atmosphere
 		[ConfigItem]
 		float spawnAltitude = 2000;
 
+		[ConfigItem]
+		TextureWrapper boltTexture = null;
+
+		[ConfigItem]
+		Vector2 lightningSheetCount = new Vector2(1f, 1f);
+
 		float spawnDistanceFromParent = 0f;
 
 		CloudsRaymarchedVolume cloudsRaymarchedVolume;
+
+		Material lightningBoltMaterial = null;
+
+		bool initialized = false;
 
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
 		{
@@ -147,6 +167,10 @@ namespace Atmosphere
 
 			cloudsRaymarchedVolume = volume;
 
+			lightningBoltMaterial = new Material(LightningBoltShader);
+			boltTexture.ApplyTexture(lightningBoltMaterial, "_MainTex");
+			lightningBoltMaterial.renderQueue = 2999;
+
 			return true;
 		}
 
@@ -164,13 +188,16 @@ namespace Atmosphere
 				// TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
 				while (nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex])
 				{
-					Spawn();
+					if (initialized)
+						Spawn();
 
 					// move to next
 					lastSpawnedIndex = nextIndex;
 					nextIndex++;
 				}
 			}
+
+			initialized = true;
 		}
 
 		void Spawn()
@@ -200,7 +227,28 @@ namespace Atmosphere
 
 					light.cullingMask = (1 << (int)Tools.Layer.Local) | (1 << (int)Tools.Layer.Parts) | (1 << (int)Tools.Layer.Kerbals) | (1 << (int)Tools.Layer.Default);
 
-					activeLightningList.AddLast(new LightningObject() { lifeTime = lifeTime, gameObject = lightGameObject, light = light, startIntensity = lightIntensity, startLifeTime = lifeTime });
+					GameObject boltGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+					
+					var collider = boltGameObject.GetComponent<Collider>(); // TODO: remove this, maybe just create a single GO that you instantiate
+					if (collider != null) GameObject.Destroy(collider);
+
+					var boltMaterial = Material.Instantiate(lightningBoltMaterial);
+					boltMaterial.SetFloat("alpha", 1f);
+
+					boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
+					boltGameObject.transform.position = spawnPosition + 0.5f * spawnAltitude * (parentTransform.position - spawnPosition).normalized;
+
+					Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
+					boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
+
+					boltGameObject.transform.localScale = new Vector3(spawnAltitude, spawnAltitude, 1f);
+					boltGameObject.transform.parent = lightGameObject.transform;
+
+					Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
+					boltMaterial.SetVector("randomIndexes", randomIndexes);
+					boltMaterial.SetVector("lightningSheetCount", lightningSheetCount);
+
+					activeLightningList.AddLast(new LightningObject() { lifeTime = lifeTime, lightGameObject = lightGameObject, light = light, startIntensity = lightIntensity, startLifeTime = lifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
 					currentCount++;
 				}

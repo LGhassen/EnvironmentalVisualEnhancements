@@ -408,8 +408,9 @@ namespace Atmosphere
 
                 commandBuffer.SetGlobalTexture("colorBuffer", historyRT[isRightEye][useFlipScreenBuffer]);
                 commandBuffer.SetGlobalTexture("secondaryColorBuffer", secondaryHistoryRT[isRightEye][useFlipScreenBuffer]);
+
                 commandBuffer.SetGlobalVector("reconstructedTextureResolution", new Vector2(width, height));
-                DeferredRaymarchedRendererToScreen.material.renderQueue = 2999;
+                DeferredRaymarchedRendererToScreen.material.renderQueue = 2998;
 
                 targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
