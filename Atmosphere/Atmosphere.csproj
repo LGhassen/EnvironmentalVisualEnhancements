@@ -151,8 +151,12 @@
     <Compile Include="Clouds2D.cs" />
     <Compile Include="Painting\CloudsPainter.cs" />
     <Compile Include="RaymarchedClouds\DepthToDistanceCommandBuffer.cs" />
-    <Compile Include="RaymarchedClouds\Lightning.cs" />
-    <Compile Include="RaymarchedClouds\ParticleField.cs" />
+    <Compile Include="RaymarchedClouds\Lightning\Lightning.cs" />
+    <Compile Include="RaymarchedClouds\Lightning\LightningManager.cs" />
+    <Compile Include="RaymarchedClouds\Lightning\LightningConfig.cs" />
+    <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldManager.cs" />
+    <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldConfig.cs" />
+    <Compile Include="RaymarchedClouds\ParticleField\ParticleField.cs" />
     <Compile Include="RaymarchedClouds\RaymarchingSettings.cs" />
     <Compile Include="RaymarchedClouds\CloudType.cs" />
     <Compile Include="RaymarchedClouds\CloudsRaymarchedVolume.cs" />
@@ -187,6 +191,7 @@
       <Name>Utils</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy  $(TargetFileName) "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir

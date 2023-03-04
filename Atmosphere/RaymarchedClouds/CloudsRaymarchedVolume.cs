@@ -290,7 +290,14 @@ namespace Atmosphere
             volumeHolder.SetActive(false);
 
             if (particleField != null)
-                particleField.Apply(parent, celestialBody, this);
+            {
+                if(!particleField.Apply(parent, celestialBody, this))
+                {
+                    particleField.Remove();
+                    particleField = null;
+                }
+            }
+            
 
             SetShadowCasterTextureParams();
 

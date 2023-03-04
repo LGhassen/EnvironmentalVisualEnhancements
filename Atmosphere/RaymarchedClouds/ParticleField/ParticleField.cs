@@ -8,88 +8,8 @@ using Random = UnityEngine.Random;
 
 namespace Atmosphere
 {
-	public class Splashes
-    {
-		[ConfigItem]
-		float splashesSpeed = 1f;
-
-		[ConfigItem]
-		Vector2 splashesSize = new Vector2(1f, 1f);
-
-		[ConfigItem]
-		Vector2 splashesSheetCount = new Vector2(1f, 1f);
-
-		[ConfigItem]
-		Color color = Color.white * 255f;
-
-		[ConfigItem, Optional]
-		TextureWrapper splashTexture = null;
-
-		//[ConfigItem, Optional]
-		TextureWrapper splashDistorsionTexture = null;
-		
-		//[ConfigItem]
-		float distorsionStrength = 1f;
-
-		public float SplashesSpeed { get => splashesSpeed; }
-		public Vector2 SplashesSize { get => splashesSize; }
-		public Vector2 SplashesSheetCount { get => splashesSheetCount; }
-
-		public Color Color { get => color; }
-		public TextureWrapper SplashTexture { get => splashTexture; }
-
-		public TextureWrapper SplashDistorsionTexture { get => splashDistorsionTexture; }
-
-		public float DistorsionStrength { get => distorsionStrength; }
-	}
-
 	public class ParticleField
 	{
-		[ConfigItem]
-		float fieldSize = 30f;
-
-		[ConfigItem]
-		float fieldParticleCount = 10000f;
-
-		[ConfigItem]
-		float fallSpeed = 1f;
-
-		[ConfigItem]
-		float tangentialSpeed = 1f;
-
-		[ConfigItem]
-		float randomDirectionStrength = 0.1f;
-
-		[ConfigItem]
-		Color color = Color.white * 255f;
-
-		[ConfigItem]
-		float particleSize = 0.02f;
-
-		[ConfigItem]
-		Vector2 particleSheetCount = new Vector2(1f, 1f);
-
-		[ConfigItem]
-		float particleStretch = 0.0f;
-
-		[ConfigItem]
-		float minCoverageThreshold = 0.3f;
-
-		[ConfigItem]
-		float maxCoverageThreshold = 0.75f;
-
-		[ConfigItem, Optional]
-		TextureWrapper particleTexture = null;
-
-		//[ConfigItem, Optional]
-		TextureWrapper particleDistorsionTexture = null;
-
-		[ConfigItem]
-		float distorsionStrength = 1f;
-
-		[ConfigItem, Optional]
-		Splashes splashes = null;
-
 		static Shader particleFieldShader = null;
 		static Shader ParticleFieldShader
 		{
@@ -110,6 +30,11 @@ namespace Atmosphere
 			}
 		}
 
+		[ConfigItem]
+		string particleFieldConfig = "";
+
+		ParticleFieldConfig particleFieldConfigObject = null;
+
 		public Material particleFieldMaterial, particleFieldSplashesMaterial;
 		Vector3 fieldSizeVector = Vector3.one;
 
@@ -124,15 +49,22 @@ namespace Atmosphere
 
 		Vector3 tangentialMovementDirection = Vector3.zero;
 
-		public void Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
+		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
+			particleFieldConfigObject = ParticleFieldManager.GetConfig(particleFieldConfig);
+
+			if (particleFieldConfigObject == null)
+				return false;
+
 			cloudsRaymarchedVolume = volume;
 			parentCelestialBody = celestialBody;
 			parentTransform = parent;
-            fieldSizeVector = new Vector3(fieldSize, fieldSize, fieldSize);
+            fieldSizeVector = new Vector3(particleFieldConfigObject.FieldSize, particleFieldConfigObject.FieldSize, particleFieldConfigObject.FieldSize);
 
             InitMaterials();
             InitGameObject(parent);
+
+			return true;
         }
 
         public void Remove()
@@ -148,10 +80,10 @@ namespace Atmosphere
 		public void UpdateForCamera(Camera cam)
         {
 			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position);
-			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - minCoverageThreshold) / (maxCoverageThreshold - minCoverageThreshold));
+			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - particleFieldConfigObject.MinCoverageThreshold) / (particleFieldConfigObject.MaxCoverageThreshold - particleFieldConfigObject.MinCoverageThreshold));
 
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
-			var rainVelocityVector = FlightGlobals.ActiveVessel ? (fallSpeed * gravityVector + tangentialMovementDirection * tangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
+			var rainVelocityVector = FlightGlobals.ActiveVessel ? (particleFieldConfigObject.FallSpeed * gravityVector + tangentialMovementDirection * particleFieldConfigObject.TangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
 
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
@@ -161,9 +93,9 @@ namespace Atmosphere
 			worldToCameraMatrix.m23 = 0f;
 
 			var offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedTimeOffset;
-			offset.x = repeatDouble(offset.x, fieldSize);
-			offset.y = repeatDouble(offset.y, fieldSize);
-			offset.z = repeatDouble(offset.z, fieldSize);
+			offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+			offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+			offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 			
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
@@ -181,9 +113,9 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 
 				offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedSplashesTimeOffset;
-				offset.x = repeatDouble(offset.x, fieldSize);
-				offset.y = repeatDouble(offset.y, fieldSize);
-				offset.z = repeatDouble(offset.z, fieldSize);
+				offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+				offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+				offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 
 				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
@@ -213,13 +145,13 @@ namespace Atmosphere
 				gravityVector = (parentTransform.position - FlightCamera.fetch.transform.position).normalized;
 			}
 
-			Vector3 timeOffsetDelta = Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * fallSpeed + tangentialMovementDirection * tangentialSpeed);
+			Vector3 timeOffsetDelta = Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * particleFieldConfigObject.FallSpeed + tangentialMovementDirection * particleFieldConfigObject.TangentialSpeed);
 
 			accumulatedTimeOffset += timeOffsetDelta;
 
-			if (splashes!=null)
+			if (particleFieldConfigObject.Splashes !=null)
             {
-				accumulatedSplashesTimeOffset += timeOffsetDelta *  splashes.SplashesSpeed / fallSpeed;
+				accumulatedSplashesTimeOffset += timeOffsetDelta * particleFieldConfigObject.Splashes.SplashesSpeed / particleFieldConfigObject.FallSpeed;
 			}
 
 			var sphereCenter = cloudsRaymarchedVolume.ParentTransform.position;
@@ -242,18 +174,18 @@ namespace Atmosphere
 			particleFieldMaterial.renderQueue = 3200;
 
 			particleFieldMaterial.SetVector("fieldSize", fieldSizeVector);
-            particleFieldMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
+            particleFieldMaterial.SetVector("invFieldSize", new Vector3(1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize));
 
-			particleFieldMaterial.SetVector("particleSheetCount", particleSheetCount);
-			particleFieldMaterial.SetFloat("particleSize", particleSize);
-			particleFieldMaterial.SetFloat("particleStretch", particleStretch);
-			particleFieldMaterial.SetFloat("fallSpeed", fallSpeed);
+			particleFieldMaterial.SetVector("particleSheetCount", particleFieldConfigObject.ParticleSheetCount);
+			particleFieldMaterial.SetFloat("particleSize", particleFieldConfigObject.ParticleSize);
+			particleFieldMaterial.SetFloat("particleStretch", particleFieldConfigObject.ParticleStretch);
+			particleFieldMaterial.SetFloat("fallSpeed", particleFieldConfigObject.FallSpeed);
 
-			particleFieldMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
+			particleFieldMaterial.SetFloat("randomDirectionStrength", particleFieldConfigObject.RandomDirectionStrength);
 
-			particleFieldMaterial.SetColor("particleColor", color / 255f);
+			particleFieldMaterial.SetColor("particleColor", particleFieldConfigObject.Color / 255f);
 
-			if (particleStretch > 0f)
+			if (particleFieldConfigObject.ParticleStretch > 0f)
             {
 				particleFieldMaterial.EnableKeyword("STRETCH_ON");
 				particleFieldMaterial.DisableKeyword("STRETCH_OFF");
@@ -264,19 +196,19 @@ namespace Atmosphere
 				particleFieldMaterial.EnableKeyword("STRETCH_OFF");
 			}
 
-			if (particleTexture != null)
+			if (particleFieldConfigObject.ParticleTexture != null)
 			{
-				particleTexture.ApplyTexture(particleFieldMaterial, "_MainTex");
+				particleFieldConfigObject.ParticleTexture.ApplyTexture(particleFieldMaterial, "_MainTex");
 			}
 
 			
-			if (particleDistorsionTexture != null)
+			if (particleFieldConfigObject.ParticleDistorsionTexture != null)
 			{
-				particleDistorsionTexture.ApplyTexture(particleFieldMaterial, "distorsionTexture");
-				particleFieldMaterial.SetFloat("distorsionStrength", distorsionStrength);
+				particleFieldConfigObject.ParticleDistorsionTexture.ApplyTexture(particleFieldMaterial, "distorsionTexture");
+				particleFieldMaterial.SetFloat("distorsionStrength", particleFieldConfigObject.DistorsionStrength);
 			}
 
-			if (splashes != null)
+			if (particleFieldConfigObject.Splashes != null)
             {
 				particleFieldSplashesMaterial = new Material(ParticleFieldSplashesShader);
 				particleFieldSplashesMaterial.SetShaderPassEnabled("ForwardBase", false);
@@ -284,23 +216,23 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.renderQueue = 3200;
 
 				particleFieldSplashesMaterial.SetVector("fieldSize", fieldSizeVector);
-				particleFieldSplashesMaterial.SetVector("invFieldSize", new Vector3(1f / fieldSize, 1f / fieldSize, 1f / fieldSize));
+				particleFieldSplashesMaterial.SetVector("invFieldSize", new Vector3(1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize));
 
-				particleFieldSplashesMaterial.SetVector("splashesSheetCount", splashes.SplashesSheetCount);
-				particleFieldSplashesMaterial.SetVector("splashesSize", splashes.SplashesSize);
-				particleFieldSplashesMaterial.SetFloat("fallSpeed", fallSpeed);
+				particleFieldSplashesMaterial.SetVector("splashesSheetCount", particleFieldConfigObject.Splashes.SplashesSheetCount);
+				particleFieldSplashesMaterial.SetVector("splashesSize", particleFieldConfigObject.Splashes.SplashesSize);
+				particleFieldSplashesMaterial.SetFloat("fallSpeed", particleFieldConfigObject.FallSpeed);
 
-				particleFieldSplashesMaterial.SetFloat("randomDirectionStrength", randomDirectionStrength);
+				particleFieldSplashesMaterial.SetFloat("randomDirectionStrength", particleFieldConfigObject.RandomDirectionStrength);
 
-				particleFieldSplashesMaterial.SetColor("particleColor", splashes.Color / 255f);
+				particleFieldSplashesMaterial.SetColor("particleColor", particleFieldConfigObject.Splashes.Color / 255f);
 
-				if (splashes.SplashTexture != null)
-					splashes.SplashTexture.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
+				if (particleFieldConfigObject.Splashes.SplashTexture != null)
+					particleFieldConfigObject.Splashes.SplashTexture.ApplyTexture(particleFieldSplashesMaterial, "_MainTex");
 
-				if (splashes.SplashDistorsionTexture != null)
+				if (particleFieldConfigObject.Splashes.SplashDistorsionTexture != null)
 				{
-					splashes.SplashDistorsionTexture.ApplyTexture(particleFieldSplashesMaterial, "distorsionTexture");
-					particleFieldSplashesMaterial.SetFloat("distorsionStrength", splashes.DistorsionStrength);
+					particleFieldConfigObject.Splashes.SplashDistorsionTexture.ApplyTexture(particleFieldSplashesMaterial, "distorsionTexture");
+					particleFieldSplashesMaterial.SetFloat("distorsionStrength", particleFieldConfigObject.Splashes.DistorsionStrength);
 				}
 			}
 		}
@@ -329,7 +261,7 @@ namespace Atmosphere
 			fieldMeshRenderer.enabled = false;
 
 			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();			
-			filter.mesh = createMesh((int)fieldParticleCount);
+			filter.mesh = createMesh((int)particleFieldConfigObject.FieldParticleCount);
 			filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
 
 			fieldHolder.transform.parent = parent;

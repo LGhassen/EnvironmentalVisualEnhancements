@@ -7,7 +7,7 @@ namespace Atmosphere
 {
 	public class Lightning
 	{
-		static LinkedList<LightningObject> activeLightningList = new LinkedList<LightningObject>();
+		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
 		static Vector4[] activeLightningShaderLights = new Vector4[15];
 
 		static int maxConcurrent = 15;
@@ -74,7 +74,7 @@ namespace Atmosphere
 			}
 		}
 
-		public class LightningObject
+		public class LightningInstance
 		{
 			public float startIntensity = 1f;
 			public float startLifeTime = 1f;
@@ -110,33 +110,14 @@ namespace Atmosphere
 		}
 
 		[ConfigItem]
-		float spawnChancePerSecond = 0.7f;
+		string lightningConfig = "";
 
-		[ConfigItem]
-		float spawnRange = 5000f;
-
-		[ConfigItem]
-		float lifeTime = 0.5f;								//TOOD: turn into a max/min lifetime, affects performance though
-
-		[ConfigItem]
-		float lightIntensity = 3f;
-
-		[ConfigItem]
-		float lightRange = 10000f;
+		LightningConfig lightningConfigObject = null;
 
 		List<float> spawnTimesList = new List<float>();     // TODO: change this to add probability
 		int lastSpawnedIndex = -1;
 
 		Transform parentTransform;
-
-		[ConfigItem]
-		float spawnAltitude = 2000;
-
-		[ConfigItem]
-		TextureWrapper boltTexture = null;
-
-		[ConfigItem]
-		Vector2 lightningSheetCount = new Vector2(1f, 1f);
 
 		float spawnDistanceFromParent = 0f;
 
@@ -148,9 +129,14 @@ namespace Atmosphere
 
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
 		{
+			lightningConfigObject = LightningManager.GetConfig(lightningConfig);
+
+			if (lightningConfigObject == null)
+				return false;
+
 			// precompute the spawn times for 100s and just repeat those
 			// this could be somewhat wasteful memory-wise, so maybe do it on enable in-game and not on init
-			int totalSpawns = (int)(spawnChancePerSecond * 100f);
+			int totalSpawns = (int)(lightningConfigObject.SpawnChancePerSecond * 100f);
 
 			for (int i = 0; i < totalSpawns; i++)
 			{
@@ -163,12 +149,12 @@ namespace Atmosphere
 				return false;
 
 			parentTransform = parent;
-			spawnDistanceFromParent = spawnAltitude +(float) celestialBody.Radius;
+			spawnDistanceFromParent = lightningConfigObject.SpawnAltitude +(float) celestialBody.Radius;
 
 			cloudsRaymarchedVolume = volume;
 
 			lightningBoltMaterial = new Material(LightningBoltShader);
-			boltTexture.ApplyTexture(lightningBoltMaterial, "_MainTex");
+			lightningConfigObject.BoltTexture.ApplyTexture(lightningBoltMaterial, "_MainTex");
 			lightningBoltMaterial.renderQueue = 2999;
 
 			return true;
@@ -205,7 +191,7 @@ namespace Atmosphere
 			if (currentCount < maxConcurrent)
 			{
 				// TODO: randomize spawn altitude?
-				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(UnityEngine.Random.Range(-spawnRange, spawnRange), UnityEngine.Random.Range(-spawnRange, spawnRange), UnityEngine.Random.Range(-spawnRange, spawnRange));
+				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
 
 				spawnPosition = (spawnPosition - parentTransform.position).normalized * spawnDistanceFromParent + parentTransform.position;
 				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition)  > 0.1f) // TODO: parametrize
@@ -220,8 +206,8 @@ namespace Atmosphere
 					Light light = lightGameObject.AddComponent<Light>();
 					light.type = LightType.Point;
 
-					light.intensity = lightIntensity;
-					light.range = lightRange;               //probably should compute this based on the intensity and not have it as a parameter?
+					light.intensity = lightningConfigObject.LightIntensity;
+					light.range = lightningConfigObject.LightRange;               //probably should compute this based on the intensity and not have it as a parameter?
 
 					// light.renderMode = LightRenderMode.ForceVertex; // incompatible with Parallax for now
 
@@ -236,19 +222,19 @@ namespace Atmosphere
 					boltMaterial.SetFloat("alpha", 1f);
 
 					boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
-					boltGameObject.transform.position = spawnPosition + 0.5f * spawnAltitude * (parentTransform.position - spawnPosition).normalized;
+					boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.SpawnAltitude * (parentTransform.position - spawnPosition).normalized;
 
 					Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
 					boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
 
-					boltGameObject.transform.localScale = new Vector3(spawnAltitude, spawnAltitude, 1f);
+					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.SpawnAltitude, lightningConfigObject.SpawnAltitude, 1f);
 					boltGameObject.transform.parent = lightGameObject.transform;
 
 					Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
 					boltMaterial.SetVector("randomIndexes", randomIndexes);
-					boltMaterial.SetVector("lightningSheetCount", lightningSheetCount);
+					boltMaterial.SetVector("lightningSheetCount", lightningConfigObject.LightningSheetCount);
 
-					activeLightningList.AddLast(new LightningObject() { lifeTime = lifeTime, lightGameObject = lightGameObject, light = light, startIntensity = lightIntensity, startLifeTime = lifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
+					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
 					currentCount++;
 				}
