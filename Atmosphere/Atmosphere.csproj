@@ -116,6 +116,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\KSPResources\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AudioModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\KSPResources\UnityEngine.AudioModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\KSPResources\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
@@ -150,6 +154,7 @@
     <Compile Include="AtmosphereVolume.cs" />
     <Compile Include="Clouds2D.cs" />
     <Compile Include="Painting\CloudsPainter.cs" />
+    <Compile Include="RaymarchedClouds\AmbientSound.cs" />
     <Compile Include="RaymarchedClouds\DepthToDistanceCommandBuffer.cs" />
     <Compile Include="RaymarchedClouds\Lightning\Lightning.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningManager.cs" />

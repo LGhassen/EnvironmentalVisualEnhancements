@@ -74,41 +74,6 @@ namespace Atmosphere
 			}
 		}
 
-		public class LightningInstance
-		{
-			public float startIntensity = 1f;
-			public float startLifeTime = 1f;
-
-			public float lifeTime = 0f;
-			public GameObject lightGameObject = null;
-			public Light light = null;
-
-			public GameObject boltGameObject = null;
-			public Material lightningBoltMaterial = null;
-			public Transform parentTransform = null;
-
-			// return true if it should be destroyed
-			public bool Update(float deltaTime)
-            {
-				lifeTime -= deltaTime;
-				light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
-
-				Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
-				boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
-
-				lightningBoltMaterial.SetFloat("alpha", lifeTime);
-
-				if (lifeTime <= 0)
-				{
-					GameObject.Destroy(lightGameObject);
-					GameObject.Destroy(boltGameObject);
-					return true;
-				}
-
-				return false;
-			}
-		}
-
 		[ConfigItem]
 		string lightningConfig = "";
 
@@ -126,6 +91,8 @@ namespace Atmosphere
 		Material lightningBoltMaterial = null;
 
 		bool initialized = false;
+
+		List<AudioClip> audioClips = new List<AudioClip>();
 
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
 		{
@@ -156,6 +123,12 @@ namespace Atmosphere
 			lightningBoltMaterial = new Material(LightningBoltShader);
 			lightningConfigObject.BoltTexture.ApplyTexture(lightningBoltMaterial, "_MainTex");
 			lightningBoltMaterial.renderQueue = 2999;
+
+			foreach(var sound in lightningConfigObject.SoundNames)
+            {
+				if (GameDatabase.Instance.ExistsAudioClip(sound.SoundName))
+					audioClips.Add(GameDatabase.Instance.GetAudioClip(sound.SoundName));
+			}
 
 			return true;
 		}
@@ -236,6 +209,35 @@ namespace Atmosphere
 
 					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
+					if (audioClips.Count > 0)
+                    {
+						GameObject boltSoundGameObject = new GameObject();
+						boltSoundGameObject.transform.position = boltGameObject.transform.position;
+						boltSoundGameObject.transform.parent = parentTransform;
+
+						var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
+						audioSource.clip = audioClips[Random.Range(0, audioClips.Count)];
+						audioSource.rolloffMode = AudioRolloffMode.Linear;
+						audioSource.minDistance = lightningConfigObject.SoundMinDistance;
+						audioSource.maxDistance = lightningConfigObject.SoundMaxDistance;
+
+						float dist = (boltGameObject.transform.position - FlightCamera.fetch.transform.position).magnitude;
+
+						if(lightningConfigObject.RealisticAudioDelay)
+                        {
+							float delay = dist / 343f; // speed of sound on Earth
+							audioSource.PlayDelayed(delay);
+						}
+						else
+						{ 
+							audioSource.Play();
+						}
+
+						boltSoundGameObject.AddComponent<KillOnAudioClipFinished>(); // does this work with playDelayed
+					}
+
+					// TODO: give it a special script that will kill it when done
+
 					currentCount++;
 				}
 
@@ -243,5 +245,56 @@ namespace Atmosphere
 		}
 	}
 
+	public class KillOnAudioClipFinished : MonoBehaviour
+    {
+		AudioSource audioSource = null;
 
+		public void Awake()
+        {
+			audioSource = gameObject?.GetComponent<AudioSource>();
+			if (audioSource == null)
+				GameObject.Destroy(gameObject);
+		}
+
+		public void Update()
+        {
+			if (audioSource != null && !audioSource.isPlaying)
+				GameObject.Destroy(gameObject);
+		}
+    }
+
+	public class LightningInstance
+	{
+		public float startIntensity = 1f;
+		public float startLifeTime = 1f;
+
+		public float lifeTime = 0f;
+		public GameObject lightGameObject = null;
+		public Light light = null;
+
+		public GameObject boltGameObject = null;
+		public Material lightningBoltMaterial = null;
+		public Transform parentTransform = null;
+
+		// return true if it should be destroyed
+		public bool Update(float deltaTime)
+		{
+			lifeTime -= deltaTime;
+			light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
+
+			Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
+			boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
+
+			lightningBoltMaterial.SetFloat("alpha", lifeTime);
+
+			if (lifeTime <= 0)
+			{
+				GameObject.Destroy(lightGameObject);
+				GameObject.Destroy(boltGameObject);
+				return true;
+			}
+
+			return false;
+		}
+	}
 }

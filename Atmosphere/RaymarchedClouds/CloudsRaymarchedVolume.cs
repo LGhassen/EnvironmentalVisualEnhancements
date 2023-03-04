@@ -70,6 +70,9 @@ namespace Atmosphere
         [ConfigItem, Optional]
         Lightning lightning = null;
 
+        [ConfigItem, Optional]
+        AmbientSound ambientSound = null;
+
         [ConfigItem]
         Color color = Color.white * 255f;
         [ConfigItem]
@@ -144,9 +147,9 @@ namespace Atmosphere
                     particleField.SetEnabled(value);
                 }
 
-                if (lightning != null)
+                if (ambientSound != null)
                 {
-                    //lightning.SetEnabled(value);
+                    ambientSound.SetEnabled(value);
                 }
             }
         }
@@ -303,6 +306,15 @@ namespace Atmosphere
 
             if (lightning != null)
                 lightning.Apply(parent, celestialBody, this);
+
+            if (ambientSound != null)
+            {
+                if (!ambientSound.Apply())
+                {
+                    ambientSound.Remove();
+                    ambientSound = null;
+                }
+            }
         }
 
         public void ConfigureTextures()
@@ -586,9 +598,10 @@ namespace Atmosphere
             }
 
             if (particleField != null)
-            {
                 particleField.Remove();
-            }
+
+            if (ambientSound != null)
+                ambientSound.Remove();
         }
 
         internal bool checkVisible (Vector3 camPos, out float scaledLayerFade)
@@ -629,6 +642,14 @@ namespace Atmosphere
 
                 if (lightning != null)
                     lightning.Update();
+
+                if (ambientSound != null && FlightCamera.fetch != null)
+                {
+                    float coverageAtPosition = SampleCoverage(FlightCamera.fetch.transform.position);
+                    ambientSound.Update(coverageAtPosition);
+                }
+
+
             }
         }
 
