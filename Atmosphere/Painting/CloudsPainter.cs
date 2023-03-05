@@ -15,6 +15,9 @@ namespace Atmosphere
         string body;
         string layerName;
 
+        GameObject cursorGameObject = null;
+        CursorAutoDisable cursorAutoDisable = null;
+
         public enum EditingMode
         {
             coverageAndCloudType,
@@ -92,9 +95,13 @@ namespace Atmosphere
             cursorMaterial.SetTexture("_MainTex", GameDatabase.Instance.GetTextureInfo("EnvironmentalVisualEnhancements/PaintCursor")?.texture);
             cursorMaterial.renderQueue = 4000;
 
-            GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            cursorMesh = GameObject.Instantiate(obj.GetComponent<MeshFilter>().mesh);
-            GameObject.Destroy(obj);
+            cursorGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Component.Destroy(cursorGameObject.GetComponent<Collider>());
+
+            cursorGameObject.GetComponent<MeshRenderer>().material = cursorMaterial;
+            cursorGameObject.SetActive(false);
+
+            cursorAutoDisable = cursorGameObject.AddComponent<CursorAutoDisable>();
 
             InitTextures();
         }
@@ -183,6 +190,12 @@ namespace Atmosphere
                 editingModes.Add(EditingMode.colorMap);
         }
 
+        public void DisableCursor()
+        {
+            if (cursorGameObject != null)
+                cursorGameObject.SetActive(false);
+        }
+
         public void Paint()
         {
             if (initialized && paintEnabled && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null)
@@ -196,8 +209,8 @@ namespace Atmosphere
                 float outerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("outerSphereRadius"));
                 double sphereRadius = innerSphereRadius;
 
-                // Ray ray = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition); // inaccurate due to using the low near plane so calculate it by ourselves
-                var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, -10f));
+                // this code is very bad but the built-in Unity ScreenPointToRay jitters
+                var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
                 viewPortPoint.x = 2.0f * viewPortPoint.x - 1.0f;
                 viewPortPoint.x = -viewPortPoint.x;
                 viewPortPoint.y = 2.0f * viewPortPoint.y - 1.0f;
@@ -205,7 +218,10 @@ namespace Atmosphere
                 var screenToCamera = GL.GetGPUProjectionMatrix(FlightCamera.fetch.mainCamera.projectionMatrix, true).inverse;
                 var cameraSpacePoint = screenToCamera.MultiplyPoint(viewPortPoint);
 
-                Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePoint.normalized);
+                var cameraSpacePointNormalized = cameraSpacePoint.normalized;
+                cameraSpacePointNormalized.y = Tools.IsUnifiedCameraMode() ? cameraSpacePointNormalized.y : -cameraSpacePointNormalized.y;
+
+                Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePointNormalized);
 
                 double intersectDistance = Mathf.Infinity;
 
@@ -237,12 +253,14 @@ namespace Atmosphere
                     Quaternion rotation = Quaternion.LookRotation(upDirection);
                     Vector3 scale = new Vector3(brushSize * 2f, brushSize * 2f, brushSize * 2f);
 
-                    Matrix4x4 matrix = Matrix4x4.TRS(intersectPosition, rotation, scale);
-                    Graphics.DrawMesh(cursorMesh, matrix, cursorMaterial, 0, FlightCamera.fetch.mainCamera);
-
-                    //intersectPosition = intersectPosition + upDirection * (topIntersect ? -1f : 1f) * 1f * (outerSphereRadius - innerSphereRadius);
-                    //matrix = Matrix4x4.TRS(intersectPosition, rotation, scale);
-                    //Graphics.DrawMesh(cursorMesh, matrix, cursorMaterial, 0, FlightCamera.fetch.mainCamera);
+                    if (cursorGameObject != null)
+                    { 
+                        cursorGameObject.SetActive(true);
+                        cursorGameObject.transform.position = intersectPosition;
+                        cursorGameObject.transform.rotation = rotation;
+                        cursorGameObject.transform.localScale = scale;
+                        cursorAutoDisable.framesSinceEnabled = 0;
+                    }
 
                     if (Input.GetMouseButton(0) && Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y)
                     {
@@ -558,6 +576,18 @@ namespace Atmosphere
 
             System.IO.File.WriteAllBytes(path, bytes);
             Debug.Log("Saved to " + path);
+        }
+    }
+
+    public class CursorAutoDisable : MonoBehaviour
+    {
+        public int framesSinceEnabled = 0;
+
+        public void Update()
+        {
+            framesSinceEnabled++;
+            if (framesSinceEnabled > 10)
+                gameObject.SetActive(false);
         }
     }
 }
