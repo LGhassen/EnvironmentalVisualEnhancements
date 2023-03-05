@@ -10,7 +10,7 @@ namespace Atmosphere
 		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
 		static Vector4[] activeLightningShaderLights = new Vector4[15];
 
-		static int maxConcurrent = 15;
+		static int maxConcurrent = 4; // more than this and it tanks the performance, especially using Parallax and rain/splashes
 		static int currentCount = 0;
 		static int lastUpdateFrame = 0;
 
