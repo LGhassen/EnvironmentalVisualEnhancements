@@ -8,7 +8,8 @@ namespace Atmosphere
 	public class Lightning
 	{
 		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
-		static Vector4[] activeLightningShaderLights = new Vector4[15];
+		static Vector4[] activeLightningShaderLights = new Vector4[4];
+		static Vector4[] activeLightningShaderLightColors = new Vector4[4];
 
 		static int maxConcurrent = 4; // more than this and it tanks the performance, especially using Parallax and rain/splashes
 		static int currentCount = 0;
@@ -38,6 +39,8 @@ namespace Atmosphere
 							lightningNode.Value.lightGameObject.transform.position.z,
 							0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime); // apply 0.25 the point light intensity to the volumetric cloud
 
+						activeLightningShaderLightColors[currentIndex] = new Vector4(lightningNode.Value.color.r, lightningNode.Value.color.g, lightningNode.Value.color.b, lightningNode.Value.color.a);
+
 						currentIndex++;
 					}
 
@@ -56,6 +59,7 @@ namespace Atmosphere
 				mat.DisableKeyword("LIGHTNING_OFF");
 				mat.SetInt("lightningCount", currentCount);
 				mat.SetVectorArray("lightningArray", new List<Vector4>(activeLightningShaderLights));
+				mat.SetVectorArray("lightningColorsArray", new List<Vector4>(activeLightningShaderLightColors));
 			}
 			else
             {
@@ -181,6 +185,7 @@ namespace Atmosphere
 
 					light.intensity = lightningConfigObject.LightIntensity;
 					light.range = lightningConfigObject.LightRange;               //probably should compute this based on the intensity and not have it as a parameter?
+					light.color = lightningConfigObject.LightColor;
 
 					// light.renderMode = LightRenderMode.ForceVertex; // incompatible with Parallax for now
 
@@ -193,21 +198,22 @@ namespace Atmosphere
 
 					var boltMaterial = Material.Instantiate(lightningBoltMaterial);
 					boltMaterial.SetFloat("alpha", 1f);
+					boltMaterial.SetColor("color", lightningConfigObject.BoltColor);
 
 					boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
-					boltGameObject.transform.position = spawnPosition;
+					boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.BoltHeight * (parentTransform.position - spawnPosition).normalized;
 
 					Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
 					boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
 
-					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.BoltHeight * 2f, lightningConfigObject.BoltWidth * 2f, 1f);
+					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.BoltWidth, lightningConfigObject.BoltHeight, 1f);
 					boltGameObject.transform.parent = lightGameObject.transform;
 
 					Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
 					boltMaterial.SetVector("randomIndexes", randomIndexes);
 					boltMaterial.SetVector("lightningSheetCount", lightningConfigObject.LightningSheetCount);
 
-					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
+					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
 					if (audioClips.Count > 0)
                     {
@@ -234,10 +240,8 @@ namespace Atmosphere
 							audioSource.Play();
 						}
 
-						boltSoundGameObject.AddComponent<KillOnAudioClipFinished>(); // does this work with playDelayed
+						boltSoundGameObject.AddComponent<KillOnAudioClipFinished>();
 					}
-
-					// TODO: give it a special script that will kill it when done
 
 					currentCount++;
 				}
@@ -259,7 +263,7 @@ namespace Atmosphere
 
 		public void Update()
         {
-			if (audioSource != null && !audioSource.isPlaying)
+			if (audioSource != null && !audioSource.isPlaying)      // works with PlayDelayed
 				GameObject.Destroy(gameObject);
 		}
     }
@@ -268,6 +272,7 @@ namespace Atmosphere
 	{
 		public float startIntensity = 1f;
 		public float startLifeTime = 1f;
+		public Color color = Color.white;
 
 		public float lifeTime = 0f;
 		public GameObject lightGameObject = null;

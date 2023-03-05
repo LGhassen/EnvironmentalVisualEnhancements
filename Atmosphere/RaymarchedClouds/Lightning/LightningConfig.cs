@@ -21,6 +21,9 @@ namespace Atmosphere
         float lifeTime = 0.5f;                              //TOOD: turn into a max/min lifetime
 
         [ConfigItem]
+        Color lightColor = Color.white * 255f;
+
+        [ConfigItem]
         float lightIntensity = 3f;
 
         //[ConfigItem]
@@ -28,6 +31,9 @@ namespace Atmosphere
 
         [ConfigItem]
         float spawnAltitude = 2000;
+
+        [ConfigItem]
+        Color boltColor = Color.white * 255f;
 
         [ConfigItem]
         float boltWidth = 2000f;
@@ -57,6 +63,11 @@ namespace Atmosphere
         public float SpawnChancePerSecond { get => spawnChancePerSecond; }
         public float SpawnRange { get => spawnRange; }
         public float LifeTime { get => lifeTime; }
+
+        public Color LightColor { get => lightColor / 255f; }
+
+        public Color BoltColor { get => boltColor / 255f; }
+
         public float LightIntensity { get => lightIntensity; }
         public float LightRange { get => lightRange; }
         public float SpawnAltitude { get => spawnAltitude; }
