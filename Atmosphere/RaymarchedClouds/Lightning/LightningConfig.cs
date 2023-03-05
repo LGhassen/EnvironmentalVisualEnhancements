@@ -18,16 +18,22 @@ namespace Atmosphere
         float spawnRange = 15000f;
 
         [ConfigItem]
-        float lifeTime = 0.5f;                              //TOOD: turn into a max/min lifetime, affects performance though
+        float lifeTime = 0.5f;                              //TOOD: turn into a max/min lifetime
 
         [ConfigItem]
         float lightIntensity = 3f;
 
-        [ConfigItem]
+        //[ConfigItem]
         float lightRange = 10000f;
 
         [ConfigItem]
         float spawnAltitude = 2000;
+
+        [ConfigItem]
+        float boltWidth = 2000f;
+
+        [ConfigItem]
+        float boltHeight = 2000f;
 
         [ConfigItem]
         TextureWrapper boltTexture = null;
@@ -54,6 +60,11 @@ namespace Atmosphere
         public float LightIntensity { get => lightIntensity; }
         public float LightRange { get => lightRange; }
         public float SpawnAltitude { get => spawnAltitude; }
+
+        public float BoltWidth { get => boltWidth; }
+
+        public float BoltHeight { get => boltHeight; }
+
         public TextureWrapper BoltTexture { get => boltTexture; }
         public Vector2 LightningSheetCount { get => lightningSheetCount; }
 

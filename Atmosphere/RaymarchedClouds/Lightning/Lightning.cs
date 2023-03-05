@@ -36,7 +36,7 @@ namespace Atmosphere
 						activeLightningShaderLights[currentIndex] = new Vector4(lightningNode.Value.lightGameObject.transform.position.x,
 							lightningNode.Value.lightGameObject.transform.position.y,
 							lightningNode.Value.lightGameObject.transform.position.z,
-							lightningNode.Value.lifeTime);
+							0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime); // apply 0.25 the point light intensity to the volumetric cloud
 
 						currentIndex++;
 					}
@@ -195,12 +195,12 @@ namespace Atmosphere
 					boltMaterial.SetFloat("alpha", 1f);
 
 					boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
-					boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.SpawnAltitude * (parentTransform.position - spawnPosition).normalized;
+					boltGameObject.transform.position = spawnPosition;
 
 					Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
 					boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
 
-					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.SpawnAltitude, lightningConfigObject.SpawnAltitude, 1f);
+					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.BoltHeight * 2f, lightningConfigObject.BoltWidth * 2f, 1f);
 					boltGameObject.transform.parent = lightGameObject.transform;
 
 					Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
@@ -290,6 +290,9 @@ namespace Atmosphere
 
 			if (lifeTime <= 0)
 			{
+				light.enabled = false;
+				light.intensity = 0f;
+				light.range = 0f;
 				GameObject.Destroy(lightGameObject);
 				GameObject.Destroy(boltGameObject);
 				return true;
