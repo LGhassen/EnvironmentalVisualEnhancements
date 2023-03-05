@@ -150,9 +150,15 @@ namespace Utils
             return fallback;
         }
 
+        public static bool? unifiedCameraMode = null;
+
         public static bool IsUnifiedCameraMode()
         {
-            return SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
+            if (unifiedCameraMode == null)
+            {
+                unifiedCameraMode = SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
+            }
+            return unifiedCameraMode.Value;
         }
 
         // true if color appears to be RGB (0-255)

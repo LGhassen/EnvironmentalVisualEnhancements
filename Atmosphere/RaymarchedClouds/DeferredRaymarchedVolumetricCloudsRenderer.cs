@@ -317,6 +317,9 @@ namespace Atmosphere
 
                 var prevP = previousP[isRightEye];
 
+                if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
+                    commandBuffer.SetGlobalTexture("combinedOpenGLDistanceBuffer", DepthToDistanceCommandBuffer.RenderTexture);
+
                 foreach (var intersection in intersections)
                 {
                     var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
@@ -339,9 +342,6 @@ namespace Atmosphere
                     cloudMaterial.SetFloat("useOrbitMode", orbitMode ? 1f : 0f);
 
                     cloudMaterial.SetFloat("useCombinedOpenGLDistanceBuffer", useCombinedOpenGLDistanceBuffer ? 1f : 0f);
-
-                    if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
-                        cloudMaterial.SetTexture("combinedOpenGLDistanceBuffer", DepthToDistanceCommandBuffer.RenderTexture);
 
                     Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
                     Matrix4x4 cloudPreviousV = prevV;

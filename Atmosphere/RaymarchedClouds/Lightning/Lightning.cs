@@ -196,6 +196,12 @@ namespace Atmosphere
 					var collider = boltGameObject.GetComponent<Collider>(); // TODO: remove this, maybe just create a single GO that you instantiate
 					if (collider != null) GameObject.Destroy(collider);
 
+					if (!Tools.IsUnifiedCameraMode())
+					{ 
+						var mf = boltGameObject.GetComponent<MeshFilter>();
+						mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(700000f, 700000f, 700000f)); // force rendering on the near camera if OpenGL, because we need to render on top of clouds
+					}
+
 					var boltMaterial = Material.Instantiate(lightningBoltMaterial);
 					boltMaterial.SetFloat("alpha", 1f);
 					boltMaterial.SetColor("color", lightningConfigObject.BoltColor);
