@@ -190,12 +190,6 @@ namespace Atmosphere
                 editingModes.Add(EditingMode.colorMap);
         }
 
-        public void DisableCursor()
-        {
-            if (cursorGameObject != null)
-                cursorGameObject.SetActive(false);
-        }
-
         public void Paint()
         {
             if (initialized && paintEnabled && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null)
@@ -209,30 +203,18 @@ namespace Atmosphere
                 float outerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("outerSphereRadius"));
                 double sphereRadius = innerSphereRadius;
 
-                // this code is very bad but the built-in Unity ScreenPointToRay jitters
-                var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
-                viewPortPoint.x = 2.0f * viewPortPoint.x - 1.0f;
-                viewPortPoint.x = -viewPortPoint.x;
-                viewPortPoint.y = 2.0f * viewPortPoint.y - 1.0f;
-
-                var screenToCamera = GL.GetGPUProjectionMatrix(FlightCamera.fetch.mainCamera.projectionMatrix, true).inverse;
-                var cameraSpacePoint = screenToCamera.MultiplyPoint(viewPortPoint);
-
-                var cameraSpacePointNormalized = cameraSpacePoint.normalized;
-                cameraSpacePointNormalized.y = Tools.IsUnifiedCameraMode() ? cameraSpacePointNormalized.y : -cameraSpacePointNormalized.y;
-
-                Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePointNormalized);
+                Vector3d rayDir = GetCursorRayDirection();
 
                 double intersectDistance = Mathf.Infinity;
 
                 RaycastHit hit;
                 var hitStatus = Physics.Raycast(FlightCamera.fetch.mainCamera.transform.position, rayDir, out hit, Mathf.Infinity, (int)((1 << 15) + (1 << 0)));
 
-                if(hitStatus)
+                if (hitStatus)
                 {
                     var hitAltitude = (hit.point - sphereCenter).magnitude;
                     if (hitAltitude <= outerSphereRadius && hitAltitude >= innerSphereRadius)
-                    { 
+                    {
                         var hitDistance = (hit.point - FlightCamera.fetch.mainCamera.transform.position).magnitude;
                         intersectDistance = Math.Min(hitDistance, hitDistance);
                     }
@@ -254,7 +236,7 @@ namespace Atmosphere
                     Vector3 scale = new Vector3(brushSize * 2f, brushSize * 2f, brushSize * 2f);
 
                     if (cursorGameObject != null)
-                    { 
+                    {
                         cursorGameObject.SetActive(true);
                         cursorGameObject.transform.position = intersectPosition;
                         cursorGameObject.transform.rotation = rotation;
@@ -298,6 +280,24 @@ namespace Atmosphere
                     }
                 }
             }
+        }
+
+        private static Vector3d GetCursorRayDirection()
+        {
+            // this code is very bad but the built-in Unity ScreenPointToRay jitters
+            var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
+            viewPortPoint.x = 2.0f * viewPortPoint.x - 1.0f;
+            viewPortPoint.x = -viewPortPoint.x;
+            viewPortPoint.y = 2.0f * viewPortPoint.y - 1.0f;
+
+            var screenToCamera = GL.GetGPUProjectionMatrix(FlightCamera.fetch.mainCamera.projectionMatrix, true).inverse;
+            var cameraSpacePoint = screenToCamera.MultiplyPoint(viewPortPoint);
+
+            var cameraSpacePointNormalized = cameraSpacePoint.normalized;
+            cameraSpacePointNormalized.y = Tools.IsUnifiedCameraMode() ? cameraSpacePointNormalized.y : -cameraSpacePointNormalized.y;
+
+            Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePointNormalized);
+            return rayDir;
         }
 
         public void RetargetClouds()
@@ -480,10 +480,6 @@ namespace Atmosphere
 
         private void SaveAllTextures()
         {
-            // these filenames are a bad idea because they compound when I reuse the previous file
-            // instead output to a EVETextureExports folder
-            // name with the body + layername + maptype + date
-            // or a folder by body
             if (cloudCoverage != null)
             {
                 SaveRTToFile(cloudCoverage, "CloudCoverage");
