@@ -218,6 +218,7 @@ namespace Atmosphere
 						var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
 						audioSource.clip = audioClips[Random.Range(0, audioClips.Count)];
 						audioSource.rolloffMode = AudioRolloffMode.Linear;
+						audioSource.spatialBlend = 1f;
 						audioSource.minDistance = lightningConfigObject.SoundMinDistance;
 						audioSource.maxDistance = lightningConfigObject.SoundMaxDistance;
 
