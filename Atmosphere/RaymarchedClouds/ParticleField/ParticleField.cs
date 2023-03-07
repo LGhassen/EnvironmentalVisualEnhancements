@@ -69,6 +69,13 @@ namespace Atmosphere
 
         public void Remove()
 		{
+			if (mesh != null)
+            {
+				mesh.Clear();
+				GameObject.Destroy(mesh);
+				Component.Destroy(fieldMeshRenderer);
+			}
+
 			if (fieldHolder != null)
 			{
 				fieldHolder.transform.parent = null;
@@ -239,6 +246,8 @@ namespace Atmosphere
 
 		void InitGameObject(Transform parent)
 		{
+			Remove();
+
 			fieldHolder = GameObject.CreatePrimitive(PrimitiveType.Cube);
 			fieldHolder.name = "ParticleField";
 			var cl = fieldHolder.GetComponent<Collider>();
@@ -260,9 +269,10 @@ namespace Atmosphere
 			fieldMeshRenderer.receiveShadows = false;                                               // In the future needs to be enabled probably
 			fieldMeshRenderer.enabled = false;
 
-			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();			
-			filter.mesh = createMesh((int)particleFieldConfigObject.FieldParticleCount);
-			filter.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
+			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();
+			mesh = createMesh((int)particleFieldConfigObject.FieldParticleCount);
+			filter.sharedMesh = mesh;
+			filter.sharedMesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
 
 			fieldHolder.transform.parent = parent;
 			fieldHolder.transform.localPosition = Vector3.zero;
