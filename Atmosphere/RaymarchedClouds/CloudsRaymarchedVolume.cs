@@ -154,23 +154,23 @@ namespace Atmosphere
             }
         }
 
-        public void SetShadowCasterTextureParams(RenderTexture editorTexture = null)
+        public void SetShadowCasterTextureParams(RenderTexture editorTexture = null, bool editorAlphamask = false)
         {
             if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
-                setShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture);
+                setShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture, editorAlphamask);
 
                 if (particleField != null)
                 {
-                    setShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture);
-                    setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture);
+                    setShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture, editorAlphamask);
+                    setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
                 }
 
                 shadowCasterTextureSet = true;
             }
         }
 
-        private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture)
+        private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture, bool editorAlphamask)
         {
             // this will break if using different map types, TODO: fix it
             shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(mat, "ShadowCasterCloudCoverage", 3);
@@ -195,6 +195,12 @@ namespace Atmosphere
                 mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
                 mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
+            }
+
+            if (editorAlphamask)
+            {
+                mat.EnableKeyword("ALPHAMAP_3");
+                mat.SetVector("alphaMask3", new Vector4(1f, 0f, 0f, 0f));
             }
         }
 

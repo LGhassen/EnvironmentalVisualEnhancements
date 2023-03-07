@@ -29,11 +29,8 @@ namespace Atmosphere
         public EditingMode editingMode = EditingMode.coverage;
 
         public float brushSize = 5000f;
-
         public float hardness = 1f;
-
         public float opacity = 0.05f;
-
         public float coverageValue = 1f;
 
         public string selectedCloudTypeName = "";
@@ -47,8 +44,7 @@ namespace Atmosphere
 
         public RenderTexture cloudCoverage, cloudType, cloudColorMap;
         public string cloudCoveragePath, cloudTypePath, cloudColorMapPath;
-        Material cloudMaterial, paintMaterial, cursorMaterial;
-        Mesh cursorMesh;
+        Material cloudMaterial, paintMaterial, cursorMaterial, copyMapMaterial;
 
         Vector3 lastDrawnMousePos = Vector3.zero;
 
@@ -74,13 +70,15 @@ namespace Atmosphere
             }
         }
 
-        public void Init(string body, string layerName)
-        {
-            cloudsObject = CloudsManager.GetObjectList().Where(x => x.Body == body && x.Name == layerName).FirstOrDefault();
-            this.body = body;
-            this.layerName = layerName;
+        private static Shader copyMapShader;
 
-            InitTextures();
+        private static Shader CopyMapShader
+        {
+            get
+            {
+                if (copyMapShader == null) copyMapShader = ShaderLoaderClass.FindShader("EVE/CopyMap");
+                return copyMapShader;
+            }
         }
 
         public void Init(string body, CloudsObject cloudsObject)
@@ -90,6 +88,7 @@ namespace Atmosphere
             this.layerName = cloudsObject.Name;
 
             paintMaterial = new Material(PaintShader);
+            copyMapMaterial = new Material(CopyMapShader);
 
             cursorMaterial = new Material(CursorShader);
             cursorMaterial.SetTexture("_MainTex", GameDatabase.Instance.GetTextureInfo("EnvironmentalVisualEnhancements/PaintCursor")?.texture);
@@ -108,50 +107,18 @@ namespace Atmosphere
 
         private void InitTextures()
         {
-            // only for raymarched volumetrics for now
-            // only for equirectangular textures as well
-
+            // only for raymarched volumetrics and equirectangular textures for now
             if (cloudsObject.LayerRaymarchedVolume != null)
             {
                 layerRaymarchedVolume = cloudsObject.LayerRaymarchedVolume;
 
-                if (layerRaymarchedVolume.CoverageMap != null)
-                {
-                    var coverageMapTexture = layerRaymarchedVolume.CoverageMap.GetTexture();
-
-                    // TODO: handle alphamaps as the target here is R8
-                    if (coverageMapTexture != null)
-                    {
-                        InitTexture(ref cloudCoverage, ref coverageMapTexture, RenderTextureFormat.R8);
-                    }
-                }
-
-                if (layerRaymarchedVolume.CloudTypeMap != null)
-                {
-                    var cloudTypeTexture = layerRaymarchedVolume.CloudTypeMap.GetTexture();
-
-                    // TODO: handle alphamaps as the target here is R8
-                    if (cloudTypeTexture != null)
-                    {
-                        InitTexture(ref cloudType, ref cloudTypeTexture, RenderTextureFormat.R8);
-                    }
-                }
-
-                if (layerRaymarchedVolume.CloudColorMap != null)
-                {
-                    var cloudColorMapTexture = layerRaymarchedVolume.CloudColorMap.GetTexture();
-
-                    // this one shouldn't need alphamaps
-                    if (cloudColorMapTexture != null)
-                    {
-                        InitTexture(ref cloudColorMap, ref cloudColorMapTexture, RenderTextureFormat.ARGB32);
-                    }
-                }
+                if (layerRaymarchedVolume.CoverageMap != null)   InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
                 initialized = true;
-
             }
         }
 
@@ -161,33 +128,66 @@ namespace Atmosphere
 
             if (cloudCoverage != null)
             {
+                cloudMaterial.EnableKeyword("ALPHAMAP_1");
+                cloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
+
                 cloudMaterial.SetTexture("CloudCoverage", cloudCoverage);
 
-                // now find other layers which use this for shadows and apply it to them
+                // find other layers which use this for shadows and apply it to them
                 var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
 
                 foreach (var layer in layers)
                 {
-                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage);
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage); // TODO: pass this an alpha mask param?
                 }
             }
 
-            if (cloudType != null)
-                cloudMaterial.SetTexture("CloudType", cloudType);
 
-            if (cloudColorMap != null)
-                cloudMaterial.SetTexture("CloudColorMap", cloudColorMap);
+            if (cloudType != null)
+            {
+                cloudMaterial.EnableKeyword("ALPHAMAP_2");
+                cloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
+                cloudMaterial.SetTexture("CloudType", cloudType);
+            }
+            if (cloudColorMap != null) cloudMaterial.SetTexture("CloudColorMap", cloudColorMap);
 
             editingModes = new List<EditingMode>();
 
             if (cloudCoverage != null)
                 editingModes.Add(EditingMode.coverage);
+
             if (cloudType != null)
                 editingModes.Add(EditingMode.cloudType);
+
             if (cloudCoverage != null && cloudType != null)
                 editingModes.Add(EditingMode.coverageAndCloudType);
+
             if (cloudColorMap != null)
                 editingModes.Add(EditingMode.colorMap);
+        }
+
+        private void InitTexture(TextureWrapper targetWrapper, ref RenderTexture targetRT, RenderTextureFormat format)
+        {
+            var targetTexture = targetWrapper.GetTexture();
+
+            if (targetTexture != null)
+            {
+                if (targetRT != null)
+                    targetRT.Release();
+
+                targetRT = new RenderTexture(targetTexture.width, targetTexture.height, 0, format);
+                targetRT.filterMode = FilterMode.Bilinear;
+                targetRT.wrapMode = TextureWrapMode.Repeat;
+                targetRT.Create();
+
+                var active = RenderTexture.active;
+
+                targetWrapper.SetAlphaMask(copyMapMaterial, 1);
+                copyMapMaterial.SetTexture("textureToCopy", targetTexture);
+                Graphics.Blit(null, targetRT, copyMapMaterial);
+
+                RenderTexture.active = active;
+            }
         }
 
         public void Paint()
@@ -282,6 +282,15 @@ namespace Atmosphere
             }
         }
 
+        public void RetargetClouds()
+        {
+            cloudsObject = CloudsManager.GetObjectList().Where(x => x.Body == body && x.Name == layerName).FirstOrDefault();
+            layerRaymarchedVolume = cloudsObject?.LayerRaymarchedVolume;
+
+            if (cloudsObject != null && layerRaymarchedVolume != null)
+                SetTextureProperties();
+        }
+
         private static Vector3d GetCursorRayDirection()
         {
             // this code is very bad but the built-in Unity ScreenPointToRay jitters
@@ -298,33 +307,6 @@ namespace Atmosphere
 
             Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePointNormalized);
             return rayDir;
-        }
-
-        public void RetargetClouds()
-        {
-            cloudsObject = CloudsManager.GetObjectList().Where(x => x.Body == body && x.Name == layerName).FirstOrDefault();
-            layerRaymarchedVolume = cloudsObject?.LayerRaymarchedVolume;
-
-            if (cloudsObject != null && layerRaymarchedVolume != null)
-                SetTextureProperties();
-        }
-
-        // TODO: handle alphamaps
-        private void InitTexture(ref RenderTexture targetRT, ref Texture2D targetTexture2D, RenderTextureFormat format)
-        {
-            if (targetRT != null)
-                targetRT.Release();
-
-            targetRT = new RenderTexture(targetTexture2D.width, targetTexture2D.height, 0, format);
-            targetRT.filterMode = FilterMode.Bilinear;
-            targetRT.wrapMode = TextureWrapMode.Repeat;
-            targetRT.Create();
-
-            var active = RenderTexture.active;
-
-            Graphics.Blit(targetTexture2D, targetRT);
-
-            RenderTexture.active = active;
         }
 
         private double IntersectSphere(Vector3d origin, Vector3d d, Vector3d sphereCenter, double r)
@@ -414,44 +396,26 @@ namespace Atmosphere
         {
             if (editingMode == EditingMode.coverage)
             {
-                var coverageMapTexture = layerRaymarchedVolume.CoverageMap.GetTexture();
-
-                // TODO: handle alphamaps as the target here is R8
-                if (coverageMapTexture != null)
-                {
-                    InitTexture(ref cloudCoverage, ref coverageMapTexture, RenderTextureFormat.R8);
-                }
+                InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
             }
             else if (editingMode == EditingMode.cloudType)
             {
-                var cloudTypeTexture = layerRaymarchedVolume.CloudTypeMap.GetTexture();
-
-                // TODO: handle alphamaps as the target here is R8
-                if (cloudTypeTexture != null)
-                {
-                    InitTexture(ref cloudType, ref cloudTypeTexture, RenderTextureFormat.R8);
-                }
+                InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
             }
             else if (editingMode == EditingMode.coverageAndCloudType)
             {
                 var cloudTypeTexture = layerRaymarchedVolume.CloudTypeMap.GetTexture();
                 var coverageMapTexture = layerRaymarchedVolume.CoverageMap.GetTexture();
 
-                // TODO: handle alphamaps as the target here is R8
                 if (coverageMapTexture != null && cloudTypeTexture != null)
                 {
-                    InitTexture(ref cloudCoverage, ref coverageMapTexture, RenderTextureFormat.R8);
-                    InitTexture(ref cloudType, ref cloudTypeTexture, RenderTextureFormat.R8);
+                    InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
+                    InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
                 }
             }
             else if (editingMode == EditingMode.colorMap)
             {
-                var cloudColorMapTexture = layerRaymarchedVolume.CloudColorMap.GetTexture();
-
-                if (cloudColorMapTexture != null)
-                {
-                    InitTexture(ref cloudColorMap, ref cloudColorMapTexture, RenderTextureFormat.ARGB32);
-                }
+                InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
             }
 
             SetTextureProperties();

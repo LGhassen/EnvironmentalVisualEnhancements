@@ -266,9 +266,14 @@ namespace Utils
                 mat.SetTexture(name, texture.texture);
                 textureValue = texture.texture;
             }
+            SetAlphaMask(mat, indexToUse);
+        }
+
+        public void SetAlphaMask(Material mat, int indexToUse)
+        {
             if ((type & TextureTypeEnum.AlphaMapMask) > 0)
             {
-                mat.EnableKeyword(alphaMask+"_"+ indexToUse);
+                mat.EnableKeyword(alphaMask + "_" + indexToUse);
                 mat.EnableKeyword("ALPHAMAP_" + indexToUse);
                 Vector4 alphaMaskVector;
                 alphaMaskVector.x = alphaMask == AlphaMaskEnum.ALPHAMAP_R ? 1 : 0;
@@ -276,6 +281,13 @@ namespace Utils
                 alphaMaskVector.z = alphaMask == AlphaMaskEnum.ALPHAMAP_B ? 1 : 0;
                 alphaMaskVector.w = alphaMask == AlphaMaskEnum.ALPHAMAP_A ? 1 : 0;
                 mat.SetVector("alphaMask" + indexToUse, alphaMaskVector);
+            }
+            else
+            {
+                mat.DisableKeyword(alphaMask + "_" + indexToUse);
+                mat.DisableKeyword("ALPHAMAP_" + indexToUse);
+
+                mat.EnableKeyword("ALPHAMAP_N_" + indexToUse);
             }
         }
 
