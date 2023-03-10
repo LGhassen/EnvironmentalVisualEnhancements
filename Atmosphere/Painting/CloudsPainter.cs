@@ -138,7 +138,7 @@ namespace Atmosphere
 
                 foreach (var layer in layers)
                 {
-                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage); // TODO: pass this an alpha mask param?
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
                 }
             }
 

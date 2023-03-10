@@ -178,6 +178,12 @@ namespace Atmosphere
             if (editorTexture != null)
             {
                 mat.SetTexture("ShadowCasterCloudCoverage", editorTexture);
+
+                if (editorAlphamask)
+                {
+                    mat.EnableKeyword("ALPHAMAP_3");
+                    mat.SetVector("alphaMask3", new Vector4(1f, 0f, 0f, 0f));
+                }
             }
 
             mat.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
@@ -195,12 +201,6 @@ namespace Atmosphere
                 mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
                 mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
                 mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
-            }
-
-            if (editorAlphamask)
-            {
-                mat.EnableKeyword("ALPHAMAP_3");
-                mat.SetVector("alphaMask3", new Vector4(1f, 0f, 0f, 0f));
             }
         }
 
