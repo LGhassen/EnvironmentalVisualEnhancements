@@ -237,9 +237,9 @@ namespace Atmosphere
 
 						float dist = (boltGameObject.transform.position - FlightCamera.fetch.transform.position).magnitude;
 
-						if(lightningConfigObject.RealisticAudioDelay)
+						if(lightningConfigObject.RealisticAudioDelayMultiplier > 0f)
                         {
-							float delay = dist / 343f; // speed of sound on Earth
+							float delay = lightningConfigObject.RealisticAudioDelayMultiplier * dist / 343f; // speed of sound on Earth
 							audioSource.PlayDelayed(delay);
 						}
 						else

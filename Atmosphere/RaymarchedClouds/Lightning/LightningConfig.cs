@@ -54,7 +54,7 @@ namespace Atmosphere
         float soundMaxDistance = 15000f;
 
         [ConfigItem]
-        bool realisticAudioDelay = false;
+        float realisticAudioDelayMultiplier = 0f;
 
         [ConfigItem, Optional]
         List<LightningSoundConfig> sounds = new List<LightningSoundConfig>();
@@ -83,7 +83,7 @@ namespace Atmosphere
 
         public float SoundMaxDistance { get => soundMaxDistance; }
 
-        public bool RealisticAudioDelay { get => realisticAudioDelay; }
+        public float RealisticAudioDelayMultiplier { get => realisticAudioDelayMultiplier; }
 
         public List<LightningSoundConfig> SoundNames { get => sounds; }
 
