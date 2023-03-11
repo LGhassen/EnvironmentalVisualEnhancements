@@ -221,6 +221,7 @@ namespace Atmosphere
 
 					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
+					
 					if (audioClips.Count > 0)
                     {
 						GameObject boltSoundGameObject = new GameObject();
@@ -248,6 +249,7 @@ namespace Atmosphere
 
 						boltSoundGameObject.AddComponent<KillOnAudioClipFinished>();
 					}
+					
 
 					currentCount++;
 				}
@@ -270,7 +272,10 @@ namespace Atmosphere
 		public void Update()
         {
 			if (audioSource != null && !audioSource.isPlaying)      // works with PlayDelayed
+			{
+				audioSource = null;
 				GameObject.Destroy(gameObject);
+			}
 		}
     }
 
