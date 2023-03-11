@@ -111,7 +111,7 @@ namespace Atmosphere
 
 			for (int i = 0; i < totalSpawns; i++)
 			{
-				spawnTimesList.Add(UnityEngine.Random.Range(0f, 100f));
+				spawnTimesList.Add(Random.Range(0f, 100f));
 			}
 
 			spawnTimesList.Sort();
@@ -168,90 +168,94 @@ namespace Atmosphere
 			if (currentCount < maxConcurrent)
 			{
 				// TODO: randomize spawn altitude?
-				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), UnityEngine.Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
+				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
 
 				spawnPosition = (spawnPosition - parentTransform.position).normalized * spawnDistanceFromParent + parentTransform.position;
-				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition)  > 0.1f) // TODO: parametrize
+				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition, out float cloudType)  > 0.1f) // TODO: parametrize?
                 {
-					GameObject lightGameObject = new GameObject();
+					float cloudTypeSpawnChance = cloudsRaymarchedVolume.GetInterpolatedCloudTypeLightningFrequency(cloudType);
 
-					lightGameObject.transform.position = spawnPosition;
-					lightGameObject.transform.parent = parentTransform;
-					lightGameObject.layer = (int)Tools.Layer.Local;
-					lightGameObject.SetActive(true);
-
-					Light light = lightGameObject.AddComponent<Light>();
-					light.type = LightType.Point;
-
-					light.intensity = lightningConfigObject.LightIntensity;
-					light.range = lightningConfigObject.LightRange;               //probably should compute this based on the intensity and not have it as a parameter?
-					light.color = lightningConfigObject.LightColor;
-
-					// light.renderMode = LightRenderMode.ForceVertex; // incompatible with Parallax for now
-
-					light.cullingMask = (1 << (int)Tools.Layer.Local) | (1 << (int)Tools.Layer.Parts) | (1 << (int)Tools.Layer.Kerbals) | (1 << (int)Tools.Layer.Default);
-
-					GameObject boltGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
-					
-					var collider = boltGameObject.GetComponent<Collider>(); // TODO: remove this, maybe just create a single GO that you instantiate
-					if (collider != null) GameObject.Destroy(collider);
-
-					if (!Tools.IsUnifiedCameraMode())
-					{ 
-						var mf = boltGameObject.GetComponent<MeshFilter>();
-						mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(700000f, 700000f, 700000f)); // force rendering on the near camera if OpenGL, because we need to render on top of clouds
-					}
-
-					var boltMaterial = Material.Instantiate(lightningBoltMaterial);
-					boltMaterial.SetFloat("alpha", 1f);
-					boltMaterial.SetColor("color", lightningConfigObject.BoltColor);
-
-					boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
-					boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.BoltHeight * (parentTransform.position - spawnPosition).normalized;
-
-					Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
-					boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
-
-					boltGameObject.transform.localScale = new Vector3(lightningConfigObject.BoltWidth, lightningConfigObject.BoltHeight, 1f);
-					boltGameObject.transform.parent = lightGameObject.transform;
-
-					Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
-					boltMaterial.SetVector("randomIndexes", randomIndexes);
-					boltMaterial.SetVector("lightningSheetCount", lightningConfigObject.LightningSheetCount);
-
-					activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
-
-					
-					if (audioClips.Count > 0)
+					if (cloudTypeSpawnChance > 0f && cloudTypeSpawnChance > Random.Range(0f, 1f))
                     {
-						GameObject boltSoundGameObject = new GameObject();
-						boltSoundGameObject.transform.position = boltGameObject.transform.position;
-						boltSoundGameObject.transform.parent = parentTransform;
+						GameObject lightGameObject = new GameObject();
 
-						var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
-						audioSource.clip = audioClips[Random.Range(0, audioClips.Count)];
-						audioSource.rolloffMode = AudioRolloffMode.Linear;
-						audioSource.spatialBlend = 1f;
-						audioSource.minDistance = lightningConfigObject.SoundMinDistance;
-						audioSource.maxDistance = lightningConfigObject.SoundMaxDistance;
+						lightGameObject.transform.position = spawnPosition;
+						lightGameObject.transform.parent = parentTransform;
+						lightGameObject.layer = (int)Tools.Layer.Local;
+						lightGameObject.SetActive(true);
 
-						float dist = (boltGameObject.transform.position - FlightCamera.fetch.transform.position).magnitude;
+						Light light = lightGameObject.AddComponent<Light>();
+						light.type = LightType.Point;
 
-						if(lightningConfigObject.RealisticAudioDelayMultiplier > 0f)
-                        {
-							float delay = lightningConfigObject.RealisticAudioDelayMultiplier * dist / 343f; // speed of sound on Earth
-							audioSource.PlayDelayed(delay);
+						light.intensity = lightningConfigObject.LightIntensity;
+						light.range = lightningConfigObject.LightRange;               //probably should compute this based on the intensity and not have it as a parameter?
+						light.color = lightningConfigObject.LightColor;
+
+						// light.renderMode = LightRenderMode.ForceVertex; // incompatible with Parallax for now
+
+						light.cullingMask = (1 << (int)Tools.Layer.Local) | (1 << (int)Tools.Layer.Parts) | (1 << (int)Tools.Layer.Kerbals) | (1 << (int)Tools.Layer.Default);
+
+						GameObject boltGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+
+						var collider = boltGameObject.GetComponent<Collider>(); // TODO: remove this, maybe just create a single GO that you instantiate
+						if (collider != null) GameObject.Destroy(collider);
+
+						if (!Tools.IsUnifiedCameraMode())
+						{
+							var mf = boltGameObject.GetComponent<MeshFilter>();
+							mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(700000f, 700000f, 700000f)); // force rendering on the near camera if OpenGL, because we need to render on top of clouds
 						}
-						else
-						{ 
-							audioSource.Play();
+
+						var boltMaterial = Material.Instantiate(lightningBoltMaterial);
+						boltMaterial.SetFloat("alpha", 1f);
+						boltMaterial.SetColor("color", lightningConfigObject.BoltColor);
+
+						boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
+						boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.BoltHeight * (parentTransform.position - spawnPosition).normalized;
+
+						Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
+						boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
+
+						boltGameObject.transform.localScale = new Vector3(lightningConfigObject.BoltWidth, lightningConfigObject.BoltHeight, 1f);
+						boltGameObject.transform.parent = lightGameObject.transform;
+
+						Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
+						boltMaterial.SetVector("randomIndexes", randomIndexes);
+						boltMaterial.SetVector("lightningSheetCount", lightningConfigObject.LightningSheetCount);
+
+						activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
+
+
+						if (audioClips.Count > 0)
+						{
+							GameObject boltSoundGameObject = new GameObject();
+							boltSoundGameObject.transform.position = boltGameObject.transform.position;
+							boltSoundGameObject.transform.parent = parentTransform;
+
+							var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
+							audioSource.clip = audioClips[Random.Range(0, audioClips.Count)];
+							audioSource.rolloffMode = AudioRolloffMode.Linear;
+							audioSource.spatialBlend = 1f;
+							audioSource.minDistance = lightningConfigObject.SoundMinDistance;
+							audioSource.maxDistance = lightningConfigObject.SoundMaxDistance;
+
+							float dist = (boltGameObject.transform.position - FlightCamera.fetch.transform.position).magnitude;
+
+							if (lightningConfigObject.RealisticAudioDelayMultiplier > 0f)
+							{
+								float delay = lightningConfigObject.RealisticAudioDelayMultiplier * dist / 343f; // speed of sound on Earth
+								audioSource.PlayDelayed(delay);
+							}
+							else
+							{
+								audioSource.Play();
+							}
+
+							boltSoundGameObject.AddComponent<KillOnAudioClipFinished>();
 						}
 
-						boltSoundGameObject.AddComponent<KillOnAudioClipFinished>();
+						currentCount++;
 					}
-					
-
-					currentCount++;
 				}
 
 			}

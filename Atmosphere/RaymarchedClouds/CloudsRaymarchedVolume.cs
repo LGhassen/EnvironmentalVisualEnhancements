@@ -651,7 +651,8 @@ namespace Atmosphere
 
                 if (ambientSound != null && FlightCamera.fetch != null)
                 {
-                    float coverageAtPosition = SampleCoverage(FlightCamera.fetch.transform.position);
+                    float coverageAtPosition = SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
+                    coverageAtPosition *= GetInterpolatedCloudTypeAmbientVolume(cloudType);
                     ambientSound.Update(coverageAtPosition);
                 }
 
@@ -674,8 +675,10 @@ namespace Atmosphere
 
         }
 
-        public float SampleCoverage(Vector3 worldPosition)
+        public float SampleCoverage(Vector3 worldPosition, out float cloudType)
         {
+            cloudType = 0f;
+            
             Vector3 sphereVector = cloudRotationMatrix.MultiplyPoint(worldPosition).normalized;
 
             float altitude = (worldPosition - parentTransform.position).magnitude;
@@ -688,13 +691,42 @@ namespace Atmosphere
             if (coverageMap != null)
                 result = coverageMap.Sample(sphereVector).a;
 
-            float cloudType = 0f;
             if (cloudTypeMap != null)
                 cloudType = cloudTypeMap.Sample(sphereVector).r;
 
             result *= coverageCurvesTexture.GetPixelBilinear(cloudType, heightFraction).r;
 
             return result * currentTimeFadeCoverage * currentTimeFadeDensity;
+        }
+
+        public float GetInterpolatedCloudTypeParticleFieldDensity(float cloudType)
+        {
+            cloudType *= CloudTypes.Count - 1;
+            int currentCloudType = (int)cloudType;
+            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
+            float cloudFrac = cloudType - currentCloudType;
+
+            return Mathf.Lerp(cloudTypes[currentCloudType].ParticleFieldDensity, cloudTypes[nextCloudType].ParticleFieldDensity, cloudFrac);
+        }
+
+        public float GetInterpolatedCloudTypeLightningFrequency(float cloudType)
+        {
+            cloudType *= CloudTypes.Count - 1;
+            int currentCloudType = (int)cloudType;
+            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
+            float cloudFrac = cloudType - currentCloudType;
+
+            return Mathf.Lerp(cloudTypes[currentCloudType].LightningFrequency, cloudTypes[nextCloudType].LightningFrequency, cloudFrac);
+        }
+
+        public float GetInterpolatedCloudTypeAmbientVolume(float cloudType)
+        {
+            cloudType *= CloudTypes.Count - 1;
+            int currentCloudType = (int)cloudType;
+            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
+            float cloudFrac = cloudType - currentCloudType;
+
+            return Mathf.Lerp(cloudTypes[currentCloudType].AmbientVolume, cloudTypes[nextCloudType].AmbientVolume, cloudFrac);
         }
 
         // TODO: move to utils

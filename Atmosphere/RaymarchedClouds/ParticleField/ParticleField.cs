@@ -86,8 +86,9 @@ namespace Atmosphere
 
 		public void UpdateForCamera(Camera cam)
         {
-			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position);
+			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position, out float cloudType);
 			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - particleFieldConfigObject.MinCoverageThreshold) / (particleFieldConfigObject.MaxCoverageThreshold - particleFieldConfigObject.MinCoverageThreshold));
+			coverageAtPosition *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
 
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
 			var rainVelocityVector = FlightGlobals.ActiveVessel ? (particleFieldConfigObject.FallSpeed * gravityVector + tangentialMovementDirection * particleFieldConfigObject.TangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;

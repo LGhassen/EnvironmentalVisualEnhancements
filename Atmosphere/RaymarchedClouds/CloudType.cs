@@ -25,6 +25,15 @@ namespace Atmosphere
         //float noiseDistortStrength = 0.5f;
 
         [ConfigItem]
+        float particleFieldDensity = 1f;
+
+        [ConfigItem]
+        float lightningFrequency = 1f;
+
+        [ConfigItem]
+        float ambientVolume = 1f;
+
+        [ConfigItem]
         bool interpolateCloudHeights = true;
 
         [ConfigItem]
@@ -39,6 +48,13 @@ namespace Atmosphere
         //public float NoiseDistortStrength { get => noiseDistortStrength; }
 
         public float Density { get => density; }
+
+        public float ParticleFieldDensity { get => particleFieldDensity; }
+
+        public float LightningFrequency { get => lightningFrequency; }
+
+        public float AmbientVolume { get => ambientVolume; }
+
         public string TypeName { get => typeName; }
     }
 }
