@@ -44,7 +44,7 @@ namespace Atmosphere
 
         public RenderTexture cloudCoverage, cloudType, cloudColorMap;
         public string cloudCoveragePath, cloudTypePath, cloudColorMapPath;
-        Material cloudMaterial, paintMaterial, cursorMaterial, copyMapMaterial;
+        Material cloudMaterial, paintMaterial, cursorMaterial;
 
         Vector3 lastDrawnMousePos = Vector3.zero;
 
@@ -88,7 +88,6 @@ namespace Atmosphere
             this.layerName = cloudsObject.Name;
 
             paintMaterial = new Material(PaintShader);
-            copyMapMaterial = new Material(CopyMapShader);
 
             cursorMaterial = new Material(CursorShader);
             cursorMaterial.SetTexture("_MainTex", GameDatabase.Instance.GetTextureInfo("EnvironmentalVisualEnhancements/PaintCursor")?.texture);
@@ -182,6 +181,8 @@ namespace Atmosphere
                 targetRT.Create();
 
                 var active = RenderTexture.active;
+
+                var copyMapMaterial = new Material(CopyMapShader);
 
                 targetWrapper.SetAlphaMask(copyMapMaterial, 1);
                 copyMapMaterial.SetTexture("textureToCopy", targetTexture);
