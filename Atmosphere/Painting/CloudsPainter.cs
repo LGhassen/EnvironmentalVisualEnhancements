@@ -130,7 +130,7 @@ namespace Atmosphere
             {
                 cloudMaterial.EnableKeyword("ALPHAMAP_1");
                 cloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
-
+                cloudMaterial.SetFloat("useAlphaMask1", 1f);
                 cloudMaterial.SetTexture("CloudCoverage", cloudCoverage);
 
                 // find other layers which use this for shadows and apply it to them
@@ -147,6 +147,7 @@ namespace Atmosphere
             {
                 cloudMaterial.EnableKeyword("ALPHAMAP_2");
                 cloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
+                cloudMaterial.SetFloat("useAlphaMask2", 1f);
                 cloudMaterial.SetTexture("CloudType", cloudType);
             }
             if (cloudColorMap != null) cloudMaterial.SetTexture("CloudColorMap", cloudColorMap);

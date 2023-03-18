@@ -281,6 +281,7 @@ namespace Utils
                 alphaMaskVector.z = alphaMask == AlphaMaskEnum.ALPHAMAP_B ? 1 : 0;
                 alphaMaskVector.w = alphaMask == AlphaMaskEnum.ALPHAMAP_A ? 1 : 0;
                 mat.SetVector("alphaMask" + indexToUse, alphaMaskVector);
+                mat.SetFloat("useAlphaMask" + indexToUse, 1f);
             }
             else
             {
@@ -288,6 +289,7 @@ namespace Utils
                 mat.DisableKeyword("ALPHAMAP_" + indexToUse);
 
                 mat.EnableKeyword("ALPHAMAP_N_" + indexToUse);
+                mat.SetFloat("useAlphaMask" + indexToUse, 0f);
             }
         }
 

@@ -183,6 +183,7 @@ namespace Atmosphere
                 {
                     mat.EnableKeyword("ALPHAMAP_3");
                     mat.SetVector("alphaMask3", new Vector4(1f, 0f, 0f, 0f));
+                    mat.SetFloat("useAlphaMask3", 1f);
                 }
             }
 
