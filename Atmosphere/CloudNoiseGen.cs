@@ -112,7 +112,34 @@ namespace Atmosphere
             }
             else
             {
-                Graphics.Blit(null, RT, NoiseMaterial);
+                Graphics.Blit(null, RT, NoiseMaterial, 0);
+            }
+
+            RT.GenerateMips();
+
+            RenderTexture.active = active;
+        }
+
+        public static void RenderCurlNoiseToTexture(RenderTexture RT, NoiseSettings settings)
+        {
+            NoiseMaterial.SetVector("_PerlinParams", settings.GetParams());
+            NoiseMaterial.SetFloat("_PerlinLift", settings.Lift);
+
+            NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
+
+            var active = RenderTexture.active;
+
+            if (RT.dimension == TextureDimension.Tex3D)
+            {
+                for (int i = 0; i < RT.volumeDepth; i++)
+                {
+                    NoiseMaterial.SetFloat("_Slice", (float)(i) / (float)(RT.volumeDepth));
+                    Graphics.Blit(null, RT, NoiseMaterial, 1, i);
+                }
+            }
+            else
+            {
+                Graphics.Blit(null, RT, NoiseMaterial, 1);
             }
 
             RT.GenerateMips();

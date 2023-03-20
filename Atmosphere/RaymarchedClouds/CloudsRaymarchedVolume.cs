@@ -31,12 +31,15 @@ namespace Atmosphere
         }
 
         private int baseNoiseDimension = 128;
-        private RenderTexture baseNoiseRT;
+        private RenderTexture baseNoiseRT, curlNoiseRT;
 
         private float deTilifyBaseNoise = 1f;
 
         [ConfigItem]
         NoiseWrapper noise;
+
+        [ConfigItem, Optional]
+        NoiseSettings curlNoise;
 
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
@@ -107,6 +110,12 @@ namespace Atmosphere
 
         [ConfigItem]
         float detailNoiseTiling = 1f;
+
+        [ConfigItem]
+        float curlNoiseTiling = 1f;
+
+        [ConfigItem]
+        float curlNoiseStrength = 1f;
 
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
@@ -338,6 +347,18 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("NOISE_ON");
             }
 
+            if (curlNoise != null)
+            {
+                curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
+                CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise);
+                raymarchedCloudMaterial.SetTexture("CurlNoiseTexture", curlNoiseRT);
+                raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_OFF");
+            }
+            else
+            {
+                raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_ON");
+            }
+
             if (coverageMap != null)
             {
                 coverageMap.ApplyTexture(raymarchedCloudMaterial, "CloudCoverage", 1);
@@ -397,6 +418,9 @@ namespace Atmosphere
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
             mat.SetFloat("absorptionMultiplier", 1.0f);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
+
+            mat.SetFloat("curlNoiseTiling", 1f / curlNoiseTiling);
+            mat.SetFloat("curlNoiseStrength", curlNoiseStrength);
 
             mat.SetFloat("baseStepSize", raymarchingSettings.BaseStepSize);
             mat.SetFloat("maxStepSize", raymarchingSettings.MaxStepSize);
@@ -525,7 +549,6 @@ namespace Atmosphere
             return 0f;
         }
 
-        // TODO: refactor/simplify
         // TODO: shader params
         public void UpdateCloudNoiseOffsets()
         {
@@ -542,38 +565,24 @@ namespace Atmosphere
 
             xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
 
-            Vector4[] baseNoiseOffsets   = new Vector4[cloudTypes.Count];
+            Vector4[] baseNoiseOffsets = new Vector4[cloudTypes.Count];
             Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                double noiseXOffset = xOffset / (double)cloudTypes[i].BaseNoiseTiling, noiseYOffset = yOffset / (double)cloudTypes[i].BaseNoiseTiling, noiseZOffset = zOffset / (double)cloudTypes[i].BaseNoiseTiling;
-
-                baseNoiseOffsets[i] = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float) (noiseYOffset - Math.Truncate(noiseYOffset)),
-                    (float) (noiseZOffset - Math.Truncate(noiseZOffset)), 0f);
-
-                double noTileXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
-                double noTileYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
-                double noTileZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)cloudTypes[i].BaseNoiseTiling);
-
-                noTileNoiseOffsets[i] = new Vector4((float)(noTileXOffset - Math.Truncate(noTileXOffset)), (float)(noTileYOffset - Math.Truncate(noTileYOffset)),
-                    (float)(noTileZOffset - Math.Truncate(noTileZOffset)), 0f);
+                GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i], out noTileNoiseOffsets[i]);
             }
             raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
             raymarchedCloudMaterial.SetVectorArray("noTileNoiseOffsets", noTileNoiseOffsets);
 
-            double detailXOffset = xOffset / (double) detailNoiseTiling, detailYOffset = yOffset / (double)detailNoiseTiling, detailZOffset = zOffset / (double)detailNoiseTiling;
-
-            raymarchedCloudMaterial.SetVector("detailOffset", new Vector4((float)(detailXOffset - Math.Truncate(detailXOffset)),
-                (float)(detailYOffset - Math.Truncate(detailYOffset)), (float)(detailZOffset - Math.Truncate(detailZOffset)), 0f));
-
-            detailXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
-            detailYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
-            detailZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)detailNoiseTiling);
-
-            Vector3 noTileNoiseDetailOffset = new Vector3((float)(detailXOffset - Math.Truncate(detailXOffset)),
-                (float)(detailYOffset - Math.Truncate(detailYOffset)), (float)(detailZOffset - Math.Truncate(detailZOffset)));
-
+            GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling ,out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
+            raymarchedCloudMaterial.SetVector("detailOffset", detailOffset);
             raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
+
+            if (curlNoise != null)
+            {
+                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoiseTiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
+                raymarchedCloudMaterial.SetVector("curlNoiseOffset", curlNoiseOffset);
+            }
 
             if (shadowCasterLayerRaymarchedVolume != null)
             {
@@ -585,6 +594,19 @@ namespace Atmosphere
                     updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
                 }
             }
+        }
+
+        private void GetNoiseOffsets(double xOffset, double yOffset, double zOffset, double noiseTiling, out Vector4 offset, out Vector4 noTileOffset)
+        {
+            double noiseXOffset = xOffset / noiseTiling, noiseYOffset = yOffset / noiseTiling, noiseZOffset = zOffset / noiseTiling;
+
+            offset = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float)(noiseYOffset - Math.Truncate(noiseYOffset)), (float)(noiseZOffset - Math.Truncate(noiseZOffset)));
+
+            noiseXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
+            noiseYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
+            noiseZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
+
+            noTileOffset = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float)(noiseYOffset - Math.Truncate(noiseYOffset)), (float)(noiseZOffset - Math.Truncate(noiseZOffset)));
         }
 
         private void updateShadowCasterMaterialProperties(Material mat)
