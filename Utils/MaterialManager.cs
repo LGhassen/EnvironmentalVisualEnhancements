@@ -52,7 +52,7 @@ namespace Utils
         bool cached = false;
         float Scale;
         Dictionary<object, object> cache = new Dictionary<object, object>();
-        public void ApplyMaterialProperties(Material material, float scale = 1.0f)
+        public virtual void ApplyMaterialProperties(Material material, float scale = 1.0f)
         {
             Scale = scale;
             Cache();

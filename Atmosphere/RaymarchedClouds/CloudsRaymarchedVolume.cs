@@ -118,6 +118,15 @@ namespace Atmosphere
         float curlNoiseStrength = 1f;
 
         [ConfigItem]
+        bool useFlowMapTex = false;
+
+        [ConfigItem]
+        float flowSpeed = 200f;
+
+        [ConfigItem]
+        float flowStrength = 100f;
+
+        [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
         public List<CloudType> CloudTypes { get { return cloudTypes; } }
@@ -266,6 +275,20 @@ namespace Atmosphere
             else
             {
                 raymarchedCloudMaterial.EnableKeyword("DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_ON");
+            }
+
+            if (useFlowMapTex && material.FlowMap != null)
+            {
+                raymarchedCloudMaterial.EnableKeyword("FLOWMAP_ON");
+                raymarchedCloudMaterial.DisableKeyword("FLOWMAP_OFF");
+                material.FlowMap.ApplyTexture(raymarchedCloudMaterial, "_FlowMap");
+                raymarchedCloudMaterial.SetFloat("_flowStrength", flowStrength);
+                raymarchedCloudMaterial.SetFloat("_flowSpeed", flowSpeed);
+            }
+            else
+            {
+                raymarchedCloudMaterial.EnableKeyword("FLOWMAP_OFF");
+                raymarchedCloudMaterial.DisableKeyword("FLOWMAP_ON");
             }
 
             ConfigureTextures();

@@ -17,6 +17,12 @@ namespace Atmosphere
         TextureWrapper _BumpMap;
         [ConfigItem]
         float _BumpScale = 0.1f;
+        [ConfigItem, Index(999)]
+        TextureWrapper _FlowMap;
+        [ConfigItem]
+        float _flowSpeed = 100f;
+        [ConfigItem]
+        float _flowStrength = 10f;
         [ConfigItem]
         TextureWrapper _DetailTex;
         [ConfigItem]
@@ -38,6 +44,23 @@ namespace Atmosphere
 
         public float DetailScale { get => _DetailScale; }
         public TextureWrapper DetailTex { get => _DetailTex; }
+
+        public TextureWrapper FlowMap { get => _FlowMap; }
+
+        public override void ApplyMaterialProperties(Material material, float scale = 1.0f)
+        {
+            base.ApplyMaterialProperties(material, scale);
+            if (_FlowMap != null)
+            {
+                material.EnableKeyword("FLOWMAP_ON");
+                material.DisableKeyword("FLOWMAP_OFF");
+            }
+            else
+            {
+                material.EnableKeyword("FLOWMAP_OFF");
+                material.DisableKeyword("FLOWMAP_ON");
+            }
+        }
     }
 
     public enum TimeFadeMode
