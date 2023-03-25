@@ -41,6 +41,27 @@ namespace Atmosphere
     }
 
     [System.Serializable]
+    public class CurlNoiseSettings
+    {
+        [ConfigItem]
+        float octaves = 0f;
+        [ConfigItem]
+        float periods = 0f;
+        [ConfigItem]
+        bool smooth = false;
+
+        public float Octaves { get => octaves; }
+        public float Periods { get => periods; }
+
+        public bool Smooth { get => smooth; }
+
+        public Vector4 GetParams()
+        {
+            return new Vector4(octaves, periods, 1f, 1f);
+        }
+    }
+
+    [System.Serializable]
     public class NoiseWrapper
     {
         [ConfigItem, Optional]
@@ -120,10 +141,10 @@ namespace Atmosphere
             RenderTexture.active = active;
         }
 
-        public static void RenderCurlNoiseToTexture(RenderTexture RT, NoiseSettings settings)
+        public static void RenderCurlNoiseToTexture(RenderTexture RT, CurlNoiseSettings settings)
         {
             NoiseMaterial.SetVector("_PerlinParams", settings.GetParams());
-            NoiseMaterial.SetFloat("_PerlinLift", settings.Lift);
+            NoiseMaterial.SetFloat("_PerlinLift", 0f);
 
             NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
 

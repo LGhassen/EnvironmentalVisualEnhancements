@@ -39,7 +39,7 @@ namespace Atmosphere
         NoiseWrapper noise;
 
         [ConfigItem, Optional]
-        NoiseSettings curlNoise;
+        CurlNoiseSettings curlNoise;
 
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
@@ -376,6 +376,7 @@ namespace Atmosphere
                 CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise);
                 raymarchedCloudMaterial.SetTexture("CurlNoiseTexture", curlNoiseRT);
                 raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_OFF");
+                raymarchedCloudMaterial.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
             }
             else
             {
