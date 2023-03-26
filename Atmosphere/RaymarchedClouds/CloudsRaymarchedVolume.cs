@@ -133,6 +133,8 @@ namespace Atmosphere
 
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
+        public TextureWrapper FlowMap = null;
+
         ///////////
 
         protected Material raymarchedCloudMaterial;
@@ -284,9 +286,11 @@ namespace Atmosphere
                 material.FlowMap.ApplyTexture(raymarchedCloudMaterial, "_FlowMap");
                 raymarchedCloudMaterial.SetFloat("_flowStrength", flowStrength);
                 raymarchedCloudMaterial.SetFloat("_flowSpeed", flowSpeed);
+                FlowMap = material.FlowMap;
             }
             else
             {
+                FlowMap = null;
                 raymarchedCloudMaterial.EnableKeyword("FLOWMAP_OFF");
                 raymarchedCloudMaterial.DisableKeyword("FLOWMAP_ON");
             }
@@ -506,7 +510,7 @@ namespace Atmosphere
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, 0f);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, cloudTypes[i].CurlNoiseStrength);
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
@@ -809,6 +813,8 @@ namespace Atmosphere
                     return;
 
                 mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
+                mat.SetVector(ShaderProperties._UniveralTime_PROPERTY, Clouds2D.UniversalTimeVector());
+                mat.SetFloat("timeDelta", Time.deltaTime * TimeWarp.CurrentRate);
             }
 
             public void Update()

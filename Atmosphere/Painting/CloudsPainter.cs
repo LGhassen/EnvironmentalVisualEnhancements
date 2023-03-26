@@ -23,7 +23,15 @@ namespace Atmosphere
             coverageAndCloudType,
             coverage,
             cloudType,
-            colorMap
+            colorMap,
+            flowMapDirectional,
+            flowMapVortex
+        }
+
+        public enum RotationDirection
+        {
+            ClockWise,
+            CounterClockWise
         }
 
         public EditingMode editingMode = EditingMode.coverage;
@@ -36,13 +44,20 @@ namespace Atmosphere
         public string selectedCloudTypeName = "";
         public float selectedCloudTypeValue = 0f;
 
+        public float flowValue = 1f;
+        public float upwardsFlowValue = 0f;
+
+        Vector3d lastIntersectPosition = Vector3d.zero;
+
+        public RotationDirection rotationDirection = RotationDirection.ClockWise;
+
         public Color colorValue = Color.white;
 
         bool initialized = false;
         bool paintEnabled = true;
         List<EditingMode> editingModes = new List<EditingMode>();
 
-        public RenderTexture cloudCoverage, cloudType, cloudColorMap;
+        public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap;
         public string cloudCoveragePath, cloudTypePath, cloudColorMapPath;
         Material cloudMaterial, paintMaterial, cursorMaterial;
 
@@ -114,6 +129,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume.CoverageMap != null)   InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.FlowMap != null)       InitTexture(layerRaymarchedVolume.FlowMap, ref cloudFlowMap, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
@@ -141,7 +157,6 @@ namespace Atmosphere
                 }
             }
 
-
             if (cloudType != null)
             {
                 cloudMaterial.EnableKeyword("ALPHAMAP_2");
@@ -150,6 +165,8 @@ namespace Atmosphere
                 cloudMaterial.SetTexture("CloudType", cloudType);
             }
             if (cloudColorMap != null) cloudMaterial.SetTexture("CloudColorMap", cloudColorMap);
+
+            if (cloudFlowMap != null) cloudMaterial.SetTexture("_FlowMap", cloudFlowMap);
 
             editingModes = new List<EditingMode>();
 
@@ -164,6 +181,12 @@ namespace Atmosphere
 
             if (cloudColorMap != null)
                 editingModes.Add(EditingMode.colorMap);
+
+            if (cloudFlowMap != null)
+            {
+                editingModes.Add(EditingMode.flowMapDirectional);
+                editingModes.Add(EditingMode.flowMapVortex);
+            }
         }
 
         private void InitTexture(TextureWrapper targetWrapper, ref RenderTexture targetRT, RenderTextureFormat format)
@@ -265,21 +288,50 @@ namespace Atmosphere
                         if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
                         {
                             paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
-                            Graphics.Blit(null, cloudCoverage, paintMaterial);
+                            Graphics.Blit(null, cloudCoverage, paintMaterial, 0);
                         }
                         if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
                         {
                             paintMaterial.SetVector("paintValue", new Vector3(selectedCloudTypeValue, selectedCloudTypeValue, selectedCloudTypeValue));
-                            Graphics.Blit(null, cloudType, paintMaterial);
+                            Graphics.Blit(null, cloudType, paintMaterial, 0);
                         }
                         if (editingMode == EditingMode.colorMap)
                         {
                             paintMaterial.SetColor("paintValue", colorValue);
-                            Graphics.Blit(null, cloudColorMap, paintMaterial);
+                            Graphics.Blit(null, cloudColorMap, paintMaterial, 0);
+                        }
+                        if (editingMode == EditingMode.flowMapDirectional)
+                        {
+                            Vector3 cloudSpaceIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(intersectPosition);
+                            Vector3 cloudSpaceLastIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(lastIntersectPosition);
+
+                            Vector3 cloudSpaceFlowDirection = (cloudSpaceLastIntersectPosition - cloudSpaceIntersectPosition).normalized;
+
+                            Vector3 normal = cloudSpaceIntersectPosition.normalized;
+                            Vector3 tangent = new Vector3(-normal.z, 0f, normal.x).normalized;
+                            Vector3 biTangent = Vector3.Cross(normal, tangent);
+
+                            Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
+
+                            Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f,
+                                                                    tangentOnlyFlow.y * flowValue * 0.5f + 0.5f,
+                                                                    upwardsFlowValue * 0.5f + 0.5f);
+
+                            paintMaterial.SetVector("paintValue", tangentSpaceFlow);
+                            Graphics.Blit(null, cloudFlowMap, paintMaterial, 0);
+                        }
+                        if (editingMode == EditingMode.flowMapVortex)
+                        {
+                            paintMaterial.SetFloat("flowValue", flowValue);
+                            paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
+                            paintMaterial.SetFloat("clockWiseRotation", rotationDirection == RotationDirection.ClockWise ? 1f : 0f);
+                            Graphics.Blit(null, cloudFlowMap, paintMaterial, 1);
                         }
 
                         RenderTexture.active = active;
                     }
+
+                    lastIntersectPosition = intersectPosition;
                 }
             }
         }
@@ -343,13 +395,13 @@ namespace Atmosphere
             editingMode = GUIHelper.DrawSelector<EditingMode>(editingModes, editingMode, 4, placementBase, ref placement);
             placement.y += 1;
 
-            DrawFloatField(placementBase, ref placement, "Brush size", ref brushSize, null);
-            DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 1f, "0.00");
-            DrawFloatField(placementBase, ref placement, "Brush opacity", ref opacity, 1f, "0.00");
+            DrawFloatField(placementBase, ref placement, "Brush size", ref brushSize, 0f);
+            DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 0f, 1f, "0.00");
+            DrawFloatField(placementBase, ref placement, "Brush opacity", ref opacity, 0f, 1f, "0.00");
 
             if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
             {
-                DrawFloatField(placementBase, ref placement, "Coverage value", ref coverageValue, 1f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Coverage value", ref coverageValue, 0f, 1f, "0.00");
             }
             if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
             {
@@ -364,6 +416,17 @@ namespace Atmosphere
             else if (editingMode == EditingMode.colorMap)
             {
                 DrawColorField(placementBase, ref placement, "Color ", ref colorValue);
+            }
+            else if (editingMode == EditingMode.flowMapDirectional)
+            {
+                DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Upwards flow ", ref upwardsFlowValue, -1f, 1f, "0.00");
+            }
+            else if (editingMode == EditingMode.flowMapVortex)
+            {
+                DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Upwards flow ", ref upwardsFlowValue, -1f, 1f, "0.00");
+                rotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), rotationDirection, 4, placementBase, ref placement);
             }
 
             paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");
@@ -419,6 +482,10 @@ namespace Atmosphere
             {
                 InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
             }
+            else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex)
+            {
+                InitTexture(layerRaymarchedVolume.FlowMap, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+            }
 
             SetTextureProperties();
         }
@@ -442,6 +509,10 @@ namespace Atmosphere
             {
                 SaveRTToFile(cloudColorMap, "CloudColor");
             }
+            else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex)
+            {
+                SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+            }
         }
 
         private void SaveAllTextures()
@@ -458,9 +529,13 @@ namespace Atmosphere
             {
                 SaveRTToFile(cloudColorMap, "ColorMap");
             }
+            if (cloudFlowMap != null)
+            {
+                SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+            }
         }
 
-        private void DrawFloatField(Rect placementBase, ref Rect placement, string name, ref float field, float? maxValue, string format = null)
+        private void DrawFloatField(Rect placementBase, ref Rect placement, string name, ref float field, float? minValue = null, float? maxValue = null, string format = null)
         {
             Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
             Rect fieldRect = GUIHelper.GetRect(placementBase, ref placement);
@@ -474,7 +549,11 @@ namespace Atmosphere
                 field = float.Parse(GUI.TextField(fieldRect, field.ToString()));
 
             if (maxValue.HasValue)
-                field = Mathf.Clamp(field, 0f, maxValue.Value);
+                field = Mathf.Min(maxValue.Value, field);
+
+            if (minValue.HasValue)
+                field = Mathf.Max(minValue.Value, field);
+
             placement.y += 1;
         }
 

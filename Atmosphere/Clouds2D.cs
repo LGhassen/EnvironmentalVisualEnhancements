@@ -430,7 +430,8 @@ namespace Atmosphere
             }
         }
 
-        Vector4 UniversalTimeVector()
+        // TODO: move to utils
+        public static Vector4 UniversalTimeVector()
         {
             // We need to keep within low float exponents.
             float ut = (float)(Planetarium.GetUniversalTime() % 1000000); // will cause discontinuity every 46.3 game days.

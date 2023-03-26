@@ -47,10 +47,11 @@ namespace Atmosphere
 
         public TextureWrapper FlowMap { get => _FlowMap; }
 
+        
         public override void ApplyMaterialProperties(Material material, float scale = 1.0f)
         {
             base.ApplyMaterialProperties(material, scale);
-            if (_FlowMap != null)
+            if (_FlowMap != null && material != null)
             {
                 material.EnableKeyword("FLOWMAP_ON");
                 material.DisableKeyword("FLOWMAP_OFF");
