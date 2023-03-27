@@ -308,8 +308,18 @@ namespace Atmosphere
                             Vector3 cloudSpaceFlowDirection = (cloudSpaceLastIntersectPosition - cloudSpaceIntersectPosition).normalized;
 
                             Vector3 normal = cloudSpaceIntersectPosition.normalized;
-                            Vector3 tangent = new Vector3(-normal.z, 0f, normal.x).normalized;
-                            Vector3 biTangent = Vector3.Cross(normal, tangent);
+
+                            Vector3 tangent;
+                            Vector3 biTangent;
+                            if (Math.Abs(normal.x) > 0.001f)
+                            {
+                                tangent = Vector3.Cross(new Vector3(0f, 1f, 0f), normal).normalized;
+                            }
+                            else
+                            {
+                                tangent = Vector3.Cross(new Vector3(1f, 0f, 0f), normal).normalized;
+                            }
+                            biTangent = Vector3.Cross(normal, tangent);
 
                             Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
 

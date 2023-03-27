@@ -161,8 +161,15 @@
 
 				// Calc TBN vectors at current point
 				float3 normal = normalize(rayDir);
-				float3 tangent = normalize(float3(-normal.z, 0.0, normal.x));
-				float3 biTangent = cross(normal, tangent);
+
+				float3 tangent;
+				float3 biTangent;
+				if (abs(normal.x) > 0.001) {
+					tangent = normalize(cross(float3(0, 1, 0), normal));
+				} else {
+					tangent = normalize(cross(float3(1, 0, 0), normal));
+				}
+				biTangent = cross(normal, tangent);
 
 				// flow vector in TB
 				float2 flowVector = normalize(float2(dot(gradientVector, tangent), dot(gradientVector, biTangent)));
