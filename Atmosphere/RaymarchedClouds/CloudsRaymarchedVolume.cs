@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
+using System.Linq;
 
 namespace Atmosphere
 {
@@ -135,6 +136,8 @@ namespace Atmosphere
 
         public TextureWrapper FlowMap = null;
         private float flowLoopTime = 0f;
+        private Vector3 flowRandomizedPosition1, flowRandomizedPosition2;
+        private float smallestBaseNoise; 
 
         ///////////
 
@@ -520,6 +523,8 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
 
             raymarchedCloudMaterial.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
+
+            smallestBaseNoise = cloudTypes.Select(x => x.BaseNoiseTiling).OrderBy(x => x).First();
         }
 
         private Texture2D BakeCoverageCurvesTexture()
@@ -630,10 +635,26 @@ namespace Atmosphere
                 float scaledDeltaTime = Time.deltaTime * TimeWarp.CurrentRate;
                 raymarchedCloudMaterial.SetFloat("timeDelta", scaledDeltaTime);
 
+                float lastFlowLoopTime = flowLoopTime;
+
                 flowLoopTime += scaledDeltaTime * flowSpeed;
+
+                if (lastFlowLoopTime < 0.5 && flowLoopTime > 0.5)
+                {
+                    flowRandomizedPosition2 = new Vector3(UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise));
+                }
+                else if (flowLoopTime > 1.0)
+                {
+                    flowRandomizedPosition1 = new Vector3(UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise));
+                }
+
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat("flowLoopTime", flowLoopTime);
+                raymarchedCloudMaterial.SetVector("flowRandomizedPosition1", flowRandomizedPosition1);
+                raymarchedCloudMaterial.SetVector("flowRandomizedPosition2", flowRandomizedPosition2);
+
+
             }
         }
 
