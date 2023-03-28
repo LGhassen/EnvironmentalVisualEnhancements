@@ -134,6 +134,7 @@ namespace Atmosphere
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
         public TextureWrapper FlowMap = null;
+        private float flowLoopTime = 0f;
 
         ///////////
 
@@ -622,6 +623,18 @@ namespace Atmosphere
                     updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
                 }
             }
+
+
+            if (useFlowMapTex && FlowMap != null)
+            {
+                float scaledDeltaTime = Time.deltaTime * TimeWarp.CurrentRate;
+                raymarchedCloudMaterial.SetFloat("timeDelta", scaledDeltaTime);
+
+                flowLoopTime += scaledDeltaTime * flowSpeed;
+                flowLoopTime = flowLoopTime % 1;
+
+                raymarchedCloudMaterial.SetFloat("flowLoopTime", flowLoopTime);
+            }
         }
 
         private void GetNoiseOffsets(double xOffset, double yOffset, double zOffset, double noiseTiling, out Vector4 offset, out Vector4 noTileOffset)
@@ -688,6 +701,9 @@ namespace Atmosphere
                 Matrix4x4 mainDetailRotationMatrix = detailRotationMatrix * World2Planet;
 
                 raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                                 // TODO: shader params
+
+                // raymarchedCloudMaterial.SetMatrix("invCloudRotation", rotationMatrix.inverse); // for flowmaps reprojection but it's not really working
+
                 raymarchedCloudMaterial.SetMatrix("cloudDetailRotation", mainDetailRotationMatrix);                 // TODO: shader params
 
                 cloudRotationMatrix = rotationMatrix;
@@ -813,8 +829,6 @@ namespace Atmosphere
                     return;
 
                 mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
-                mat.SetVector(ShaderProperties._UniveralTime_PROPERTY, Clouds2D.UniversalTimeVector());
-                mat.SetFloat("timeDelta", Time.deltaTime * TimeWarp.CurrentRate);
             }
 
             public void Update()
