@@ -47,8 +47,6 @@ namespace Atmosphere
 		Vector3d accumulatedSplashesTimeOffset = Vector3d.zero;
 		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
-		Vector3 tangentialMovementDirection = Vector3.zero;
-
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
 			particleFieldConfigObject = ParticleFieldManager.GetConfig(particleFieldConfig);
@@ -91,7 +89,7 @@ namespace Atmosphere
 			coverageAtPosition *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
 
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
-			var rainVelocityVector = FlightGlobals.ActiveVessel ? (particleFieldConfigObject.FallSpeed * gravityVector + tangentialMovementDirection * particleFieldConfigObject.TangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
+			var rainVelocityVector = FlightGlobals.ActiveVessel ? (particleFieldConfigObject.FallSpeed * gravityVector + cloudsRaymarchedVolume.TangentialMovementDirection * particleFieldConfigObject.TangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
 
 			//take only rotation from the world to the camera and render everything in camera space to avoid floating point issues
 			var worldToCameraMatrix = cam.worldToCameraMatrix;
@@ -144,7 +142,7 @@ namespace Atmosphere
 			return t - Math.Truncate(t / length) * length;
 		}
 
-		public void Update(Matrix4x4 oppositeFrameDeltaRotationMatrix)
+		public void Update()
 		{
 			Vector3 gravityVector = parentTransform.position.normalized;
 
@@ -153,7 +151,7 @@ namespace Atmosphere
 				gravityVector = (parentTransform.position - FlightCamera.fetch.transform.position).normalized;
 			}
 
-			Vector3 timeOffsetDelta = Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * particleFieldConfigObject.FallSpeed + tangentialMovementDirection * particleFieldConfigObject.TangentialSpeed);
+			Vector3 timeOffsetDelta = Time.deltaTime * TimeWarp.CurrentRate * (gravityVector * particleFieldConfigObject.FallSpeed + cloudsRaymarchedVolume.TangentialMovementDirection * particleFieldConfigObject.TangentialSpeed);
 
 			accumulatedTimeOffset += timeOffsetDelta;
 
@@ -167,11 +165,6 @@ namespace Atmosphere
 			particleFieldMaterial.SetVector("sphereCenter", sphereCenter);
 			if (particleFieldSplashesMaterial != null)
 				particleFieldSplashesMaterial.SetVector("sphereCenter", sphereCenter);
-
-			// calculate the instantaneous movement direction of the cloud at the floating origin
-			Vector3 lastPosition = oppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
-
-			tangentialMovementDirection = (-lastPosition).normalized;
 		}
 
 		void InitMaterials()

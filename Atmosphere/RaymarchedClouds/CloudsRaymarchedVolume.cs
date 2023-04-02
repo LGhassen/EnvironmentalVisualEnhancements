@@ -139,8 +139,6 @@ namespace Atmosphere
         private Vector3 flowRandomizedPosition1, flowRandomizedPosition2;
         private float smallestBaseNoise; 
 
-        ///////////
-
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
 
@@ -245,6 +243,10 @@ namespace Atmosphere
         private Vector3 noiseReprojectionOffset = Vector3.zero;
 
         public Vector3 NoiseReprojectionOffset { get => noiseReprojectionOffset; }
+
+        private Vector3 tangentialMovementDirection = Vector3.zero;
+
+        public Vector3 TangentialMovementDirection { get => tangentialMovementDirection; }
 
         Matrix4x4 cloudRotationMatrix = Matrix4x4.identity;
         Matrix4x4 mainDetailRotationMatrix = Matrix4x4.identity;
@@ -589,13 +591,13 @@ namespace Atmosphere
             double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
 
             Vector3 upwardsVector = (parentTransform.position).normalized; //usually this is fine but if you see some issues add the camera
-            noiseReprojectionOffset = -upwardsVector * Time.deltaTime * TimeWarp.CurrentRate * upwardsCloudSpeed;
+            noiseReprojectionOffset = - Time.deltaTime * TimeWarp.CurrentRate * (upwardsVector * upwardsCloudSpeed);
 
             upwardsVector = cloudRotationMatrix.MultiplyVector(upwardsVector);
 
-            Vector3 cloudSpaceNoiseReprojectionOffset = upwardsVector * Time.deltaTime * TimeWarp.CurrentRate * upwardsCloudSpeed;
+            Vector3 cloudSpaceNoiseOffset = Time.deltaTime * TimeWarp.CurrentRate * (upwardsVector * upwardsCloudSpeed);
 
-            timeXoffset += cloudSpaceNoiseReprojectionOffset.x; timeYoffset += cloudSpaceNoiseReprojectionOffset.y; timeZoffset += cloudSpaceNoiseReprojectionOffset.z;
+            timeXoffset += cloudSpaceNoiseOffset.x; timeYoffset += cloudSpaceNoiseOffset.y; timeZoffset += cloudSpaceNoiseOffset.z;
 
             xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
 
@@ -731,11 +733,13 @@ namespace Atmosphere
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
                 oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
 
-                if (particleField != null)
-                    particleField.Update(oppositeFrameDeltaRotationMatrix);
+                // calculate the instantaneous movement direction of the cloud at the floating origin
+                Vector3 lastPosition = oppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
+                tangentialMovementDirection = (-lastPosition).normalized;
 
-                if (lightning != null)
-                    lightning.Update();
+                if (particleField != null) particleField.Update();
+
+                if (lightning != null) lightning.Update();
 
                 if (ambientSound != null && FlightCamera.fetch != null)
                 {
