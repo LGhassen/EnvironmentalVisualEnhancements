@@ -641,20 +641,23 @@ namespace Atmosphere
 
                 flowLoopTime += scaledDeltaTime * flowSpeed;
 
+                // only works for large-scale features
+                /*
                 if (lastFlowLoopTime < 0.5 && flowLoopTime > 0.5)
                 {
-                    flowRandomizedPosition2 = new Vector3(UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise));
+                    flowRandomizedPosition2 = new Vector3(UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength));
                 }
                 else if (flowLoopTime > 1.0)
                 {
-                    flowRandomizedPosition1 = new Vector3(UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise), UnityEngine.Random.Range(-smallestBaseNoise, smallestBaseNoise));
+                    flowRandomizedPosition1 = new Vector3(UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength));
                 }
+                */
 
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat("flowLoopTime", flowLoopTime);
-                raymarchedCloudMaterial.SetVector("flowRandomizedPosition1", flowRandomizedPosition1);
-                raymarchedCloudMaterial.SetVector("flowRandomizedPosition2", flowRandomizedPosition2);
+                raymarchedCloudMaterial.SetVector("flowRandomizedPosition1", Vector3.zero);
+                raymarchedCloudMaterial.SetVector("flowRandomizedPosition2", Vector3.zero);
 
 
             }
