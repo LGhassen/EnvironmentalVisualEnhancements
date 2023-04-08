@@ -746,7 +746,7 @@ namespace Atmosphere
 
                 if (ambientSound != null && FlightCamera.fetch != null)
                 {
-                    float coverageAtPosition = SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
+                    float coverageAtPosition = SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType, false);
                     coverageAtPosition *= GetInterpolatedCloudTypeAmbientVolume(cloudType);
                     ambientSound.Update(coverageAtPosition);
                 }
@@ -770,13 +770,15 @@ namespace Atmosphere
 
         }
 
-        public float SampleCoverage(Vector3 worldPosition, out float cloudType)
+        public float SampleCoverage(Vector3 worldPosition, out float cloudType, bool planetRadiusCheck = true)
         {
             cloudType = 0f;
             
             Vector3 sphereVector = cloudRotationMatrix.MultiplyPoint(worldPosition).normalized;
 
             float altitude = (worldPosition - parentTransform.position).magnitude;
+            if (planetRadiusCheck && altitude < PlanetRadius) return 0f;
+
             float heightFraction = (altitude - innerSphereRadius) / (outerSphereRadius - innerSphereRadius);
 
             if (heightFraction > 1 || heightFraction < 0)

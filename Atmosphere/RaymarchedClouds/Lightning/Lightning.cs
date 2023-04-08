@@ -88,6 +88,7 @@ namespace Atmosphere
 		float lastSpawnTime = 0f;
 
 		Transform parentTransform;
+		float parentRadius = 0f;
 
 		float spawnDistanceFromParent = 0f;
 
@@ -121,6 +122,7 @@ namespace Atmosphere
 				return false;
 
 			parentTransform = parent;
+			parentRadius = (float)celestialBody.Radius;
 			spawnDistanceFromParent = lightningConfigObject.SpawnAltitude +(float) celestialBody.Radius;
 
 			cloudsRaymarchedVolume = volume;
@@ -175,13 +177,15 @@ namespace Atmosphere
 
         void Spawn()
 		{
-			if (currentCount < maxConcurrent)
+			float cameraAltitude = (FlightCamera.fetch.transform.position - parentTransform.position).magnitude - parentRadius;
+
+			if (currentCount < maxConcurrent && cameraAltitude >= 0f)
 			{
 				// TODO: randomize spawn altitude?
 				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
 
 				spawnPosition = (spawnPosition - parentTransform.position).normalized * spawnDistanceFromParent + parentTransform.position;
-				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition, out float cloudType)  > 0.1f) // TODO: parametrize?
+				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition, out float cloudType, false)  > 0.1f)
                 {
 					float cloudTypeSpawnChance = cloudsRaymarchedVolume.GetInterpolatedCloudTypeLightningFrequency(cloudType);
 
