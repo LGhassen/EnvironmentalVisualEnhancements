@@ -85,6 +85,7 @@ namespace Atmosphere
 
 		List<float> spawnTimesList = new List<float>();     // TODO: change this to add probability
 		int lastSpawnedIndex = -1;
+		float lastSpawnTime = 0f;
 
 		Transform parentTransform;
 
@@ -147,23 +148,32 @@ namespace Atmosphere
 			if (nextIndex < lastSpawnedIndex && time > spawnTimesList[lastSpawnedIndex]) return;
 
 			if (TimeWarp.CurrentRate < 5f)
-			{ 
-				// TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
-				while (nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex])
-				{
-					if (initialized)
-						Spawn();
+            {
+                // TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
+                while (ShouldSpawn(time, nextIndex))
+                {
+                    if (initialized)
+                        Spawn();
 
-					// move to next
-					lastSpawnedIndex = nextIndex;
-					nextIndex++;
+                    // move to next
+                    lastSpawnedIndex = nextIndex;
+                    nextIndex++;
 				}
-			}
 
-			initialized = true;
+				lastSpawnTime = time;
+            }
+
+            initialized = true;
 		}
 
-		void Spawn()
+        private bool ShouldSpawn(float time, int nextIndex)
+        {
+			if (time < lastSpawnTime) time += 100f;
+
+			return nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex];
+        }
+
+        void Spawn()
 		{
 			if (currentCount < maxConcurrent)
 			{
