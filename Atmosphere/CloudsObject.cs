@@ -70,19 +70,28 @@ namespace Atmosphere
         Density,
     }
 
-    public class TimeSettings   // all in hours
+    public enum TimeUnit
+    {
+        Seconds,
+        Hours
+    }
+
+    public class TimeSettings
     {
         [ConfigItem]
-        float duration = 1.5f;
+        TimeUnit unit = TimeUnit.Seconds;
+
+        [ConfigItem]
+        float duration = 5400f;
 
         [ConfigItem]
         float offset = 0f;
 
         [ConfigItem]
-        float repeatInterval = 18.6f; // 3.1 Kerbin days
+        float repeatInterval = 66960f;
 
         [ConfigItem]
-        float fadeTime = 0.08f;
+        float fadeTime = 300f;
 
         [ConfigItem]
         TimeFadeMode fadeMode = TimeFadeMode.Density;
@@ -100,7 +109,7 @@ namespace Atmosphere
                 ut = Planetarium.GetUniversalTime();
             }
 
-            ut /= 3600.0;
+            if (unit == TimeUnit.Hours) ut /= 3600.0;
 
             ut += repeatInterval - offset;
 
