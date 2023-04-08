@@ -226,7 +226,7 @@ namespace Atmosphere
 						activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
 
-						if (audioClips.Count > 0)
+						if (audioClips.Count > 0 && ((spawnPosition - FlightCamera.fetch.transform.position).magnitude < lightningConfigObject.SoundMaxDistance))
 						{
 							GameObject boltSoundGameObject = new GameObject();
 							boltSoundGameObject.transform.position = boltGameObject.transform.position;
