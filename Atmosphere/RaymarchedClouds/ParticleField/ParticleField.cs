@@ -130,11 +130,15 @@ namespace Atmosphere
 			}
 
 			if (coverageAtPosition > 0f)
-            {
+			{
 				ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldMaterial);
 				if (particleFieldSplashesMaterial != null)
 					ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldSplashesMaterial);
+
+				SetEnabled(true);
 			}
+			else
+				SetEnabled(false);
 		}
 
 		double repeatDouble(double t, double length)
