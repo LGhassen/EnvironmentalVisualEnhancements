@@ -36,7 +36,6 @@ namespace Atmosphere
 		ParticleFieldConfig particleFieldConfigObject = null;
 
 		public Material particleFieldMaterial, particleFieldSplashesMaterial;
-		Vector3 fieldSizeVector = Vector3.one;
 
 		GameObject fieldHolder;
 		Mesh mesh;
@@ -57,7 +56,6 @@ namespace Atmosphere
 			cloudsRaymarchedVolume = volume;
 			parentCelestialBody = celestialBody;
 			parentTransform = parent;
-            fieldSizeVector = new Vector3(particleFieldConfigObject.FieldSize, particleFieldConfigObject.FieldSize, particleFieldConfigObject.FieldSize);
 
             InitMaterials();
             InitGameObject(parent);
@@ -112,6 +110,7 @@ namespace Atmosphere
 			particleFieldMaterial.SetFloat("fade", fade);
 			particleFieldMaterial.SetFloat("coverage", coverageAtPosition);
 			particleFieldMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
+			particleFieldMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
 
 			if (particleFieldSplashesMaterial != null)
             {
@@ -127,6 +126,7 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
 				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
 				particleFieldSplashesMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
+				particleFieldSplashesMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
 			}
 
 			if (coverageAtPosition > 0f)
@@ -178,8 +178,8 @@ namespace Atmosphere
 			particleFieldMaterial.SetShaderPassEnabled("ForwardAdd", true);
 			particleFieldMaterial.renderQueue = 3200;
 
-			particleFieldMaterial.SetVector("fieldSize", fieldSizeVector);
-            particleFieldMaterial.SetVector("invFieldSize", new Vector3(1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize));
+			particleFieldMaterial.SetFloat("fieldSize", particleFieldConfigObject.FieldSize);
+            particleFieldMaterial.SetFloat("invFieldSize", 1f / particleFieldConfigObject.FieldSize);
 
 			particleFieldMaterial.SetVector("particleSheetCount", particleFieldConfigObject.ParticleSheetCount);
 			particleFieldMaterial.SetFloat("particleSize", particleFieldConfigObject.ParticleSize);
@@ -220,8 +220,8 @@ namespace Atmosphere
 				particleFieldSplashesMaterial.SetShaderPassEnabled("ForwardAdd", true);
 				particleFieldSplashesMaterial.renderQueue = 3200;
 
-				particleFieldSplashesMaterial.SetVector("fieldSize", fieldSizeVector);
-				particleFieldSplashesMaterial.SetVector("invFieldSize", new Vector3(1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize, 1f / particleFieldConfigObject.FieldSize));
+				particleFieldSplashesMaterial.SetFloat("fieldSize", particleFieldConfigObject.FieldSize);
+				particleFieldSplashesMaterial.SetFloat("invFieldSize", 1f / particleFieldConfigObject.FieldSize);
 
 				particleFieldSplashesMaterial.SetVector("splashesSheetCount", particleFieldConfigObject.Splashes.SplashesSheetCount);
 				particleFieldSplashesMaterial.SetVector("splashesSize", particleFieldConfigObject.Splashes.SplashesSize);
