@@ -86,7 +86,7 @@ namespace Atmosphere
         // these are indexed by [isRightEye][flip]
         private FlipFlop<FlipFlop<RenderTexture>> historyRT, secondaryHistoryRT, historyMotionVectorsRT;
         // these are indexed by [flip]
-        private FlipFlop<RenderTexture> newRaysRT, newRaysSecondaryRT, newMotionVectorsRT;
+        private FlipFlop<RenderTexture> newRaysRT, newRaysSecondaryRT, newMotionVectorsRT, lightningOcclusionRT;
 
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
@@ -105,6 +105,8 @@ namespace Atmosphere
         int[] samplingSequence16 = new int[] { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 
         int width, height;
+
+        private static readonly int lightningOcclusionResolution = 32;
 
         private static Shader reconstructCloudShader = null;
         private static Shader ReconstructionShader
@@ -166,6 +168,7 @@ namespace Atmosphere
             newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
             newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
             newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
+            lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
 
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
@@ -362,7 +365,14 @@ namespace Atmosphere
                     commandBuffer.SetGlobalTexture("PreviousLayerMotionVectors", newMotionVectorsRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture("PreviousLayerRaysSecondary", newRaysSecondaryRT[!useFlipRaysBuffer]);
 
-                    commandBuffer.DrawRenderer(mr, cloudMaterial, 0, -1); //maybe just replace with a drawMesh?
+                    commandBuffer.DrawRenderer(mr, cloudMaterial, 0, 0); // pass 0 render clouds
+                    
+                    if (Lightning.CurrentCount > 0)
+                    {
+                        commandBuffer.SetGlobalTexture("PreviousLayerLightningOcclusion", lightningOcclusionRT[!useFlipRaysBuffer]);
+                        commandBuffer.SetRenderTarget(useFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
+                        commandBuffer.DrawRenderer(mr, cloudMaterial, 0, 1); // pass 1 render lightning occlusion
+                    }
 
                     isFirstLayerRendered = false;
                     useFlipRaysBuffer = !useFlipRaysBuffer;
@@ -408,6 +418,8 @@ namespace Atmosphere
 
                 commandBuffer.SetGlobalTexture("colorBuffer", historyRT[isRightEye][useFlipScreenBuffer]);
                 commandBuffer.SetGlobalTexture("secondaryColorBuffer", secondaryHistoryRT[isRightEye][useFlipScreenBuffer]);
+
+                commandBuffer.SetGlobalTexture("lightningOcclusion", lightningOcclusionRT[!useFlipRaysBuffer]);
 
                 commandBuffer.SetGlobalVector("reconstructedTextureResolution", new Vector2(width, height));
                 DeferredRaymarchedRendererToScreen.material.renderQueue = 2998;

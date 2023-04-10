@@ -32,6 +32,9 @@
 			float4 color;
 
 			sampler2D combinedOpenGLDistanceBuffer;
+			sampler2D lightningOcclusion;
+			float lightningIndex;
+			float maxConcurrentLightning;
 
 			struct appdata
 			{
@@ -42,10 +45,11 @@
 			struct v2f
 			{
 				float4 pos : SV_POSITION;
-				float2 uv : TEXCOORD0;
+				float2 lightningSheetUV : TEXCOORD0;
+				float2 occlusionUV : TEXCOORD1;
 			#ifndef SHADER_API_D3D11
-				float4 worldPos : TEXCOORD1;
-				float4 screenPos : TEXCOORD2;
+				float4 worldPos : TEXCOORD2;
+				float4 screenPos : TEXCOORD3;
 			#endif
 			};
 
@@ -53,33 +57,29 @@
 			{
 				v2f o;
 				o.pos = UnityObjectToClipPos(v.vertex);
-				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
-				int2 intIndexes = randomIndexes* (lightningSheetCount-float2(0.00001,0.00001));
+				int2 intIndexes = randomIndexes * (lightningSheetCount-float2(0.00001,0.00001));
+				o.lightningSheetUV = (TRANSFORM_TEX(v.uv, _MainTex) + intIndexes) / lightningSheetCount;
 
-				//transform the UVs to reflect the sheet
-				o.uv /= lightningSheetCount;
+				o.occlusionUV = v.vertex.xy * 0.5 + 0.5.xx;
+				o.occlusionUV.x = (o.occlusionUV.x + lightningIndex) / maxConcurrentLightning;
 
-				//offset by our indexes
-				o.uv += intIndexes / lightningSheetCount;
+			#if SHADER_API_D3D11 || SHADER_API_D3D || SHADER_API_D3D12
+				if (_ProjectionParams.x > 0) {o.occlusionUV.y = 1.0 - o.occlusionUV.y;}
+			#endif
 
 			#ifndef SHADER_API_D3D11
 				o.worldPos = mul(unity_ObjectToWorld,v.vertex);
 				o.screenPos = ComputeScreenPos(o.pos);
-
-				if ( _ProjectionParams.y < 200.0 && _ProjectionParams.z < 2000.0)
-				{
-					o.pos.z = (1.0 - 0.00000000000001);
-				}
+				if ( _ProjectionParams.y < 200.0 && _ProjectionParams.z < 2000.0) o.pos.z = (1.0 - 0.00000000000001);
 			#endif
-
+				
 				return o;
 			}
 
-			fixed4 frag (v2f i) : SV_Target
+			float4 frag (v2f i) : SV_Target
 			{
-				// sample the texture
-				fixed4 col = tex2D(_MainTex, i.uv) * color;
+				float4 col = tex2D(_MainTex, i.lightningSheetUV) * color;
 
 			#ifndef SHADER_API_D3D11
 				if ( _ProjectionParams.y < 200.0 && _ProjectionParams.z < 2000.0) // only on the near camera
@@ -93,9 +93,12 @@
 						discard;
 				}
 			#endif
-						
-				// time fade alpha
-				col.a*=alpha;
+
+				float occlusion = tex2Dlod(lightningOcclusion, float4(i.occlusionUV,0,0)).r;
+				occlusion = 1.0-exp(-15.0 * occlusion); // make it so that bolts can mostly cut through most fog and thin areas, but still get fully occluded by fully opaque clouds
+				
+				//time fade alpha and apply occlusion
+				col.a*=alpha * occlusion;
 
 				return col;
 			}

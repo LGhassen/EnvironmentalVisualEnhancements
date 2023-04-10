@@ -10,10 +10,14 @@ namespace Atmosphere
 		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
 		static Vector4[] activeLightningShaderLights = new Vector4[4];
 		static Vector4[] activeLightningShaderLightColors = new Vector4[4];
+		static Matrix4x4[] activeLightningShaderTransforms = new Matrix4x4[4];
 
-		static int maxConcurrent = 4; // more than this and it tanks the performance, especially using Parallax and rain/splashes
+		static readonly int maxConcurrent = 4; // more than this and it tanks the performance because of the lights, especially using Parallax and rain/splashes
 		static int currentCount = 0;
 		static int lastUpdateFrame = 0;
+
+		public static int MaxConcurrent => maxConcurrent;
+		public static int CurrentCount { get => currentCount; }
 
 		public static void UpdateExisting()
 		{
@@ -40,6 +44,10 @@ namespace Atmosphere
 							0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime); // apply 0.25 the point light intensity to the volumetric cloud
 
 						activeLightningShaderLightColors[currentIndex] = new Vector4(lightningNode.Value.color.r, lightningNode.Value.color.g, lightningNode.Value.color.b, lightningNode.Value.color.a);
+						activeLightningShaderTransforms[currentIndex] = lightningNode.Value.boltGameObject.transform.localToWorldMatrix;
+
+						lightningNode.Value.lightningBoltMaterial.SetFloat("maxConcurrentLightning", (float)maxConcurrent);
+						lightningNode.Value.lightningBoltMaterial.SetFloat("lightningIndex", (float)currentIndex);
 
 						currentIndex++;
 					}
@@ -58,8 +66,10 @@ namespace Atmosphere
 				mat.EnableKeyword("LIGHTNING_ON");
 				mat.DisableKeyword("LIGHTNING_OFF");
 				mat.SetInt("lightningCount", currentCount);
-				mat.SetVectorArray("lightningArray", new List<Vector4>(activeLightningShaderLights));
-				mat.SetVectorArray("lightningColorsArray", new List<Vector4>(activeLightningShaderLightColors));
+				mat.SetInt("maxConcurrentLightning", maxConcurrent);
+				mat.SetVectorArray("lightningArray", activeLightningShaderLights);
+				mat.SetVectorArray("lightningColorsArray", activeLightningShaderLightColors);
+				mat.SetMatrixArray("lightningTransformsArray", activeLightningShaderTransforms);
 			}
 			else
             {
@@ -78,7 +88,7 @@ namespace Atmosphere
 			}
 		}
 
-		[ConfigItem]
+        [ConfigItem]
 		string lightningConfig = "";
 
 		LightningConfig lightningConfigObject = null;
