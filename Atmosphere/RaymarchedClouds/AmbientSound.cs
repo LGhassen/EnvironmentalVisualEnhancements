@@ -36,6 +36,8 @@ namespace Atmosphere
             audioSource.Play();
             audioSource.Pause();
 
+            GameEvents.onGameSceneLoadRequested.Add(GameSceneLoadStarted);
+
             return true;
         }
 
@@ -46,6 +48,8 @@ namespace Atmosphere
 
             if (ambientSoundGameObject != null)
                 GameObject.Destroy(ambientSoundGameObject);
+
+            GameEvents.onGameSceneLoadRequested.Remove(GameSceneLoadStarted);
         }
 
         public void Update(float coverage)
@@ -69,6 +73,11 @@ namespace Atmosphere
                 if (!value)
                     audioSource.Pause();
             }
+        }
+
+        private void GameSceneLoadStarted(GameScenes scene)
+        {
+            Update(0f);
         }
     }
 }
