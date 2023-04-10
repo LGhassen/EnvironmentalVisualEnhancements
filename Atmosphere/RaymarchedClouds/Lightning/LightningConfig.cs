@@ -54,10 +54,16 @@ namespace Atmosphere
         float soundMaxDistance = 15000f;
 
         [ConfigItem]
+        float soundFarThreshold = 5000f;
+
+        [ConfigItem]
         float realisticAudioDelayMultiplier = 0f;
 
         [ConfigItem, Optional]
-        List<LightningSoundConfig> sounds = new List<LightningSoundConfig>();
+        List<LightningSoundConfig> nearSounds = new List<LightningSoundConfig>();
+
+        [ConfigItem, Optional]
+        List<LightningSoundConfig> farSounds = new List<LightningSoundConfig>();
 
         public string Name { get => name; }
         public float SpawnChancePerSecond { get => spawnChancePerSecond; }
@@ -83,9 +89,13 @@ namespace Atmosphere
 
         public float SoundMaxDistance { get => soundMaxDistance; }
 
+        public float SoundFarThreshold { get => soundFarThreshold; }
+
         public float RealisticAudioDelayMultiplier { get => realisticAudioDelayMultiplier; }
 
-        public List<LightningSoundConfig> SoundNames { get => sounds; }
+        public List<LightningSoundConfig> NearSoundNames { get => nearSounds; }
+
+        public List<LightningSoundConfig> FarSoundNames { get => farSounds; }
 
         public void LoadConfigNode(ConfigNode node)
         {

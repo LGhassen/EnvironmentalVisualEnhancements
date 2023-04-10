@@ -108,7 +108,8 @@ namespace Atmosphere
 
 		bool initialized = false;
 
-		List<AudioClip> audioClips = new List<AudioClip>();
+		List<AudioClip> nearAudioClips = new List<AudioClip>();
+		List<AudioClip> farAudioClips = new List<AudioClip>();
 
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
 		{
@@ -141,10 +142,16 @@ namespace Atmosphere
 			lightningConfigObject.BoltTexture.ApplyTexture(lightningBoltMaterial, "_MainTex");
 			lightningBoltMaterial.renderQueue = 2999;
 
-			foreach(var sound in lightningConfigObject.SoundNames)
+			foreach(var sound in lightningConfigObject.NearSoundNames)
             {
 				if (GameDatabase.Instance.ExistsAudioClip(sound.SoundName))
-					audioClips.Add(GameDatabase.Instance.GetAudioClip(sound.SoundName));
+					nearAudioClips.Add(GameDatabase.Instance.GetAudioClip(sound.SoundName));
+			}
+
+			foreach (var sound in lightningConfigObject.FarSoundNames)
+			{
+				if (GameDatabase.Instance.ExistsAudioClip(sound.SoundName))
+					farAudioClips.Add(GameDatabase.Instance.GetAudioClip(sound.SoundName));
 			}
 
 			return true;
@@ -250,14 +257,16 @@ namespace Atmosphere
 						activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
 
-						if (audioClips.Count > 0 && ((spawnPosition - FlightCamera.fetch.transform.position).magnitude < lightningConfigObject.SoundMaxDistance))
+						var soundDistance = (spawnPosition - FlightCamera.fetch.transform.position).magnitude;
+
+						if (nearAudioClips.Count > 0 && soundDistance < lightningConfigObject.SoundMaxDistance)
 						{
 							GameObject boltSoundGameObject = new GameObject();
 							boltSoundGameObject.transform.position = boltGameObject.transform.position;
 							boltSoundGameObject.transform.parent = parentTransform;
 
 							var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
-							audioSource.clip = audioClips[Random.Range(0, audioClips.Count)];
+							audioSource.clip = soundDistance > lightningConfigObject.SoundFarThreshold ? farAudioClips[Random.Range(0, farAudioClips.Count)] : nearAudioClips[Random.Range(0, nearAudioClips.Count)];
 							audioSource.rolloffMode = AudioRolloffMode.Linear;
 							audioSource.spatialBlend = 1f;
 							audioSource.minDistance = lightningConfigObject.SoundMinDistance;
