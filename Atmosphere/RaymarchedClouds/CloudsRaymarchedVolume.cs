@@ -32,12 +32,15 @@ namespace Atmosphere
         }
 
         private int baseNoiseDimension = 128;
-        private RenderTexture baseNoiseRT, curlNoiseRT;
+        private RenderTexture baseNoiseRT, detailNoiseRT, curlNoiseRT;
 
         private float deTilifyBaseNoise = 1f;
 
         [ConfigItem]
         NoiseWrapper noise;
+
+        [ConfigItem]
+        NoiseWrapper detailNoise;
 
         [ConfigItem, Optional]
         CurlNoiseSettings curlNoise;
@@ -61,9 +64,6 @@ namespace Atmosphere
         TextureWrapper cloudColorMap;
 
         public TextureWrapper CloudColorMap { get => cloudColorMap; }
-
-        //[ConfigItem, Optional, Index(5), ValueFilter("isClamped|format|type")]
-        //TextureWrapper noiseDistortTexture;
 
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
@@ -374,6 +374,17 @@ namespace Atmosphere
                 CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
                 raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoiseRT);
                 raymarchedCloudMaterial.EnableKeyword("NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("NOISE_OFF");
+
+                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None)
+                {
+                    detailNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
+                    CloudNoiseGen.RenderNoiseToTexture(detailNoiseRT, detailNoise);
+                    raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", detailNoiseRT);
+                }
+                else
+                {
+                    raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", baseNoiseRT);
+                }
             }
             else
             {
@@ -414,17 +425,6 @@ namespace Atmosphere
             { 
                 raymarchedCloudMaterial.EnableKeyword("COLORMAP_OFF"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_ON");
             }
-
-            /*
-            if (noiseDistortTexture != null)
-            {
-                ApplyCloudTexture(noiseDistortTexture, "CurlNoise", raymarchedCloudMaterial, 5);
-            }
-            else
-            {
-                raymarchedCloudMaterial.SetTexture("CurlNoise", Texture2D.blackTexture);
-            }
-            */
         }
 
         public void SetShadowCasterLayerRaymarchedVolume(CloudsRaymarchedVolume cloudsRaymarchedVolume)
