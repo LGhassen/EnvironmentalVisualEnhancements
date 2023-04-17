@@ -155,6 +155,7 @@
     <Compile Include="Clouds2D.cs" />
     <Compile Include="Painting\CloudsPainter.cs" />
     <Compile Include="RaymarchedClouds\AmbientSound.cs" />
+    <Compile Include="RaymarchedClouds\CurlNoise.cs" />
     <Compile Include="RaymarchedClouds\DepthToDistanceCommandBuffer.cs" />
     <Compile Include="RaymarchedClouds\Lightning\Lightning.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningManager.cs" />

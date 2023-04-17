@@ -43,7 +43,7 @@ namespace Atmosphere
         NoiseWrapper detailNoise;
 
         [ConfigItem, Optional]
-        CurlNoiseSettings curlNoise;
+        CurlNoise curlNoise;
 
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
@@ -106,17 +106,8 @@ namespace Atmosphere
 
         float volumetricLayerScaledFade = 1.0f;
 
-        //[ConfigItem]
-        //float curlNoiseTiling = 1f;
-
         [ConfigItem]
         float detailNoiseTiling = 1f;
-
-        [ConfigItem]
-        float curlNoiseTiling = 1f;
-
-        [ConfigItem]
-        float curlNoiseStrength = 1f;
 
         [ConfigItem]
         bool useFlowMapTex = false;
@@ -394,7 +385,7 @@ namespace Atmosphere
             if (curlNoise != null)
             {
                 curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
-                CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise);
+                CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise.ToNoiseSettings());
                 raymarchedCloudMaterial.SetTexture("CurlNoiseTexture", curlNoiseRT);
                 raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_OFF");
                 raymarchedCloudMaterial.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
@@ -453,8 +444,11 @@ namespace Atmosphere
             mat.SetFloat("absorptionMultiplier", 1.0f);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
-            mat.SetFloat("curlNoiseTiling", 1f / curlNoiseTiling);
-            mat.SetFloat("curlNoiseStrength", curlNoiseStrength);
+            if (curlNoise != null)
+            { 
+                mat.SetFloat("curlNoiseTiling", 1f / curlNoise.Tiling);
+                mat.SetFloat("curlNoiseStrength", curlNoise.Strength);
+            }
 
             mat.SetFloat("baseStepSize", raymarchingSettings.BaseStepSize);
             mat.SetFloat("maxStepSize", raymarchingSettings.MaxStepSize);
@@ -616,7 +610,7 @@ namespace Atmosphere
 
             if (curlNoise != null)
             {
-                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoiseTiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
+                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
                 raymarchedCloudMaterial.SetVector("curlNoiseOffset", curlNoiseOffset);
             }
 

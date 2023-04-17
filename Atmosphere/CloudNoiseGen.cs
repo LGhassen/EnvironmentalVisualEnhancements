@@ -34,30 +34,23 @@ namespace Atmosphere
         public float Contrast { get => contrast; }
         public float Lift { get => lift; }
 
+        public NoiseSettings()
+        {
+
+        }
+
+        public NoiseSettings(float octaves, float periods, float brightness, float contrast, float lift)
+        {
+            this.octaves = octaves;
+            this.periods = periods;
+            this.brightness = brightness;
+            this.contrast = contrast;
+            this.lift = lift;
+        }
+
         public Vector4 GetParams()
         {
             return new Vector4(octaves, periods, brightness, contrast);
-        }
-    }
-
-    [System.Serializable]
-    public class CurlNoiseSettings
-    {
-        [ConfigItem]
-        float octaves = 0f;
-        [ConfigItem]
-        float periods = 0f;
-        [ConfigItem]
-        bool smooth = false;
-
-        public float Octaves { get => octaves; }
-        public float Periods { get => periods; }
-
-        public bool Smooth { get => smooth; }
-
-        public Vector4 GetParams()
-        {
-            return new Vector4(octaves, periods, 1f, 1f);
         }
     }
 
@@ -141,7 +134,7 @@ namespace Atmosphere
             RenderTexture.active = active;
         }
 
-        public static void RenderCurlNoiseToTexture(RenderTexture RT, CurlNoiseSettings settings)
+        public static void RenderCurlNoiseToTexture(RenderTexture RT, NoiseSettings settings)
         {
             NoiseMaterial.SetVector("_PerlinParams", settings.GetParams());
             NoiseMaterial.SetFloat("_PerlinLift", 0f);
