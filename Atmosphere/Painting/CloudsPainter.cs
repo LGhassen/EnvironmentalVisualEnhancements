@@ -129,7 +129,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume.CoverageMap != null)   InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
-                if (layerRaymarchedVolume.FlowMap != null)       InitTexture(layerRaymarchedVolume.FlowMap, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null)       InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
@@ -494,7 +494,7 @@ namespace Atmosphere
             }
             else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex)
             {
-                InitTexture(layerRaymarchedVolume.FlowMap, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
             }
 
             SetTextureProperties();

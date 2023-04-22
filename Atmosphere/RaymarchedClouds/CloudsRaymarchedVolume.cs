@@ -63,6 +63,11 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(4), ValueFilter("isClamped|format|type")]
         TextureWrapper cloudColorMap;
 
+        [ConfigItem, Optional]
+        FlowMap flowMap;
+
+        public FlowMap FlowMap { get => flowMap; }
+
         public TextureWrapper CloudColorMap { get => cloudColorMap; }
 
         [ConfigItem]
@@ -110,25 +115,13 @@ namespace Atmosphere
         float detailNoiseTiling = 1f;
 
         [ConfigItem]
-        bool useFlowMapTex = false;
-
-        [ConfigItem]
-        float flowSpeed = 200f;
-
-        [ConfigItem]
-        float flowStrength = 100f;
-
-        [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
         public List<CloudType> CloudTypes { get { return cloudTypes; } }
 
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
-        public TextureWrapper FlowMap = null;
-        private float flowLoopTime = 0f;
-        private Vector3 flowRandomizedPosition1, flowRandomizedPosition2;
-        private float smallestBaseNoise; 
+        private float flowLoopTime = 0f; 
 
         protected Material raymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
@@ -276,18 +269,16 @@ namespace Atmosphere
                 raymarchedCloudMaterial.EnableKeyword("DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_ON");
             }
 
-            if (useFlowMapTex && material.FlowMap != null)
+            if (flowMap != null && flowMap.Texture != null)
             {
                 raymarchedCloudMaterial.EnableKeyword("FLOWMAP_ON");
                 raymarchedCloudMaterial.DisableKeyword("FLOWMAP_OFF");
-                material.FlowMap.ApplyTexture(raymarchedCloudMaterial, "_FlowMap");
-                raymarchedCloudMaterial.SetFloat("_flowStrength", flowStrength);
-                raymarchedCloudMaterial.SetFloat("_flowSpeed", flowSpeed);
-                FlowMap = material.FlowMap;
+                flowMap.Texture.ApplyTexture(raymarchedCloudMaterial, "_FlowMap", 999);
+                raymarchedCloudMaterial.SetFloat("_flowStrength", flowMap.Displacement);
+                raymarchedCloudMaterial.SetFloat("_flowSpeed", flowMap.Speed);
             }
             else
             {
-                FlowMap = null;
                 raymarchedCloudMaterial.EnableKeyword("FLOWMAP_OFF");
                 raymarchedCloudMaterial.DisableKeyword("FLOWMAP_ON");
             }
@@ -519,8 +510,6 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
 
             raymarchedCloudMaterial.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
-
-            smallestBaseNoise = cloudTypes.Select(x => x.BaseNoiseTiling).OrderBy(x => x).First();
         }
 
         private Texture2D BakeCoverageCurvesTexture()
@@ -626,34 +615,15 @@ namespace Atmosphere
             }
 
 
-            if (useFlowMapTex && FlowMap != null)
+            if (flowMap != null && flowMap.Texture != null)
             {
                 float scaledDeltaTime = Time.deltaTime * TimeWarp.CurrentRate;
                 raymarchedCloudMaterial.SetFloat("timeDelta", scaledDeltaTime);
 
-                float lastFlowLoopTime = flowLoopTime;
-
-                flowLoopTime += scaledDeltaTime * flowSpeed;
-
-                // only works for large-scale features
-                /*
-                if (lastFlowLoopTime < 0.5 && flowLoopTime > 0.5)
-                {
-                    flowRandomizedPosition2 = new Vector3(UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength));
-                }
-                else if (flowLoopTime > 1.0)
-                {
-                    flowRandomizedPosition1 = new Vector3(UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength), UnityEngine.Random.Range(-flowStrength, flowStrength));
-                }
-                */
-
+                flowLoopTime += scaledDeltaTime * FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat("flowLoopTime", flowLoopTime);
-                raymarchedCloudMaterial.SetVector("flowRandomizedPosition1", Vector3.zero);
-                raymarchedCloudMaterial.SetVector("flowRandomizedPosition2", Vector3.zero);
-
-
             }
         }
 

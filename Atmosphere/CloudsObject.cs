@@ -17,12 +17,8 @@ namespace Atmosphere
         TextureWrapper _BumpMap;
         [ConfigItem]
         float _BumpScale = 0.1f;
-        [ConfigItem, Index(999)]
-        TextureWrapper _FlowMap;
         [ConfigItem]
-        float _flowSpeed = 100f;
-        [ConfigItem]
-        float _flowStrength = 10f;
+        FlowMap _FlowMap;
         [ConfigItem]
         TextureWrapper _DetailTex;
         [ConfigItem]
@@ -45,16 +41,19 @@ namespace Atmosphere
         public float DetailScale { get => _DetailScale; }
         public TextureWrapper DetailTex { get => _DetailTex; }
 
-        public TextureWrapper FlowMap { get => _FlowMap; }
+        public FlowMap FlowMap { get => _FlowMap; }
 
         
         public override void ApplyMaterialProperties(Material material, float scale = 1.0f)
         {
             base.ApplyMaterialProperties(material, scale);
-            if (_FlowMap != null && material != null)
+            if (_FlowMap != null && _FlowMap.Texture != null && material != null)
             {
                 material.EnableKeyword("FLOWMAP_ON");
                 material.DisableKeyword("FLOWMAP_OFF");
+                material.SetFloat("_flowStrength", _FlowMap.Displacement / 360f * Mathf.PI * 2f);
+                material.SetFloat("_flowSpeed", _FlowMap.Speed);
+                _FlowMap.Texture.ApplyTexture(material, "_FlowMap", 999); // TODO: make flowmaps support the cubemap format thing? Maybe just use the same format as coverage as always? Otherwise also make cloudType maps support separate format?
             }
             else
             {

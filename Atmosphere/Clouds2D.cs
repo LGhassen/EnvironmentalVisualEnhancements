@@ -58,6 +58,9 @@ namespace Atmosphere
         Tools.Layer scaledLayer = Tools.Layer.Scaled;
         Light Sunlight;
         bool isScaled = false;
+
+        float flowLoopTime = 0f;
+
         public bool Scaled
         {
             get { return isScaled; }
@@ -399,6 +402,14 @@ namespace Atmosphere
             CloudMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
             
             SetRotations(World2Planet, mainRotationMatrix, detailRotationMatrix);
+
+            if (cloudsMat.FlowMap != null && cloudsMat.FlowMap.Texture != null)
+            {
+                flowLoopTime += Time.deltaTime * TimeWarp.CurrentRate * cloudsMat.FlowMap.Speed;
+                flowLoopTime = flowLoopTime % 1;
+
+                CloudMaterial.SetFloat("flowLoopTime", flowLoopTime); // TODO: property
+            }
         }
 
         internal void SetOrbitFade(float fade)

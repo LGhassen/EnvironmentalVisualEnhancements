@@ -144,6 +144,7 @@
     <Compile Include="..\_BuildManager\Properties\AssemblyVersionInfo.cs">
       <Link>Properties\AssemblyVersionInfo.cs</Link>
     </Compile>
+    <Compile Include="FlowMap.cs" />
     <Compile Include="Painting\CloudsPainterManager.cs" />
     <Compile Include="CloudsPQS.cs" />
     <Compile Include="CloudsManager.cs" />

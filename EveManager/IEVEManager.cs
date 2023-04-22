@@ -83,7 +83,7 @@ namespace EVEManager
                     }
                     catch(Exception e)
                     {
-                        ILog("Unable to parse config node:\n" + node.ToString());
+                        ILog("Unable to apply config node:\n" + node.ToString());
                     }
                 }
             }
