@@ -170,11 +170,12 @@
 					tangent = normalize(cross(float3(1, 0, 0), normal));
 				}
 				biTangent = cross(normal, tangent);
+				tangent*= -1;
 
 				// flow vector in TB
 				float2 flowVector = normalize(float2(dot(gradientVector, tangent), dot(gradientVector, biTangent)));
 
-				flowVector = clockWiseRotation < 0.5 ? float2(flowVector.y, -flowVector.x) : float2(-flowVector.y, flowVector.x) ;
+				flowVector = clockWiseRotation > 0.5 ? float2(flowVector.y, -flowVector.x) : float2(-flowVector.y, flowVector.x) ;
 
 
 				return float4(flowValue * flowVector.xy  * 0.5 + 0.5.xx, upwardsFlowValue  * 0.5 + 0.5, brushOpacity * opacity);

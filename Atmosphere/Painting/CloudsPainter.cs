@@ -320,6 +320,7 @@ namespace Atmosphere
                                 tangent = Vector3.Cross(new Vector3(1f, 0f, 0f), normal).normalized;
                             }
                             biTangent = Vector3.Cross(normal, tangent);
+                            tangent *= -1f;
 
                             Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
 
