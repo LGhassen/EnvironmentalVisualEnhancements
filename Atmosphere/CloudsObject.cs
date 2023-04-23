@@ -51,7 +51,7 @@ namespace Atmosphere
             {
                 material.EnableKeyword("FLOWMAP_ON");
                 material.DisableKeyword("FLOWMAP_OFF");
-                material.SetFloat("_flowStrength", _FlowMap.Displacement / 360f * Mathf.PI * 2f);
+                material.SetFloat("_flowStrength", _FlowMap.Displacement);
                 material.SetFloat("_flowSpeed", _FlowMap.Speed);
                 _FlowMap.Texture.ApplyTexture(material, "_FlowMap", 999); // TODO: make flowmaps support the cubemap format thing? Maybe just use the same format as coverage as always? Otherwise also make cloudType maps support separate format?
             }
@@ -183,6 +183,8 @@ namespace Atmosphere
 
         [ConfigItem, Optional]
         CloudsRaymarchedVolume layerRaymarchedVolume = null;
+
+        public Clouds2D Layer2D { get => layer2D; }
 
         public CloudsRaymarchedVolume LayerRaymarchedVolume { get => layerRaymarchedVolume;}
 

@@ -12,6 +12,7 @@ namespace Atmosphere
     {
         CloudsObject cloudsObject;
         CloudsRaymarchedVolume layerRaymarchedVolume;
+        Clouds2D layer2D;
         string body;
         string layerName;
 
@@ -25,7 +26,11 @@ namespace Atmosphere
             cloudType,
             colorMap,
             flowMapDirectional,
-            flowMapVortex
+            flowMapVortex,
+            flowMapBand,
+            scaledFlowMapDirectional,
+            scaledFlowMapVortex,
+            scaledFlowMapBand
         }
 
         public enum RotationDirection
@@ -57,9 +62,8 @@ namespace Atmosphere
         bool paintEnabled = true;
         List<EditingMode> editingModes = new List<EditingMode>();
 
-        public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap;
-        public string cloudCoveragePath, cloudTypePath, cloudColorMapPath;
-        Material cloudMaterial, paintMaterial, cursorMaterial;
+        public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
+        Material cloudMaterial, scaledCloudMaterial, paintMaterial, cursorMaterial;
 
         Vector3 lastDrawnMousePos = Vector3.zero;
 
@@ -121,7 +125,7 @@ namespace Atmosphere
 
         private void InitTextures()
         {
-            // only for raymarched volumetrics and equirectangular textures for now
+            // only for equirectangular textures for now
             if (cloudsObject.LayerRaymarchedVolume != null)
             {
                 layerRaymarchedVolume = cloudsObject.LayerRaymarchedVolume;
@@ -130,6 +134,10 @@ namespace Atmosphere
                 if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
                 if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null)       InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+
+                layer2D = cloudsObject.Layer2D;
+
+                if (layer2D.CloudsMat.FlowMap != null && layer2D.CloudsMat.FlowMap.Texture != null) InitTexture(layer2D.CloudsMat.FlowMap.Texture, ref cloudScaledFlowMap, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
@@ -168,6 +176,13 @@ namespace Atmosphere
 
             if (cloudFlowMap != null) cloudMaterial.SetTexture("_FlowMap", cloudFlowMap);
 
+            scaledCloudMaterial = layer2D?.CloudRenderingMaterial;
+
+            if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
+            {
+                scaledCloudMaterial.SetTexture("_FlowMap", cloudScaledFlowMap);
+            }
+
             editingModes = new List<EditingMode>();
 
             if (cloudCoverage != null)
@@ -186,6 +201,14 @@ namespace Atmosphere
             {
                 editingModes.Add(EditingMode.flowMapDirectional);
                 editingModes.Add(EditingMode.flowMapVortex);
+                editingModes.Add(EditingMode.flowMapBand);
+            }
+
+            if (cloudScaledFlowMap != null)
+            {
+                editingModes.Add(EditingMode.scaledFlowMapDirectional);
+                editingModes.Add(EditingMode.scaledFlowMapVortex);
+                editingModes.Add(EditingMode.scaledFlowMapBand);
             }
         }
 
@@ -277,7 +300,6 @@ namespace Atmosphere
                         paintMaterial.SetVector("brushPosition", (Vector3)intersectPosition);
                         paintMaterial.SetFloat("brushSize", brushSize);
                         paintMaterial.SetFloat("hardness", hardness);
-                        //paintMaterial.SetFloat("opacity", opacity * Time.deltaTime * 5f);
                         paintMaterial.SetFloat("opacity", opacity);
 
                         paintMaterial.SetFloat("innerSphereRadius", (float)sphereRadius);
@@ -300,7 +322,7 @@ namespace Atmosphere
                             paintMaterial.SetColor("paintValue", colorValue);
                             Graphics.Blit(null, cloudColorMap, paintMaterial, 0);
                         }
-                        if (editingMode == EditingMode.flowMapDirectional)
+                        if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
                         {
                             Vector3 cloudSpaceIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(intersectPosition);
                             Vector3 cloudSpaceLastIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(lastIntersectPosition);
@@ -329,17 +351,22 @@ namespace Atmosphere
                                                                     upwardsFlowValue * 0.5f + 0.5f);
 
                             paintMaterial.SetVector("paintValue", tangentSpaceFlow);
-                            Graphics.Blit(null, cloudFlowMap, paintMaterial, 0);
+                            Graphics.Blit(null, editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
                         }
-                        if (editingMode == EditingMode.flowMapVortex)
+                        if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
                         {
                             paintMaterial.SetFloat("flowValue", flowValue);
                             paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
                             paintMaterial.SetFloat("clockWiseRotation", rotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                            Graphics.Blit(null, cloudFlowMap, paintMaterial, 1);
+                            Graphics.Blit(null, editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
                         }
 
                         RenderTexture.active = active;
+                    }
+
+                    if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
+                    {
+                        scaledCloudMaterial.SetTexture("_FlowMap", cloudScaledFlowMap);
                     }
 
                     lastIntersectPosition = intersectPosition;
@@ -351,6 +378,7 @@ namespace Atmosphere
         {
             cloudsObject = CloudsManager.GetObjectList().Where(x => x.Body == body && x.Name == layerName).FirstOrDefault();
             layerRaymarchedVolume = cloudsObject?.LayerRaymarchedVolume;
+            layer2D = cloudsObject?.Layer2D;
 
             if (cloudsObject != null && layerRaymarchedVolume != null)
                 SetTextureProperties();
@@ -428,12 +456,12 @@ namespace Atmosphere
             {
                 DrawColorField(placementBase, ref placement, "Color ", ref colorValue);
             }
-            else if (editingMode == EditingMode.flowMapDirectional)
+            else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
             {
                 DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Upwards flow ", ref upwardsFlowValue, -1f, 1f, "0.00");
             }
-            else if (editingMode == EditingMode.flowMapVortex)
+            else if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
             {
                 DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Upwards flow ", ref upwardsFlowValue, -1f, 1f, "0.00");
@@ -520,9 +548,13 @@ namespace Atmosphere
             {
                 SaveRTToFile(cloudColorMap, "CloudColor");
             }
-            else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex)
+            else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.flowMapBand)
             {
                 SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+            }
+            else if (editingMode == EditingMode.scaledFlowMapDirectional || editingMode == EditingMode.scaledFlowMapVortex || editingMode == EditingMode.scaledFlowMapBand)
+            {
+                SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
             }
         }
 
@@ -543,6 +575,10 @@ namespace Atmosphere
             if (cloudFlowMap != null)
             {
                 SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+            }
+            if(cloudScaledFlowMap != null)
+            {
+                SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
             }
         }
 

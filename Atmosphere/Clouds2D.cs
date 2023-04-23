@@ -39,7 +39,7 @@ namespace Atmosphere
         float _ShadowFactor = .75f;
     }
 
-    class Clouds2D
+    public class Clouds2D
     {
         GameObject CloudMesh;
         Material CloudMaterial;
@@ -172,6 +172,9 @@ namespace Atmosphere
                 }
             }
         }
+
+        public CloudsMaterial CloudsMat { get => cloudsMat; }
+        public Material CloudRenderingMaterial { get => CloudMaterial; }
 
         public void setCloudMeshEnabled(bool value)
         {
