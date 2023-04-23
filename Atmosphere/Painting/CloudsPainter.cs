@@ -65,6 +65,8 @@ namespace Atmosphere
         public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
         Material cloudMaterial, scaledCloudMaterial, paintMaterial, cursorMaterial;
 
+        Transform scaledTransform;
+
         Vector3 lastDrawnMousePos = Vector3.zero;
 
         private static Shader paintShader;
@@ -105,6 +107,7 @@ namespace Atmosphere
             this.cloudsObject = cloudsObject;
             this.body = body;
             this.layerName = cloudsObject.Name;
+            scaledTransform = Tools.GetScaledTransform(body);
 
             paintMaterial = new Material(PaintShader);
 
@@ -242,8 +245,7 @@ namespace Atmosphere
         {
             if (initialized && paintEnabled && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null)
             {
-                Vector3d sphereCenter = layerRaymarchedVolume.ParentTransform.position;
-                Vector3d cameraPos = FlightCamera.fetch.mainCamera.transform.position;
+                Vector3d sphereCenter = ScaledSpace.ScaledToLocalSpace(scaledTransform.position);
 
                 var planetRadius = cloudMaterial.GetFloat("planetRadius");
                 // TODO: maybe detect if planet has ocean to do this
@@ -251,21 +253,25 @@ namespace Atmosphere
                 float outerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("outerSphereRadius"));
                 double sphereRadius = innerSphereRadius;
 
-                Vector3d rayDir = GetCursorRayDirection();
+                Vector3d rayDir = Vector3d.one;
+                Vector3d cameraPos = Vector3d.zero;
+
+                if (!MapView.MapIsEnabled)
+                { 
+                    rayDir = GetCursorRayDirection(FlightCamera.fetch.mainCamera);
+                    cameraPos = FlightCamera.fetch.mainCamera.transform.position;
+                }
+                else
+                {
+                    rayDir = GetCursorRayDirection(ScaledCamera.Instance.cam);
+                    cameraPos = ScaledSpace.ScaledToLocalSpace(ScaledCamera.Instance.cam.transform.position);
+                }
 
                 double intersectDistance = Mathf.Infinity;
 
-                RaycastHit hit;
-                var hitStatus = Physics.Raycast(FlightCamera.fetch.mainCamera.transform.position, rayDir, out hit, Mathf.Infinity, (int)((1 << 15) + (1 << 0)));
-
-                if (hitStatus)
+                if (!MapView.MapIsEnabled)
                 {
-                    var hitAltitude = (hit.point - sphereCenter).magnitude;
-                    if (hitAltitude <= outerSphereRadius && hitAltitude >= innerSphereRadius)
-                    {
-                        var hitDistance = (hit.point - FlightCamera.fetch.mainCamera.transform.position).magnitude;
-                        intersectDistance = Math.Min(hitDistance, hitDistance);
-                    }
+                    intersectDistance = RefineCursorPositionWithRaycast(sphereCenter, innerSphereRadius, outerSphereRadius, rayDir, cameraPos, intersectDistance);
                 }
 
                 intersectDistance = Math.Min(intersectDistance, IntersectSphere(cameraPos, rayDir, sphereCenter, innerSphereRadius));
@@ -279,14 +285,23 @@ namespace Atmosphere
                 {
                     Vector3d intersectPosition = cameraPos + rayDir * intersectDistance;
 
+                    Vector3 cursorPosition = intersectPosition;
                     Vector3 upDirection = Vector3.Normalize(intersectPosition - sphereCenter);
                     Quaternion rotation = Quaternion.LookRotation(upDirection);
                     Vector3 scale = new Vector3(brushSize * 2f, brushSize * 2f, brushSize * 2f);
+                    cursorGameObject.layer = (int)Tools.Layer.Default;
+
+                    if (MapView.MapIsEnabled)
+                    {
+                        cursorPosition = ScaledSpace.LocalToScaledSpace(intersectPosition);
+                        scale = scale * (1f / 6000f);
+                        cursorGameObject.layer = (int)Tools.Layer.Scaled;
+                    }
 
                     if (cursorGameObject != null)
                     {
                         cursorGameObject.SetActive(true);
-                        cursorGameObject.transform.position = intersectPosition;
+                        cursorGameObject.transform.position = cursorPosition;
                         cursorGameObject.transform.rotation = rotation;
                         cursorGameObject.transform.localScale = scale;
                         cursorAutoDisable.framesSinceEnabled = 0;
@@ -296,72 +311,7 @@ namespace Atmosphere
                     {
                         lastDrawnMousePos = Input.mousePosition;
 
-                        // feed all info to the shader
-                        paintMaterial.SetVector("brushPosition", (Vector3)intersectPosition);
-                        paintMaterial.SetFloat("brushSize", brushSize);
-                        paintMaterial.SetFloat("hardness", hardness);
-                        paintMaterial.SetFloat("opacity", opacity);
-
-                        paintMaterial.SetFloat("innerSphereRadius", (float)sphereRadius);
-                        paintMaterial.SetMatrix("cloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix);
-
-                        var active = RenderTexture.active;
-
-                        if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
-                        {
-                            paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
-                            Graphics.Blit(null, cloudCoverage, paintMaterial, 0);
-                        }
-                        if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
-                        {
-                            paintMaterial.SetVector("paintValue", new Vector3(selectedCloudTypeValue, selectedCloudTypeValue, selectedCloudTypeValue));
-                            Graphics.Blit(null, cloudType, paintMaterial, 0);
-                        }
-                        if (editingMode == EditingMode.colorMap)
-                        {
-                            paintMaterial.SetColor("paintValue", colorValue);
-                            Graphics.Blit(null, cloudColorMap, paintMaterial, 0);
-                        }
-                        if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
-                        {
-                            Vector3 cloudSpaceIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(intersectPosition);
-                            Vector3 cloudSpaceLastIntersectPosition = layerRaymarchedVolume.CloudRotationMatrix.MultiplyPoint(lastIntersectPosition);
-
-                            Vector3 cloudSpaceFlowDirection = (cloudSpaceLastIntersectPosition - cloudSpaceIntersectPosition).normalized;
-
-                            Vector3 normal = cloudSpaceIntersectPosition.normalized;
-
-                            Vector3 tangent;
-                            Vector3 biTangent;
-                            if (Math.Abs(normal.x) > 0.001f)
-                            {
-                                tangent = Vector3.Cross(new Vector3(0f, 1f, 0f), normal).normalized;
-                            }
-                            else
-                            {
-                                tangent = Vector3.Cross(new Vector3(1f, 0f, 0f), normal).normalized;
-                            }
-                            biTangent = Vector3.Cross(normal, tangent);
-                            tangent *= -1f;
-
-                            Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
-
-                            Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f,
-                                                                    tangentOnlyFlow.y * flowValue * 0.5f + 0.5f,
-                                                                    upwardsFlowValue * 0.5f + 0.5f);
-
-                            paintMaterial.SetVector("paintValue", tangentSpaceFlow);
-                            Graphics.Blit(null, editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
-                        }
-                        if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
-                        {
-                            paintMaterial.SetFloat("flowValue", flowValue);
-                            paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
-                            paintMaterial.SetFloat("clockWiseRotation", rotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                            Graphics.Blit(null, editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
-                        }
-
-                        RenderTexture.active = active;
+                        PaintCurrentMode(intersectPosition, sphereRadius);
                     }
 
                     if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
@@ -374,6 +324,96 @@ namespace Atmosphere
             }
         }
 
+        private static double RefineCursorPositionWithRaycast(Vector3d sphereCenter, float innerSphereRadius, float outerSphereRadius, Vector3d rayDir, Vector3d cameraPos, double intersectDistance)
+        {
+            RaycastHit hit;
+            var hitStatus = Physics.Raycast(cameraPos, rayDir, out hit, Mathf.Infinity, (int)((1 << 15) + (1 << 0)));
+
+            if (hitStatus)
+            {
+                var hitAltitude = (hit.point - sphereCenter).magnitude;
+                if (hitAltitude <= outerSphereRadius && hitAltitude >= innerSphereRadius)
+                {
+                    var hitDistance = (hit.point - cameraPos).magnitude;
+                    intersectDistance = Math.Min(hitDistance, hitDistance);
+                }
+            }
+
+            return intersectDistance;
+        }
+
+        private void PaintCurrentMode(Vector3d intersectPosition, double sphereRadius)
+        {
+            var cloudRotationMatrix = layer2D != null ? layer2D.MainRotationMatrix * layerRaymarchedVolume.ParentTransform.worldToLocalMatrix : layerRaymarchedVolume.CloudRotationMatrix;
+
+            // feed all info to the shader
+            paintMaterial.SetVector("brushPosition", (Vector3)intersectPosition);
+            paintMaterial.SetFloat("brushSize", brushSize);
+            paintMaterial.SetFloat("hardness", hardness);
+            paintMaterial.SetFloat("opacity", opacity);
+
+            paintMaterial.SetFloat("innerSphereRadius", (float) sphereRadius);
+            paintMaterial.SetMatrix("cloudRotationMatrix", cloudRotationMatrix);
+
+            var active = RenderTexture.active;
+
+            if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
+            {
+                paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
+                Graphics.Blit(null, cloudCoverage, paintMaterial, 0);
+            }
+            if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
+            {
+                paintMaterial.SetVector("paintValue", new Vector3(selectedCloudTypeValue, selectedCloudTypeValue, selectedCloudTypeValue));
+                Graphics.Blit(null, cloudType, paintMaterial, 0);
+            }
+            if (editingMode == EditingMode.colorMap)
+            {
+                paintMaterial.SetColor("paintValue", colorValue);
+                Graphics.Blit(null, cloudColorMap, paintMaterial, 0);
+            }
+            if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
+            {
+                Vector3 cloudSpaceIntersectPosition = cloudRotationMatrix.MultiplyPoint(intersectPosition);
+                Vector3 cloudSpaceLastIntersectPosition = cloudRotationMatrix.MultiplyPoint(lastIntersectPosition);
+
+                Vector3 cloudSpaceFlowDirection = (cloudSpaceLastIntersectPosition - cloudSpaceIntersectPosition).normalized;
+
+                Vector3 normal = cloudSpaceIntersectPosition.normalized;
+
+                Vector3 tangent;
+                Vector3 biTangent;
+                if (Math.Abs(normal.x) > 0.001f)
+                {
+                    tangent = Vector3.Cross(new Vector3(0f, 1f, 0f), normal).normalized;
+                }
+                else
+                {
+                    tangent = Vector3.Cross(new Vector3(1f, 0f, 0f), normal).normalized;
+                }
+                biTangent = Vector3.Cross(normal, tangent);
+                tangent *= -1f;
+
+                Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
+
+                Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f,
+                                                        tangentOnlyFlow.y * flowValue * 0.5f + 0.5f,
+                                                        upwardsFlowValue * 0.5f + 0.5f);
+
+                paintMaterial.SetVector("paintValue", tangentSpaceFlow);
+                Graphics.Blit(null, editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
+            }
+            if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
+            {
+                paintMaterial.SetFloat("flowValue", flowValue);
+                paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
+                paintMaterial.SetFloat("clockWiseRotation", rotationDirection == RotationDirection.ClockWise ? 1f : 0f);
+                Graphics.Blit(null, editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
+            }
+
+            RenderTexture.active = active;
+        }
+
         public void RetargetClouds()
         {
             cloudsObject = CloudsManager.GetObjectList().Where(x => x.Body == body && x.Name == layerName).FirstOrDefault();
@@ -384,21 +424,21 @@ namespace Atmosphere
                 SetTextureProperties();
         }
 
-        private static Vector3d GetCursorRayDirection()
+        private static Vector3d GetCursorRayDirection(Camera cam)
         {
             // this code is very bad but the built-in Unity ScreenPointToRay jitters
-            var viewPortPoint = FlightCamera.fetch.mainCamera.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
+            var viewPortPoint = cam.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
             viewPortPoint.x = 2.0f * viewPortPoint.x - 1.0f;
             viewPortPoint.x = -viewPortPoint.x;
             viewPortPoint.y = 2.0f * viewPortPoint.y - 1.0f;
 
-            var screenToCamera = GL.GetGPUProjectionMatrix(FlightCamera.fetch.mainCamera.projectionMatrix, true).inverse;
+            var screenToCamera = GL.GetGPUProjectionMatrix(cam.projectionMatrix, true).inverse;
             var cameraSpacePoint = screenToCamera.MultiplyPoint(viewPortPoint);
 
             var cameraSpacePointNormalized = cameraSpacePoint.normalized;
             cameraSpacePointNormalized.y = Tools.IsUnifiedCameraMode() ? cameraSpacePointNormalized.y : -cameraSpacePointNormalized.y;
 
-            Vector3d rayDir = FlightCamera.fetch.mainCamera.transform.TransformDirection(cameraSpacePointNormalized);
+            Vector3d rayDir = cam.transform.TransformDirection(cameraSpacePointNormalized);
             return rayDir;
         }
 

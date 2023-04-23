@@ -60,6 +60,8 @@ namespace Atmosphere
         bool isScaled = false;
 
         float flowLoopTime = 0f;
+        Matrix4x4 mainRotationMatrix = Matrix4x4.identity;
+
 
         public bool Scaled
         {
@@ -175,6 +177,7 @@ namespace Atmosphere
 
         public CloudsMaterial CloudsMat { get => cloudsMat; }
         public Material CloudRenderingMaterial { get => CloudMaterial; }
+        public Matrix4x4 MainRotationMatrix { get => mainRotationMatrix; }
 
         public void setCloudMeshEnabled(bool value)
         {
@@ -454,7 +457,8 @@ namespace Atmosphere
 
         private void SetRotations(Matrix4x4 World2Planet, Matrix4x4 mainRotation, Matrix4x4 detailRotation)
         {
-            Matrix4x4 rotation = (mainRotation*World2Planet) * CloudMesh.transform.localToWorldMatrix;
+            mainRotationMatrix = mainRotation;
+            Matrix4x4 rotation = (mainRotation * World2Planet) * CloudMesh.transform.localToWorldMatrix;
             CloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotation);
             CloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
 
