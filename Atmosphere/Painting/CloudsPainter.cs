@@ -54,7 +54,8 @@ namespace Atmosphere
 
         Vector3d lastIntersectPosition = Vector3d.zero;
 
-        public RotationDirection rotationDirection = RotationDirection.ClockWise;
+        public RotationDirection vortexRotationDirection = RotationDirection.ClockWise;
+        public RotationDirection bandRotationDirection  = RotationDirection.ClockWise;
 
         public Color colorValue = Color.white;
 
@@ -396,9 +397,7 @@ namespace Atmosphere
 
                 Vector2 tangentOnlyFlow = new Vector2(Vector3.Dot(cloudSpaceFlowDirection, tangent), Vector3.Dot(cloudSpaceFlowDirection, biTangent)).normalized;
 
-                Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f,
-                                                        tangentOnlyFlow.y * flowValue * 0.5f + 0.5f,
-                                                        upwardsFlowValue * 0.5f + 0.5f);
+                Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f, tangentOnlyFlow.y * flowValue * 0.5f + 0.5f, upwardsFlowValue * 0.5f + 0.5f);
 
                 paintMaterial.SetVector("paintValue", tangentSpaceFlow);
                 Graphics.Blit(null, editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
@@ -407,8 +406,14 @@ namespace Atmosphere
             {
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
-                paintMaterial.SetFloat("clockWiseRotation", rotationDirection == RotationDirection.ClockWise ? 1f : 0f);
+                paintMaterial.SetFloat("clockWiseRotation", vortexRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
                 Graphics.Blit(null, editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
+            }
+            if (editingMode == EditingMode.flowMapBand || editingMode == EditingMode.scaledFlowMapBand)
+            {
+                paintMaterial.SetFloat("flowValue", flowValue);
+                paintMaterial.SetFloat("clockWiseRotation", bandRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
+                Graphics.Blit(null, editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 2);
             }
 
             RenderTexture.active = active;
@@ -475,7 +480,7 @@ namespace Atmosphere
             placement.y += 1;
 
             DrawFloatField(placementBase, ref placement, "Brush size", ref brushSize, 0f);
-            DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 0f, 1f, "0.00");
+            // DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 0f, 1f, "0.00"); // not implemented
             DrawFloatField(placementBase, ref placement, "Brush opacity", ref opacity, 0f, 1f, "0.00");
 
             if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
@@ -505,7 +510,12 @@ namespace Atmosphere
             {
                 DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Upwards flow ", ref upwardsFlowValue, -1f, 1f, "0.00");
-                rotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), rotationDirection, 4, placementBase, ref placement);
+                vortexRotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), vortexRotationDirection, 4, placementBase, ref placement);
+            }
+            else if (editingMode == EditingMode.scaledFlowMapBand || editingMode == EditingMode.scaledFlowMapBand)
+            {
+                DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
+                bandRotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), bandRotationDirection, 4, placementBase, ref placement);
             }
 
             paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");
