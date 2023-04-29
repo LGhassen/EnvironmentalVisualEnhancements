@@ -141,7 +141,7 @@ namespace Atmosphere
 
                 layer2D = cloudsObject.Layer2D;
 
-                if (layer2D.CloudsMat.FlowMap != null && layer2D.CloudsMat.FlowMap.Texture != null) InitTexture(layer2D.CloudsMat.FlowMap.Texture, ref cloudScaledFlowMap, RenderTextureFormat.ARGB32);
+                if (layer2D?.CloudsMat.FlowMap != null && layer2D?.CloudsMat.FlowMap.Texture != null) InitTexture(layer2D.CloudsMat.FlowMap.Texture, ref cloudScaledFlowMap, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
