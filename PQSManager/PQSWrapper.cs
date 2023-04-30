@@ -8,7 +8,7 @@ using Utils;
 
 namespace PQSManager
 {
-    public class PQSWrapper : PQS, IEVEObject 
+    public class PQSWrapper : PQS, IEVEObject
     {
 #pragma warning disable 0649
         [ConfigItem, GUIHidden]
@@ -17,9 +17,12 @@ namespace PQSManager
         [ConfigItem]
         float deactivateDistance = 175000;
 
+        [ConfigItem, Optional]
+        OverrideKillSphere overrideKillSphere = null;
+
         float cameraDistance;
         public override String ToString() { return body; }
-        
+
         public String Body { get { return body; } }
 
         public void LoadConfigNode(ConfigNode node)
@@ -27,8 +30,8 @@ namespace PQSManager
             ConfigHelper.LoadObjectFromConfig(this, node);
         }
 
-        public void Apply() 
-        { 
+        public void Apply()
+        {
             CelestialBody cb = Tools.GetCelestialBody(body);
             cameraDistance = (float)cb.Radius + deactivateDistance;
             this.isActive = false;
@@ -43,13 +46,13 @@ namespace PQSManager
 
         protected void Update()
         {
-            if(HighLogic.LoadedScene == GameScenes.FLIGHT && FlightCamera.fetch != null)
+            if (HighLogic.LoadedScene == GameScenes.FLIGHT && FlightCamera.fetch != null)
             {
                 FlightCamera cam = FlightCamera.fetch;
                 float dist = Vector3.Distance(cam.mainCamera.transform.position, this.transform.position);
-                if(dist < cameraDistance)
+                if (dist < cameraDistance)
                 {
-                    if(!this.isActive)
+                    if (!this.isActive)
                     {
                         this.isActive = true;
                         PQSMod[] mods = this.GetComponentsInChildren<PQSMod>();
@@ -57,6 +60,11 @@ namespace PQSManager
                         {
                             mod.OnSphereActive();
                         }
+                    }
+
+                    if (overrideKillSphere != null)
+                    {
+                        overrideKillSphere.Update();
                     }
                 }
                 else
@@ -82,6 +90,20 @@ namespace PQSManager
                 this.isActive = false;
             }
         }
+    }
 
+    public class OverrideKillSphere
+    {
+        [ConfigItem]
+        float altitude = -250f;
+
+        public void Update()
+        {
+            foreach (Vessel vessel in FlightGlobals.VesselsLoaded)
+            {
+                if (vessel != null && vessel.altitude < 0.0)
+                    vessel.Landed = vessel.altitude > altitude;
+            }
+        }
     }
 }
