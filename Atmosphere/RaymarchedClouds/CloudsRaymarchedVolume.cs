@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
 using System.Linq;
+using PQSManager;
 
 namespace Atmosphere
 {
@@ -346,6 +347,8 @@ namespace Atmosphere
                     ambientSound = null;
                 }
             }
+
+            raymarchedCloudMaterial.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(celestialBody) ? 1f : 0f);
         }
 
         public void ConfigureTextures()

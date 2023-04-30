@@ -52,5 +52,10 @@ namespace PQSManager
             StaticSetup();
             return ObjectList.Find(pqs => pqs.Body == body);
         }
+
+        public static bool HasRealPQS(CelestialBody celestialBody)
+        {
+            return GetPQS(celestialBody.name) == null && celestialBody.pqsController != null;
+        }
     }
 }
