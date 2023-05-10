@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Utils;
+using PQSManager;
 
 namespace Atmosphere
 {
@@ -106,6 +107,7 @@ namespace Atmosphere
 
 		Material lightningBoltMaterial = null;
 
+		bool useBodyRadiusIntersection = false;
 		bool initialized = false;
 
 		List<AudioClip> nearAudioClips = new List<AudioClip>();
@@ -154,6 +156,8 @@ namespace Atmosphere
 					farAudioClips.Add(GameDatabase.Instance.GetAudioClip(sound.SoundName));
 			}
 
+			useBodyRadiusIntersection = PQSManagerClass.HasRealPQS(celestialBody);
+
 			return true;
 		}
 
@@ -196,7 +200,7 @@ namespace Atmosphere
 		{
 			float cameraAltitude = (FlightCamera.fetch.transform.position - parentTransform.position).magnitude - parentRadius;
 
-			if (currentCount < maxConcurrent && cameraAltitude >= 0f)
+			if (currentCount < maxConcurrent && (!useBodyRadiusIntersection || cameraAltitude >= 0f))
 			{
 				// TODO: randomize spawn altitude?
 				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
