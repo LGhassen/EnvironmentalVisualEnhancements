@@ -44,7 +44,7 @@ namespace Atmosphere
 							lightningNode.Value.lightGameObject.transform.position.z,
 							0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime); // apply 0.25 the point light intensity to the volumetric cloud
 
-						activeLightningShaderLightColors[currentIndex] = new Vector4(lightningNode.Value.color.r, lightningNode.Value.color.g, lightningNode.Value.color.b, lightningNode.Value.color.a);
+						activeLightningShaderLightColors[currentIndex] = new Vector4(lightningNode.Value.color.a * lightningNode.Value.color.r, lightningNode.Value.color.a * lightningNode.Value.color.g, lightningNode.Value.color.a * lightningNode.Value.color.b, 10f / lightningNode.Value.light.range); // create an exponential falloff term from the light range
 						activeLightningShaderTransforms[currentIndex] = lightningNode.Value.boltGameObject.transform.localToWorldMatrix;
 
 						lightningNode.Value.lightningBoltMaterial.SetFloat("maxConcurrentLightning", (float)maxConcurrent);

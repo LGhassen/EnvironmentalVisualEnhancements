@@ -26,7 +26,7 @@ namespace Atmosphere
         [ConfigItem]
         float lightIntensity = 3f;
 
-        //[ConfigItem]
+        [ConfigItem]
         float lightRange = 10000f;
 
         [ConfigItem]
