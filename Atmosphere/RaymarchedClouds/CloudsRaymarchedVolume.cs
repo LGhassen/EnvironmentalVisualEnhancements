@@ -464,7 +464,7 @@ namespace Atmosphere
             mat.SetFloat("timeFadeDensity", 1f);
             mat.SetFloat("timeFadeCoverage", 1f);
 
-            if (RaymarchedCloudsQualityManager.NonTiling3DNoise)
+            if (RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntiling))
             {
                 mat.EnableKeyword("NOISE_UNTILING_ON");mat.DisableKeyword("NOISE_UNTILING_OFF");
             }
