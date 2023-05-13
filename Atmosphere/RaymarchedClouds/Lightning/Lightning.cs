@@ -203,7 +203,9 @@ namespace Atmosphere
 			if (currentCount < maxConcurrent && (!useBodyRadiusIntersection || cameraAltitude >= 0f))
 			{
 				// TODO: randomize spawn altitude?
-				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange), Random.Range(-lightningConfigObject.SpawnRange, lightningConfigObject.SpawnRange));
+
+				float currentSpawnRange = Mathf.Max(lightningConfigObject.MinSpawnRange, cameraAltitude * 2f);
+				Vector3 spawnPosition = FlightCamera.fetch.transform.position + new Vector3(Random.Range(-currentSpawnRange, currentSpawnRange), Random.Range(-currentSpawnRange, currentSpawnRange), Random.Range(-currentSpawnRange, currentSpawnRange));
 
 				spawnPosition = (spawnPosition - parentTransform.position).normalized * spawnDistanceFromParent + parentTransform.position;
 				if (cloudsRaymarchedVolume.SampleCoverage(spawnPosition, out float cloudType, false)  > 0.1f)

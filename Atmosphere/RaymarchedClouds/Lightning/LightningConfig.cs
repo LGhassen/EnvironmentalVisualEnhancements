@@ -15,7 +15,7 @@ namespace Atmosphere
         float spawnChancePerSecond = 1f;
 
         [ConfigItem]
-        float spawnRange = 15000f;
+        float minSpawnRange = 15000f;
 
         [ConfigItem]
         float lifeTime = 0.5f;                              //TOOD: turn into a max/min lifetime
@@ -67,7 +67,7 @@ namespace Atmosphere
 
         public string Name { get => name; }
         public float SpawnChancePerSecond { get => spawnChancePerSecond; }
-        public float SpawnRange { get => spawnRange; }
+        public float MinSpawnRange { get => minSpawnRange; }
         public float LifeTime { get => lifeTime; }
 
         public Color LightColor { get => lightColor / 255f; }
