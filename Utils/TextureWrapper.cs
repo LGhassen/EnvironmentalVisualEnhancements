@@ -259,6 +259,19 @@ namespace Utils
             else
             {
                 texture = GameDatabase.Instance.GetTextureInfo(value);
+
+                if (texture == null)
+                {
+                    var path = System.IO.Path.Combine("GameData", value + ".png");
+
+                    if(System.IO.File.Exists(path))
+                    {
+                        var texture2D = new Texture2D(1, 1);
+                        texture2D.LoadImage(System.IO.File.ReadAllBytes(path));
+                        texture = new GameDatabase.TextureInfo(null, texture2D, false, true, false);
+                        Debug.LogWarning("[EVE] Texture "+path+" not found in GameDatabase, loaded directly from file, no compression is applied.");
+                    }
+                }
             }
             if (texture != null)
             {
@@ -329,7 +342,16 @@ namespace Utils
             }
             else
             {
-                return GameDatabase.Instance.ExistsTexture(value);
+                bool exists = GameDatabase.Instance.ExistsTexture(value);
+
+                // attempt to load directly from PNG from hotswapping in-game
+                if (!exists)
+                {
+                    var path = System.IO.Path.Combine("GameData", value + ".png");
+                    exists = System.IO.File.Exists(path);
+                }
+
+                return exists;
             }
         }
 
