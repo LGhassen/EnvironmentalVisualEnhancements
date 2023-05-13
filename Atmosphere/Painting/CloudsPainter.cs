@@ -16,8 +16,7 @@ namespace Atmosphere
         string body;
         string layerName;
 
-        GameObject cursorGameObject = null;
-        CursorAutoDisable cursorAutoDisable = null;
+        PaintCursor paintCursor;
 
         public enum EditingMode
         {
@@ -64,7 +63,7 @@ namespace Atmosphere
         List<EditingMode> editingModes = new List<EditingMode>();
 
         public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
-        Material cloudMaterial, scaledCloudMaterial, paintMaterial, cursorMaterial;
+        Material cloudMaterial, scaledCloudMaterial, paintMaterial;
 
         Transform scaledTransform;
 
@@ -78,17 +77,6 @@ namespace Atmosphere
             {
                 if (paintShader == null) paintShader = ShaderLoaderClass.FindShader("EVE/PaintCloudMap");
                 return paintShader;
-            }
-        }
-
-        private static Shader cursorShader;
-
-        private static Shader CursorShader
-        {
-            get
-            {
-                if (cursorShader == null) cursorShader = ShaderLoaderClass.FindShader("EVE/PaintCursor");
-                return cursorShader;
             }
         }
 
@@ -112,17 +100,7 @@ namespace Atmosphere
 
             paintMaterial = new Material(PaintShader);
 
-            cursorMaterial = new Material(CursorShader);
-            cursorMaterial.SetTexture("_MainTex", GameDatabase.Instance.GetTextureInfo("EnvironmentalVisualEnhancements/PaintCursor")?.texture);
-            cursorMaterial.renderQueue = 4000;
-
-            cursorGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Component.Destroy(cursorGameObject.GetComponent<Collider>());
-
-            cursorGameObject.GetComponent<MeshRenderer>().material = cursorMaterial;
-            cursorGameObject.SetActive(false);
-
-            cursorAutoDisable = cursorGameObject.AddComponent<CursorAutoDisable>();
+            paintCursor = new PaintCursor();
 
             InitTextures();
         }
@@ -288,24 +266,22 @@ namespace Atmosphere
 
                     Vector3 cursorPosition = intersectPosition;
                     Vector3 upDirection = Vector3.Normalize(intersectPosition - sphereCenter);
-                    Quaternion rotation = Quaternion.LookRotation(upDirection);
                     Vector3 scale = new Vector3(brushSize * 2f, brushSize * 2f, brushSize * 2f);
-                    cursorGameObject.layer = (int)Tools.Layer.Default;
+                    float layerHeight = layerRaymarchedVolume != null ? layerRaymarchedVolume.OuterSphereRadius - layerRaymarchedVolume.InnerSphereRadius : 0f;
+
+                    paintCursor.SetLayer((int)Tools.Layer.Default);
 
                     if (MapView.MapIsEnabled)
                     {
                         cursorPosition = ScaledSpace.LocalToScaledSpace(intersectPosition);
                         scale = scale * (1f / 6000f);
-                        cursorGameObject.layer = (int)Tools.Layer.Scaled;
+                        paintCursor.SetLayer((int)Tools.Layer.Scaled);
+                        layerHeight = layerHeight * (1f / 6000f);
                     }
 
-                    if (cursorGameObject != null)
+                    if (paintCursor != null)
                     {
-                        cursorGameObject.SetActive(true);
-                        cursorGameObject.transform.position = cursorPosition;
-                        cursorGameObject.transform.rotation = rotation;
-                        cursorGameObject.transform.localScale = scale;
-                        cursorAutoDisable.framesSinceEnabled = 0;
+                        paintCursor.SetDrawSettings(cursorPosition, upDirection, scale, layerHeight);
                     }
 
                     if (Input.GetMouseButton(0) && Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y)
