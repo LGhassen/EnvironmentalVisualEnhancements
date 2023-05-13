@@ -41,7 +41,7 @@ namespace Atmosphere
         public EditingMode editingMode = EditingMode.coverage;
 
         public float brushSize = 5000f;
-        public float hardness = 1f;
+        public float hardness = 0f;
         public float opacity = 0.05f;
         public float coverageValue = 1f;
 
@@ -326,7 +326,7 @@ namespace Atmosphere
             // feed all info to the shader
             paintMaterial.SetVector("brushPosition", (Vector3)intersectPosition);
             paintMaterial.SetFloat("brushSize", brushSize);
-            paintMaterial.SetFloat("hardness", hardness);
+            paintMaterial.SetFloat("hardness", 1f - hardness);
             paintMaterial.SetFloat("opacity", opacity);
 
             paintMaterial.SetFloat("innerSphereRadius", (float) sphereRadius);
@@ -456,7 +456,7 @@ namespace Atmosphere
             placement.y += 1;
 
             DrawFloatField(placementBase, ref placement, "Brush size", ref brushSize, 0f);
-            // DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 0f, 1f, "0.00"); // not implemented
+            DrawFloatField(placementBase, ref placement, "Brush hardness", ref hardness, 0f, 1f, "0.00");
             DrawFloatField(placementBase, ref placement, "Brush opacity", ref opacity, 0f, 1f, "0.00");
 
             if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
@@ -677,7 +677,9 @@ namespace Atmosphere
             }
 
             byte[] bytes;
-            bytes = tex.EncodeToPNG();
+            bytes = tex.EncodeToPNG(); // this is leaking memory
+
+            UnityEngine.Object.DestroyImmediate(tex);
 
             string datetime = DateTime.Now.ToString("yyyy-MM-dd\\THH-mm-ss\\Z");
 

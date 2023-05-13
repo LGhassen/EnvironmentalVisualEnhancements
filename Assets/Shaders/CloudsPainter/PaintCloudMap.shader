@@ -52,6 +52,15 @@
 				// calculate brush opacity
 				float brushOpacity = lerp(1.0, 0.0, clamp(dist/brushSize, 0.0, 1.0));
 
+				// apply hardness
+				if (abs(hardness) > 0.00001)
+				{
+					brushOpacity = saturate(brushOpacity / hardness);
+				}
+				else
+				{
+					if (brushOpacity > 0.00001) brushOpacity = 1.0;
+				}
 
 				return float4(paintValue, brushOpacity * opacity);
 			}
@@ -108,6 +117,16 @@
 
 				// calculate brush opacity
 				float brushOpacity = lerp(1.0, 0.0, clamp(dist/brushSize, 0.0, 1.0));
+
+				// apply hardness
+				if (abs(hardness) > 0.00001)
+				{
+					brushOpacity = saturate(brushOpacity / hardness);
+				}
+				else
+				{
+					if (brushOpacity > 0.00001) brushOpacity = 1.0;
+				}
 
 				// We could do the gradientVector in planetSpace, then project that to TBN
 
@@ -191,6 +210,16 @@
 
 				// calculate brush opacity
 				float brushOpacity = lerp(1.0, 0.0, clamp(dist/brushSize, 0.0, 1.0));
+
+				// apply hardness
+				if (abs(hardness) > 0.00001)
+				{
+					brushOpacity = saturate(brushOpacity / hardness);
+				}
+				else
+				{
+					if (brushOpacity > 0.00001) brushOpacity = 1.0;
+				}
 
 				// flow for a horizontal band is very simple
 				float3 flow  = float3(clockWiseRotation > 0.5 ? -flowValue : flowValue, 0.0, 0.0);
