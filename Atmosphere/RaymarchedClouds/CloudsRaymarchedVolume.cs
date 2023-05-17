@@ -532,7 +532,7 @@ namespace Atmosphere
             for (int x = 0; x < resolution; x++)
             {
                 // find where we are and the two curves to interpolate
-                float cloudTypeIndex = (float)x / (float)resolution;
+                float cloudTypeIndex = (float)x / (float)(resolution-1);
                 cloudTypeIndex *= cloudTypes.Count - 1;
                 int currentCloudType = (int)cloudTypeIndex;
                 int nextCloudType = Math.Min(currentCloudType + 1, cloudTypes.Count - 1);
@@ -543,7 +543,7 @@ namespace Atmosphere
 
                 for (int y = 0; y < resolution; y++)
                 {
-                    float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / resolution);
+                    float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / (float)(resolution-1));
                     colors[x + y * resolution].r = Mathf.Lerp(EvaluateCloudValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                         EvaluateCloudValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                         cloudFrac);
