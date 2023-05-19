@@ -8,14 +8,14 @@ namespace Atmosphere
 {
 	public class Lightning
 	{
-		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
-		static Vector4[] activeLightningShaderLights = new Vector4[4];
-		static Vector4[] activeLightningShaderLightColors = new Vector4[4];
-		static Matrix4x4[] activeLightningShaderTransforms = new Matrix4x4[4];
-
-		static readonly int maxConcurrent = 4; // more than this and it tanks the performance because of the lights, especially using Parallax and rain/splashes
+		static readonly int maxConcurrent = 4; // more than this and it tanks the performance because of the lights, especially using Parallax and rain/splashes. A hardcoded limit of 16 is in the clouds shader, just in case, but never tested
 		static int currentCount = 0;
 		static int lastUpdateFrame = 0;
+
+		static LinkedList<LightningInstance> activeLightningList = new LinkedList<LightningInstance>();
+		static Vector4[] activeLightningShaderLights = new Vector4[maxConcurrent];
+		static Vector4[] activeLightningShaderLightColors = new Vector4[maxConcurrent];
+		static Matrix4x4[] activeLightningShaderTransforms = new Matrix4x4[maxConcurrent];
 
 		public static int MaxConcurrent => maxConcurrent;
 		public static int CurrentCount { get => currentCount; }
