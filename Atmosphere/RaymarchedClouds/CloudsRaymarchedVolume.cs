@@ -481,7 +481,7 @@ namespace Atmosphere
         private void ProcessCloudTypes()
         {
             cloudMinAltitude = Mathf.Infinity;
-            cloudMaxAltitude = 0f;
+            cloudMaxAltitude = -Mathf.Infinity;
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
