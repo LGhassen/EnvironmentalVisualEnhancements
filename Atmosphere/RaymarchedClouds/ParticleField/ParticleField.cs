@@ -374,11 +374,19 @@ namespace Atmosphere
 			{
 				if (CameraToParticleFieldRendererRenderer.ContainsKey(cam))
 				{
-					CameraToParticleFieldRendererRenderer[cam].AddRenderer(mr, mat);
+					var renderer = CameraToParticleFieldRendererRenderer[cam];
+					if (renderer != null)
+						renderer.AddRenderer(mr, mat);
 				}
 				else
 				{
-					CameraToParticleFieldRendererRenderer[cam] = (ParticleFieldRenderer)cam.gameObject.AddComponent(typeof(ParticleFieldRenderer));
+					// add null to the cameras we don't want to render on so we don't do a string compare every time
+					if ((cam.name == "TRReflectionCamera") || (cam.name == "Reflection Probes Camera"))
+					{
+						CameraToParticleFieldRendererRenderer[cam] = null;
+					}
+					else
+						CameraToParticleFieldRendererRenderer[cam] = (ParticleFieldRenderer)cam.gameObject.AddComponent(typeof(ParticleFieldRenderer));
 				}
 			}
 
