@@ -170,7 +170,11 @@ namespace Atmosphere
                 if (particleField != null)
                 {
                     setShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture, editorAlphamask);
-                    setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
+
+                    if (particleField.particleFieldSplashesMaterial != null)
+                    { 
+                        setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
+                    }
                 }
 
                 shadowCasterTextureSet = true;
@@ -613,7 +617,9 @@ namespace Atmosphere
                 if (particleField != null)
                 {
                     updateShadowCasterMaterialProperties(particleField.particleFieldMaterial);
-                    updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
+
+                    if (particleField.particleFieldSplashesMaterial != null)
+                        updateShadowCasterMaterialProperties(particleField.particleFieldSplashesMaterial);
                 }
             }
 
