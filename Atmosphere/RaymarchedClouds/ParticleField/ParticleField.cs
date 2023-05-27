@@ -254,8 +254,9 @@ namespace Atmosphere
 				GameObject.Destroy(cl);
 
 			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
-			var materials = new List<Material>() { particleFieldMaterial };
 
+			var materials = new List<Material>() { particleFieldMaterial };
+			
 			if (particleFieldSplashesMaterial != null)
             {
 				materials.Add(particleFieldSplashesMaterial);
@@ -264,21 +265,20 @@ namespace Atmosphere
 			fieldMeshRenderer.materials = materials.ToArray();
 
 			fieldMeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-			fieldMeshRenderer.receiveShadows = false;                                               // In the future needs to be enabled probably
+			fieldMeshRenderer.receiveShadows = false;
 			fieldMeshRenderer.enabled = false;
 
 			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();
 			mesh = createMesh((int)particleFieldConfigObject.FieldParticleCount);
 			filter.sharedMesh = mesh;
-			filter.sharedMesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
 
-			fieldHolder.transform.parent = parent;
+			fieldHolder.transform.parent = FlightCamera.fetch.transform.parent;
 			fieldHolder.transform.localPosition = Vector3.zero;
 			fieldHolder.layer = (int)Tools.Layer.Local;
 
 			var fieldUpdater = fieldHolder.AddComponent<FieldUpdater>();
 			fieldUpdater.field = this;
-
+			
 			fieldHolder.SetActive(false);
 		}
 
