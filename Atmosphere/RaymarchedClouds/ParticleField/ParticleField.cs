@@ -356,11 +356,26 @@ namespace Atmosphere
 			public Transform parent;
 			public ParticleField field;
 
+			Dictionary<Camera, bool> allowedCameras = new Dictionary<Camera, bool>();
+
 			public void OnWillRenderObject()
 			{
 				Camera cam = Camera.current;
+
 				if (!cam)
 					return;
+
+				if (!allowedCameras.TryGetValue(cam, out bool isAllowed))
+				{
+					if (cam.name == "Reflection Probes Camera" || cam.name == "NearCamera") // NearCamera seems to be the Kerbal portrait camera and for some reason it breaks and causes flashing issues when some of its properties are accessed here
+						allowedCameras.Add(cam, false);
+					else
+						allowedCameras.Add(cam, true);
+				}
+				else if (!isAllowed)
+				{ 
+					return;
+				}
 
 				field.UpdateForCamera(cam);
 			}
