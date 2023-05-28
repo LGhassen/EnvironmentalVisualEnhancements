@@ -30,6 +30,18 @@ namespace Atmosphere
 			}
 		}
 
+
+		static Shader invisibleShader = null;
+
+		private static Shader InvisibleShader
+		{
+			get
+			{
+				if (invisibleShader == null) invisibleShader = ShaderLoaderClass.FindShader("EVE/Invisible");
+				return invisibleShader;
+			}
+		}
+
 		[ConfigItem]
 		string particleFieldConfig = "";
 
@@ -37,14 +49,20 @@ namespace Atmosphere
 
 		public Material particleFieldMaterial, particleFieldSplashesMaterial;
 
-		GameObject fieldHolder;
+		GameObject fieldHolderGO;
+		Transform parentTransform;
+
+		GameObject fieldRendererGO;
 		Mesh mesh;
 		MeshRenderer fieldMeshRenderer;
-		Transform parentTransform;
+
 		CelestialBody parentCelestialBody;
 		Vector3d accumulatedTimeOffset = Vector3d.zero;
 		Vector3d accumulatedSplashesTimeOffset = Vector3d.zero;
 		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
+		bool enabled = false;
+
+		float currentCoverage = 0f;
 
 		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
@@ -58,13 +76,20 @@ namespace Atmosphere
 			parentTransform = parent;
 
             InitMaterials();
-            InitGameObject(parent);
+            InitGameObjects(parent);
 
 			return true;
         }
 
         public void Remove()
 		{
+			if (fieldHolderGO != null)
+			{
+				fieldHolderGO.transform.parent = null;
+				GameObject.Destroy(fieldHolderGO);
+				fieldHolderGO = null;
+			}
+
 			if (mesh != null)
             {
 				mesh.Clear();
@@ -72,20 +97,16 @@ namespace Atmosphere
 				Component.Destroy(fieldMeshRenderer);
 			}
 
-			if (fieldHolder != null)
-			{
-				fieldHolder.transform.parent = null;
-				GameObject.Destroy(fieldHolder);
-				fieldHolder = null;
+			if (fieldRendererGO != null)
+            {
+				fieldRendererGO.transform.parent = null;
+				GameObject.Destroy(fieldRendererGO);
+				fieldRendererGO = null;
 			}
 		}
 
 		public void UpdateForCamera(Camera cam)
         {
-			float coverageAtPosition = cloudsRaymarchedVolume.SampleCoverage(cam.transform.position, out float cloudType);
-			coverageAtPosition = Mathf.Clamp01((coverageAtPosition - particleFieldConfigObject.MinCoverageThreshold) / (particleFieldConfigObject.MaxCoverageThreshold - particleFieldConfigObject.MinCoverageThreshold));
-			coverageAtPosition *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
-
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
 			var rainVelocityVector = FlightGlobals.ActiveVessel ? (particleFieldConfigObject.FallSpeed * gravityVector + cloudsRaymarchedVolume.TangentialMovementDirection * particleFieldConfigObject.TangentialSpeed - (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized : gravityVector;
 
@@ -108,7 +129,7 @@ namespace Atmosphere
 			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
 			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat("fade", fade);
-			particleFieldMaterial.SetFloat("coverage", coverageAtPosition);
+			particleFieldMaterial.SetFloat("coverage", currentCoverage);
 			particleFieldMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
 			particleFieldMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
 
@@ -124,21 +145,17 @@ namespace Atmosphere
 
 				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat("fade", fade);
-				particleFieldSplashesMaterial.SetFloat("coverage", coverageAtPosition);
+				particleFieldSplashesMaterial.SetFloat("coverage", currentCoverage);
 				particleFieldSplashesMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
 				particleFieldSplashesMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
 			}
 
-			if (coverageAtPosition > 0f)
+			if (currentCoverage > 0f)
 			{
 				ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldMaterial);
 				if (particleFieldSplashesMaterial != null)
 					ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldSplashesMaterial);
-
-				SetEnabled(true);
 			}
-			else
-				SetEnabled(false);
 		}
 
 		double repeatDouble(double t, double length)
@@ -169,6 +186,15 @@ namespace Atmosphere
 			particleFieldMaterial.SetVector("sphereCenter", sphereCenter);
 			if (particleFieldSplashesMaterial != null)
 				particleFieldSplashesMaterial.SetVector("sphereCenter", sphereCenter);
+
+			currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
+			currentCoverage = Mathf.Clamp01((currentCoverage - particleFieldConfigObject.MinCoverageThreshold) / (particleFieldConfigObject.MaxCoverageThreshold - particleFieldConfigObject.MinCoverageThreshold));
+			currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
+
+			if (currentCoverage > 0f)
+				SetRendererEnabled(true);
+			else
+				SetRendererEnabled(false);
 		}
 
 		void InitMaterials()
@@ -242,18 +268,44 @@ namespace Atmosphere
 			}
 		}
 
-		void InitGameObject(Transform parent)
+		void InitGameObjects(Transform parent)
 		{
 			Remove();
 
-			fieldHolder = GameObject.CreatePrimitive(PrimitiveType.Cube);
-			fieldHolder.name = "ParticleField";
-			var cl = fieldHolder.GetComponent<Collider>();
+			fieldHolderGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+			fieldHolderGO.name = "ParticleFieldHolder";
+			var cl = fieldHolderGO.GetComponent<Collider>();
 
 			if (cl != null)
 				GameObject.Destroy(cl);
 
-			fieldMeshRenderer = fieldHolder.GetComponent<MeshRenderer>();
+			var mr = fieldHolderGO.GetComponent<MeshRenderer>();
+			mr.material = new Material(InvisibleShader);
+
+			var mf = fieldHolderGO.GetComponent<MeshFilter>();
+			mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
+
+			fieldHolderGO.transform.parent = parent;
+			fieldHolderGO.transform.localPosition = Vector3.zero;
+			fieldHolderGO.layer = (int)Tools.Layer.Local;
+
+			var fieldUpdater = fieldHolderGO.AddComponent<FieldUpdater>();
+			fieldUpdater.field = this;
+
+
+			fieldRendererGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+			fieldRendererGO.name = "ParticleFieldRenderer";
+
+			fieldRendererGO.transform.parent = parent;
+			fieldRendererGO.transform.localPosition = Vector3.zero;
+			fieldRendererGO.layer = (int)Tools.Layer.Local;
+
+			cl = fieldHolderGO.GetComponent<Collider>();
+
+			if (cl != null)
+				GameObject.Destroy(cl);
+
+			fieldMeshRenderer = fieldRendererGO.GetComponent<MeshRenderer>();
 
 			var materials = new List<Material>() { particleFieldMaterial };
 			
@@ -266,27 +318,39 @@ namespace Atmosphere
 
 			fieldMeshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 			fieldMeshRenderer.receiveShadows = false;
-			fieldMeshRenderer.enabled = false;
 
 			MeshFilter filter = fieldMeshRenderer.GetComponent<MeshFilter>();
 			mesh = createMesh((int)particleFieldConfigObject.FieldParticleCount);
 			filter.sharedMesh = mesh;
-
-			fieldHolder.transform.parent = FlightCamera.fetch.transform.parent;
-			fieldHolder.transform.localPosition = Vector3.zero;
-			fieldHolder.layer = (int)Tools.Layer.Local;
-
-			var fieldUpdater = fieldHolder.AddComponent<FieldUpdater>();
-			fieldUpdater.field = this;
+			filter.sharedMesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
 			
-			fieldHolder.SetActive(false);
+			fieldHolderGO.SetActive(false);
+			fieldRendererGO.SetActive(false);
 		}
 
-		public void SetEnabled(bool value)
+		public void SetParticleFieldEnabled(bool value)
         {
-			if (fieldHolder!= null && fieldMeshRenderer!=null)
+			if (value != enabled)
+			{ 
+				if (fieldHolderGO!= null)
+				{
+					fieldHolderGO.SetActive(value);
+				}
+
+				if (!value)
+                {
+					SetRendererEnabled(false);
+                }
+
+				enabled = value;
+			}
+		}
+
+		public void SetRendererEnabled(bool value)
+		{
+			if (fieldRendererGO != null && fieldMeshRenderer != null && fieldRendererGO.activeSelf != value)
 			{
-				fieldHolder.SetActive(value);
+				fieldRendererGO.SetActive(value);
 				fieldMeshRenderer.enabled = value;
 			}
 		}
@@ -356,26 +420,12 @@ namespace Atmosphere
 			public Transform parent;
 			public ParticleField field;
 
-			Dictionary<Camera, bool> allowedCameras = new Dictionary<Camera, bool>();
-
 			public void OnWillRenderObject()
 			{
 				Camera cam = Camera.current;
 
 				if (!cam)
 					return;
-
-				if (!allowedCameras.TryGetValue(cam, out bool isAllowed))
-				{
-					if (cam.name == "Reflection Probes Camera" || cam.name == "NearCamera") // NearCamera seems to be the Kerbal portrait camera and for some reason it breaks and causes flashing issues when some of its properties are accessed here
-						allowedCameras.Add(cam, false);
-					else
-						allowedCameras.Add(cam, true);
-				}
-				else if (!isAllowed)
-				{ 
-					return;
-				}
 
 				field.UpdateForCamera(cam);
 			}

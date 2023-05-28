@@ -151,7 +151,7 @@ namespace Atmosphere
 
                 if (particleField != null)
                 {
-                    particleField.SetEnabled(value);
+                    particleField.SetParticleFieldEnabled(value);
                 }
 
                 if (ambientSound != null)
