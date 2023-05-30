@@ -125,29 +125,29 @@ namespace Atmosphere
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
 
-			particleFieldMaterial.SetVector("gravityVector", rainVelocityVector);
-			particleFieldMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
-			particleFieldMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
-			particleFieldMaterial.SetFloat("fade", fade);
-			particleFieldMaterial.SetFloat("coverage", currentCoverage);
-			particleFieldMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
-			particleFieldMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
+			particleFieldMaterial.SetVector(ShaderProperties.gravityVector_PROPERTY, rainVelocityVector);
+			particleFieldMaterial.SetMatrix(ShaderProperties.rotationMatrix_PROPERTY, worldToCameraMatrix);
+			particleFieldMaterial.SetVector(ShaderProperties.offset_PROPERTY, new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
+			particleFieldMaterial.SetFloat(ShaderProperties.fade_PROPERTY, fade);
+			particleFieldMaterial.SetFloat(ShaderProperties.coverage_PROPERTY, currentCoverage);
+			particleFieldMaterial.SetMatrix(ShaderProperties.cameraToWorldMatrix_PROPERTY, cam.cameraToWorldMatrix);
+			particleFieldMaterial.SetVector(ShaderProperties.worldSpaceCameraForwardDirection_PROPERTY, cam.transform.forward);
 
 			if (particleFieldSplashesMaterial != null)
             {
-				particleFieldSplashesMaterial.SetVector("gravityVector", gravityVector);
-				particleFieldSplashesMaterial.SetMatrix("rotationMatrix", worldToCameraMatrix);
+				particleFieldSplashesMaterial.SetVector(ShaderProperties.gravityVector_PROPERTY, gravityVector);
+				particleFieldSplashesMaterial.SetMatrix(ShaderProperties.rotationMatrix_PROPERTY, worldToCameraMatrix);
 
 				offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedSplashesTimeOffset;
 				offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
 				offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
 				offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 
-				particleFieldSplashesMaterial.SetVector("offset", new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
-				particleFieldSplashesMaterial.SetFloat("fade", fade);
-				particleFieldSplashesMaterial.SetFloat("coverage", currentCoverage);
-				particleFieldSplashesMaterial.SetMatrix("cameraToWorldMatrix", cam.cameraToWorldMatrix);
-				particleFieldSplashesMaterial.SetVector("worldSpaceCameraForwardDirection", cam.transform.forward);
+				particleFieldSplashesMaterial.SetVector(ShaderProperties.offset_PROPERTY, new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
+				particleFieldSplashesMaterial.SetFloat(ShaderProperties.fade_PROPERTY, fade);
+				particleFieldSplashesMaterial.SetFloat(ShaderProperties.coverage_PROPERTY, currentCoverage);
+				particleFieldSplashesMaterial.SetMatrix(ShaderProperties.cameraToWorldMatrix_PROPERTY, cam.cameraToWorldMatrix);
+				particleFieldSplashesMaterial.SetVector(ShaderProperties.worldSpaceCameraForwardDirection_PROPERTY, cam.transform.forward);
 			}
 
 			if (currentCoverage > 0f)
@@ -183,9 +183,9 @@ namespace Atmosphere
 
 			var sphereCenter = cloudsRaymarchedVolume.ParentTransform.position;
 
-			particleFieldMaterial.SetVector("sphereCenter", sphereCenter);
+			particleFieldMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, sphereCenter);
 			if (particleFieldSplashesMaterial != null)
-				particleFieldSplashesMaterial.SetVector("sphereCenter", sphereCenter);
+				particleFieldSplashesMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, sphereCenter);
 
 			currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
 			currentCoverage = Mathf.Clamp01((currentCoverage - particleFieldConfigObject.MinCoverageThreshold) / (particleFieldConfigObject.MaxCoverageThreshold - particleFieldConfigObject.MinCoverageThreshold));

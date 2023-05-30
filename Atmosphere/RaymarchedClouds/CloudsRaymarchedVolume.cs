@@ -575,7 +575,6 @@ namespace Atmosphere
             return 0f;
         }
 
-        // TODO: shader params
         public void UpdateCloudNoiseOffsets()
         {
             double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
@@ -597,17 +596,17 @@ namespace Atmosphere
             {
                 GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i], out noTileNoiseOffsets[i]);
             }
-            raymarchedCloudMaterial.SetVectorArray("baseNoiseOffsets", baseNoiseOffsets);
-            raymarchedCloudMaterial.SetVectorArray("noTileNoiseOffsets", noTileNoiseOffsets);
+            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
+            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
 
             GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling ,out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
-            raymarchedCloudMaterial.SetVector("detailOffset", detailOffset);
-            raymarchedCloudMaterial.SetVector("noTileNoiseDetailOffset", noTileNoiseDetailOffset);
+            raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
+            raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
 
             if (curlNoise != null)
             {
                 GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
-                raymarchedCloudMaterial.SetVector("curlNoiseOffset", curlNoiseOffset);
+                raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
             }
 
             if (shadowCasterLayerRaymarchedVolume != null)
@@ -627,12 +626,12 @@ namespace Atmosphere
             if (flowMap != null && flowMap.Texture != null)
             {
                 float scaledDeltaTime = Time.deltaTime * TimeWarp.CurrentRate;
-                raymarchedCloudMaterial.SetFloat("timeDelta", scaledDeltaTime);
+                raymarchedCloudMaterial.SetFloat(ShaderProperties.timeDelta_PROPERTY, scaledDeltaTime);
 
                 flowLoopTime += scaledDeltaTime * FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
-                raymarchedCloudMaterial.SetFloat("flowLoopTime", flowLoopTime);
+                raymarchedCloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
             }
         }
 
@@ -651,10 +650,10 @@ namespace Atmosphere
 
         private void updateShadowCasterMaterialProperties(Material mat)
         {
-            mat.SetMatrix("shadowCasterCloudRotation", shadowCasterLayerRaymarchedVolume.CloudRotationMatrix);
-            mat.SetMatrix("_ShadowDetailRotation", shadowCasterLayerRaymarchedVolume.MainDetailRotationMatrix);
-            mat.SetFloat("shadowCasterTimeFadeDensity", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
-            mat.SetFloat("shadowCasterTimeFadeCoverage", shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
+            mat.SetMatrix(ShaderProperties.shadowCasterCloudRotation_PROPERTY, shadowCasterLayerRaymarchedVolume.CloudRotationMatrix);
+            mat.SetMatrix(ShaderProperties._ShadowDetailRotation_PROPERTY, shadowCasterLayerRaymarchedVolume.MainDetailRotationMatrix);
+            mat.SetFloat(ShaderProperties.shadowCasterTimeFadeDensity_PROPERTY, shadowCasterLayerRaymarchedVolume.CurrentTimeFadeDensity);
+            mat.SetFloat(ShaderProperties.shadowCasterTimeFadeCoverage_PROPERTY, shadowCasterLayerRaymarchedVolume.CurrentTimeFadeCoverage);
         }
 
         public void Remove()
@@ -699,11 +698,11 @@ namespace Atmosphere
                 Matrix4x4 rotationMatrix = mainRotationMatrix * World2Planet;
                 Matrix4x4 mainDetailRotationMatrix = detailRotationMatrix * World2Planet;
 
-                raymarchedCloudMaterial.SetMatrix("cloudRotation", rotationMatrix);                                 // TODO: shader params
+                raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
 
                 // raymarchedCloudMaterial.SetMatrix("invCloudRotation", rotationMatrix.inverse); // for flowmaps reprojection but it's not really working
 
-                raymarchedCloudMaterial.SetMatrix("cloudDetailRotation", mainDetailRotationMatrix);                 // TODO: shader params
+                raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);
 
                 cloudRotationMatrix = rotationMatrix;
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
@@ -723,8 +722,6 @@ namespace Atmosphere
                     coverageAtPosition *= GetInterpolatedCloudTypeAmbientVolume(cloudType);
                     ambientSound.Update(coverageAtPosition);
                 }
-
-
             }
         }
 
@@ -733,12 +730,12 @@ namespace Atmosphere
             if (mode == TimeFadeMode.Density)
             {
                 currentTimeFadeDensity = currentTimeFade;
-                raymarchedCloudMaterial.SetFloat("timeFadeDensity", currentTimeFade);   // TODO: shader params
+                raymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeDensity_PROPERTY, currentTimeFade);
             }
             else if (mode == TimeFadeMode.Coverage)
             {
                 currentTimeFadeCoverage = currentTimeFade;
-                raymarchedCloudMaterial.SetFloat("timeFadeCoverage", currentTimeFade);  // TODO: shader params
+                raymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeCoverage_PROPERTY, currentTimeFade);
             }
 
         }
@@ -831,7 +828,7 @@ namespace Atmosphere
                 if (!cam || !mat)
                     return;
 
-                mat.SetVector("sphereCenter", parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
+                mat.SetVector(ShaderProperties.sphereCenter_PROPERTY, parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
             }
 
             public void Update()

@@ -47,8 +47,8 @@ namespace Atmosphere
 						activeLightningShaderLightColors[currentIndex] = new Vector4(lightningNode.Value.color.a * lightningNode.Value.color.r, lightningNode.Value.color.a * lightningNode.Value.color.g, lightningNode.Value.color.a * lightningNode.Value.color.b, 10f / lightningNode.Value.light.range); // create an exponential falloff term from the light range
 						activeLightningShaderTransforms[currentIndex] = lightningNode.Value.boltGameObject.transform.localToWorldMatrix;
 
-						lightningNode.Value.lightningBoltMaterial.SetFloat("maxConcurrentLightning", (float)maxConcurrent);
-						lightningNode.Value.lightningBoltMaterial.SetFloat("lightningIndex", (float)currentIndex);
+						lightningNode.Value.lightningBoltMaterial.SetFloat(ShaderProperties.maxConcurrentLightning_PROPERTY, (float)maxConcurrent);
+						lightningNode.Value.lightningBoltMaterial.SetFloat(ShaderProperties.lightningIndex_PROPERTY, (float)currentIndex);
 
 						currentIndex++;
 					}
@@ -66,11 +66,11 @@ namespace Atmosphere
             {
 				mat.EnableKeyword("LIGHTNING_ON");
 				mat.DisableKeyword("LIGHTNING_OFF");
-				mat.SetInt("lightningCount", currentCount);
-				mat.SetInt("maxConcurrentLightning", maxConcurrent);
-				mat.SetVectorArray("lightningArray", activeLightningShaderLights);
-				mat.SetVectorArray("lightningColorsArray", activeLightningShaderLightColors);
-				mat.SetMatrixArray("lightningTransformsArray", activeLightningShaderTransforms);
+				mat.SetInt(ShaderProperties.lightningCount_PROPERTY, currentCount);
+				mat.SetInt(ShaderProperties.maxConcurrentLightning_PROPERTY, maxConcurrent);
+				mat.SetVectorArray(ShaderProperties.lightningArray_PROPERTY, activeLightningShaderLights);
+				mat.SetVectorArray(ShaderProperties.lightningColorsArray_PROPERTY, activeLightningShaderLightColors);
+				mat.SetMatrixArray(ShaderProperties.lightningTransformsArray_PROPERTY, activeLightningShaderTransforms);
 			}
 			else
             {
@@ -244,8 +244,8 @@ namespace Atmosphere
 						}
 
 						var boltMaterial = Material.Instantiate(lightningBoltMaterial);
-						boltMaterial.SetFloat("alpha", 1f);
-						boltMaterial.SetColor("color", lightningConfigObject.BoltColor);
+						boltMaterial.SetFloat(ShaderProperties.alpha_PROPERTY, 1f);
+						boltMaterial.SetColor(ShaderProperties.color_PROPERTY, lightningConfigObject.BoltColor);
 
 						boltGameObject.GetComponent<MeshRenderer>().material = boltMaterial;
 						boltGameObject.transform.position = spawnPosition + 0.5f * lightningConfigObject.BoltHeight * (parentTransform.position - spawnPosition).normalized;
@@ -257,8 +257,8 @@ namespace Atmosphere
 						boltGameObject.transform.parent = lightGameObject.transform;
 
 						Vector2 randomIndexes = new Vector2(Random.Range(0f, 1f), Random.Range(0f, 1f));
-						boltMaterial.SetVector("randomIndexes", randomIndexes);
-						boltMaterial.SetVector("lightningSheetCount", lightningConfigObject.LightningSheetCount);
+						boltMaterial.SetVector(ShaderProperties.randomIndexes_PROPERTY, randomIndexes);
+						boltMaterial.SetVector(ShaderProperties.lightningSheetCount_PROPERTY, lightningConfigObject.LightningSheetCount);
 
 						activeLightningList.AddLast(new LightningInstance() { lifeTime = lightningConfigObject.LifeTime, lightGameObject = lightGameObject, color = light.color, light = light, startIntensity = lightningConfigObject.LightIntensity, startLifeTime = lightningConfigObject.LifeTime, boltGameObject = boltGameObject, lightningBoltMaterial = boltMaterial, parentTransform = parentTransform });
 
@@ -340,12 +340,12 @@ namespace Atmosphere
 		public bool Update(float deltaTime)
 		{
 			lifeTime -= deltaTime;
-			light.intensity = startIntensity * lifeTime / startLifeTime; //placeholder
+			light.intensity = startIntensity * lifeTime / startLifeTime;
 
 			Vector3 upAxis = (boltGameObject.transform.position - parentTransform.position).normalized;
 			boltGameObject.transform.rotation = Quaternion.LookRotation(Vector3.Cross(upAxis, Vector3.Cross(upAxis, FlightCamera.fetch.transform.forward)), upAxis);
 
-			lightningBoltMaterial.SetFloat("alpha", lifeTime);
+			lightningBoltMaterial.SetFloat(ShaderProperties.alpha_PROPERTY, lifeTime);
 
 			if (lifeTime <= 0)
 			{

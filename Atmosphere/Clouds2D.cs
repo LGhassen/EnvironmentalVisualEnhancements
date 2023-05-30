@@ -414,35 +414,35 @@ namespace Atmosphere
                 flowLoopTime += Time.deltaTime * TimeWarp.CurrentRate * cloudsMat.FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
-                CloudMaterial.SetFloat("flowLoopTime", flowLoopTime); // TODO: property
+                CloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
             }
         }
 
         internal void SetOrbitFade(float fade)
         {
-            CloudMaterial.SetFloat("scaledCloudFade", fade); // TODO: property
+            CloudMaterial.SetFloat(ShaderProperties.scaledCloudFade_PROPERTY, fade);
         }
 
         internal void SetTimeFade(float fade, TimeFadeMode mode)
         {
             if (mode == TimeFadeMode.Density)
             { 
-                CloudMaterial.SetFloat("cloudTimeFadeDensity", fade);   // TODO: property
+                CloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
 
                 if (ShadowProjector != null)
                 {
-                    ShadowProjector.material.SetFloat("cloudTimeFadeDensity", fade);
-                    screenSpaceShadow.material.SetFloat("cloudTimeFadeDensity", fade);
+                    ShadowProjector.material.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
+                    screenSpaceShadow.material.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
                 }
             }
             if (mode == TimeFadeMode.Coverage)
             {
-                CloudMaterial.SetFloat("cloudTimeFadeCoverage", fade);   // TODO: property
+                CloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
 
                 if (ShadowProjector != null)
                 {
-                    ShadowProjector.material.SetFloat("cloudTimeFadeCoverage", fade);
-                    screenSpaceShadow.material.SetFloat("cloudTimeFadeCoverage", fade);
+                    ShadowProjector.material.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
+                    screenSpaceShadow.material.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
                 }
             }
         }
