@@ -3,6 +3,8 @@ using System;
 using UnityEngine;
 using Utils;
 using System.Collections.Generic;
+using System.Linq;
+
 
 namespace Atmosphere
 {
@@ -15,7 +17,9 @@ namespace Atmosphere
 
         public static EventVoid onApply;
 
-        private HashSet<string> bodiesWithRaymarchedVolumetrics = new HashSet<string>();
+        private List<CelestialBodyCloudsHandler> celestialBodyCloudsHandlers = new List<CelestialBodyCloudsHandler>();
+
+        int currentBodyIndex = 0;
 
         public CloudsManager():base()
         {
@@ -25,52 +29,58 @@ namespace Atmosphere
         public override void Apply()
         {
             Clean();
+            PreprocessConfigs();
+        }
 
+        private void PreprocessConfigs()
+        {
             foreach (UrlDir.UrlConfig config in Configs)
             {
                 foreach (ConfigNode node in config.config.nodes)
                 {
-                    if (node.HasNode("layerRaymarchedVolume"))
+                    var cb = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD));
+
+                    if (cb != null)
                     {
-                        bodiesWithRaymarchedVolumetrics.Add(node.GetValue(ConfigHelper.BODY_FIELD));
+                        var handler = celestialBodyCloudsHandlers.Find(x => x.celestialBody == cb);
+
+                        if (handler != null)
+                        {
+                            handler.AddConfigNode(node);
+                        }
+                        else
+                        {
+                            handler = new CelestialBodyCloudsHandler(cb, new List<ConfigNode>() { node });
+                            celestialBodyCloudsHandlers.Add(handler);
+                        }
                     }
                 }
             }
+        }
 
-            foreach (UrlDir.UrlConfig config in Configs)
+        public override void Update()
+        {
+            base.Update();
+
+            bool updated = false;
+            
+            // update only one body per frame for max scalability
+            var celestialBodyCloudsHandlersCount = celestialBodyCloudsHandlers.Count;
+            if (celestialBodyCloudsHandlersCount > 0)
             {
-                foreach (ConfigNode node in config.config.nodes)
-                {
+                if (currentBodyIndex >= celestialBodyCloudsHandlersCount) currentBodyIndex = 0;
+                if (celestialBodyCloudsHandlers[currentBodyIndex].Update(ObjectList))
+                    updated = true;
 
-                    if (node.HasNode("layerVolume") && bodiesWithRaymarchedVolumetrics.Contains(node.GetValue(ConfigHelper.BODY_FIELD)))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        ApplyConfigNode(node);
-                    }
-                    catch (Exception e)
-                    {
-                        ILog("Unable to parse config node:\n" + node.ToString()+"\nException:\n" + e.ToString());
-                    }
-                }
+                currentBodyIndex++;
             }
 
-            bodiesWithRaymarchedVolumetrics.Clear();
-
-            PostApplyConfigNodes();
+            if (updated)
+                PostApplyConfigNodes();
         }
 
         protected override void ApplyConfigNode(ConfigNode node)
         {
-            GameObject go = new GameObject("CloudsManager");
-            CloudsObject newObject = go.AddComponent<CloudsObject>();
-            go.transform.parent = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD)).bodyTransform;
-            newObject.LoadConfigNode(node);
-            ObjectList.Add(newObject);
-            newObject.Apply();
         }
 
         protected override void PostApplyConfigNodes()
@@ -113,6 +123,115 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(go);
             }
             ObjectList.Clear();
+            celestialBodyCloudsHandlers.Clear();
+        }
+    }
+
+    public class CelestialBodyCloudsHandler
+    {
+        public CelestialBody celestialBody;
+        public List<ConfigNode> configNodes;
+        public bool isLoaded;
+        private bool hasRaymarchedVolumetrics;
+        double loadDistance, unloadDistance;
+
+        public CelestialBodyCloudsHandler(CelestialBody cb, List<ConfigNode> cn)
+        {
+            celestialBody = cb;
+            configNodes = cn;
+            isLoaded = false;
+            hasRaymarchedVolumetrics = false;
+
+            loadDistance   = 2000.0 * celestialBody.Radius;
+            unloadDistance = 4000.0 * celestialBody.Radius;
+        }
+
+        public void AddConfigNode(ConfigNode cn)
+        {
+            configNodes.Add(cn);
+
+            if (cn.HasNode("layerRaymarchedVolume")) hasRaymarchedVolumetrics = true;
+        }
+
+        public bool Update(List<CloudsObject> objectList)
+        {
+            double minDistance = Vector3d.Distance(ScaledSpace.ScaledToLocalSpace(ScaledCamera.Instance.transform.position), celestialBody.position);
+
+            if (FlightGlobals.ActiveVessel != null)
+                minDistance = Math.Min(minDistance, Vector3d.Distance(FlightGlobals.ActiveVessel.transform.position, celestialBody.position));
+
+            if (isLoaded)
+            {
+                if (minDistance > unloadDistance)
+                {
+                    UnloadBody(objectList);
+                    return true;
+                }
+            }
+            else
+            {
+                if (minDistance < loadDistance)
+                {
+                    LoadBody(objectList);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        void LoadBody(List<CloudsObject> objectList)
+        {
+            CloudsManager.Log("Loading body " + celestialBody.name);
+
+            foreach (ConfigNode node in configNodes)
+            {
+                if (node.HasNode("layerVolume") && hasRaymarchedVolumetrics) continue;
+
+                try
+                {
+                    ApplyConfigNode(node, objectList);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("Unable to parse config node:\n" + node.ToString() + "\nException:\n" + e.ToString());
+                }
+            }
+
+            isLoaded = true;
+
+            CloudsManager.Log("Loaded body " + celestialBody.name);
+        }
+
+        void ApplyConfigNode(ConfigNode node, List<CloudsObject> objectList)
+        {
+            GameObject go = new GameObject("CloudsManager");
+            CloudsObject newObject = go.AddComponent<CloudsObject>();
+            go.transform.parent = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD)).bodyTransform;
+            newObject.LoadConfigNode(node);
+            objectList.Add(newObject);
+            newObject.Apply();
+        }
+
+        void UnloadBody(List<CloudsObject> objectList)
+        {
+            CloudsManager.Log("Unloading body " + celestialBody.name);
+
+            foreach (CloudsObject obj in objectList.Where(x=>x.Body == celestialBody.name).ToList())
+            {
+                obj.Remove();
+                GameObject go = obj.gameObject;
+                go.transform.parent = null;
+
+                GameObject.DestroyImmediate(obj);
+                GameObject.DestroyImmediate(go);
+
+                objectList.Remove(obj);
+            }
+
+            isLoaded = false;
+
+            CloudsManager.Log("Unloaded body " + celestialBody.name);
         }
     }
 }

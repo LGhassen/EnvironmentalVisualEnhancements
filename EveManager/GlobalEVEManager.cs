@@ -133,6 +133,11 @@ namespace EVEManager
                     useEditor = !useEditor;
                 }
             }
+
+            foreach(EVEManagerBase manager in Managers)
+            {
+                manager.Update();
+            }
         }
 
         #pragma warning disable 0649

@@ -90,6 +90,12 @@ namespace EVEManager
 
             PostApplyConfigNodes();
         }
+
+        public virtual void Update()
+        {
+
+        }
+
         public virtual void SaveConfig()
         {
             ILog("Saving...");
