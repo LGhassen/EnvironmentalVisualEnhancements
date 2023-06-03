@@ -238,6 +238,8 @@ namespace Utils
         public TextureTypeEnum Type { get { return type; } }
         public AlphaMaskEnum AlphaMask { get { return alphaMask; } }
 
+        bool textureInitialized = false;
+
         public TextureWrapper()
         {
 
@@ -246,7 +248,6 @@ namespace Utils
         public void ApplyTexture(Material mat, string name, int? overrideIndex = null)
         {
             int indexToUse = overrideIndex.HasValue ? overrideIndex.Value : index;
-            GameDatabase.TextureInfo texture = null;
             if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
                 CubemapWrapper cubeMap = CubemapWrapper.fetchCubeMap(this);
@@ -254,30 +255,25 @@ namespace Utils
                 {
                     cubeMap.ApplyCubeMap(mat, name, indexToUse);
                     cubemapWrapper = cubeMap;
+
+                    // add a method to init and unapply CubemapWrapper too, maybe make the cubemapwrapper into just a config? and then actually apply/load thetextures here
                 }
             }
             else
             {
-                texture = GameDatabase.Instance.GetTextureInfo(value);
+                if (!textureInitialized)
+                { 
+                    textureValue = TextureOnDemandLoader.GetTexture(value);
 
-                if (texture == null)
-                {
-                    var path = System.IO.Path.Combine("GameData", value + ".png");
-
-                    if(System.IO.File.Exists(path))
+                    if (textureValue != null)
                     {
-                        var texture2D = new Texture2D(1, 1);
-                        texture2D.LoadImage(System.IO.File.ReadAllBytes(path));
-                        texture = new GameDatabase.TextureInfo(null, texture2D, false, true, false);
-                        Debug.LogWarning("[EVE] Texture "+path+" not found in GameDatabase, loaded directly from file, no compression is applied.");
+                        textureValue.wrapMode = isClamped ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+                        textureInitialized = true;
                     }
                 }
-            }
-            if (texture != null)
-            {
-                texture.texture.wrapMode = isClamped ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
-                mat.SetTexture(name, texture.texture);
-                textureValue = texture.texture;
+
+                if (textureValue != null)
+                    mat.SetTexture(name, textureValue);
             }
             SetAlphaMask(mat, indexToUse);
         }
@@ -314,7 +310,7 @@ namespace Utils
             }
             else
             {
-                return GameDatabase.Instance.GetTextureInfo(value)?.texture;
+                return textureValue;
             }
         }
 
@@ -342,16 +338,7 @@ namespace Utils
             }
             else
             {
-                bool exists = GameDatabase.Instance.ExistsTexture(value);
-
-                // attempt to load directly from PNG from hotswapping in-game
-                if (!exists)
-                {
-                    var path = System.IO.Path.Combine("GameData", value + ".png");
-                    exists = System.IO.File.Exists(path);
-                }
-
-                return exists;
+                return TextureOnDemandLoader.ExistsTexture(value);
             }
         }
 
@@ -409,6 +396,19 @@ namespace Utils
             uv.x = 0.5f + (0.5f / Mathf.PI * Mathf.Atan2(normalizedSphereVector.x, normalizedSphereVector.z));
 
             return uv;
+        }
+
+        public void Remove()
+        {
+            if ((type & TextureTypeEnum.CubeMapMask) > 0)
+            {
+                // TODO: cubemap stuff
+            }
+            else
+            {
+                if (textureInitialized)
+                    TextureOnDemandLoader.NotifyUnload(value);
+            }
         }
     }
 }

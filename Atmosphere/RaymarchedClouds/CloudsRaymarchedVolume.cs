@@ -294,8 +294,6 @@ namespace Atmosphere
 
             SetShaderParams(raymarchedCloudMaterial);
 
-            Remove();
-
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
             GameObject.Destroy(volumeHolder.GetComponent<Collider>());
@@ -336,7 +334,6 @@ namespace Atmosphere
                     particleField = null;
                 }
             }
-            
 
             SetShadowCasterTextureParams();
 
@@ -670,6 +667,18 @@ namespace Atmosphere
 
             if (ambientSound != null)
                 ambientSound.Remove();
+
+            if (coverageMap != null)
+                coverageMap.Remove();
+            
+            if (cloudTypeMap != null)
+                cloudTypeMap.Remove();
+
+            if (CloudColorMap != null)
+                cloudColorMap.Remove();
+
+            if (flowMap != null)
+                flowMap.Remove();
         }
 
         internal bool checkVisible (Vector3 camPos, out float scaledLayerFade)

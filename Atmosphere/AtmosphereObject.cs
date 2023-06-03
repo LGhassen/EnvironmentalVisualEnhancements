@@ -52,6 +52,9 @@ namespace Atmosphere
             GameObject.DestroyImmediate(atmospherePQS);
             GameObject.DestroyImmediate(go);
             atmosphere = null;
+
+            if (atmosphereMaterial != null)
+                atmosphereMaterial.Remove();
         }
     }
 }

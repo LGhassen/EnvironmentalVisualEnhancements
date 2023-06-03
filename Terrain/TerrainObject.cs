@@ -101,6 +101,9 @@ namespace Terrain
             GameObject go = terrainPQS.gameObject;
             GameObject.DestroyImmediate(terrainPQS);
             GameObject.DestroyImmediate(go);
+
+            if (terrainMaterial != null) terrainMaterial.Remove();
+            if (oceanMaterial != null) oceanMaterial.Remove();
         }
     }
 }

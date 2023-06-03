@@ -61,6 +61,13 @@ namespace Atmosphere
                 material.DisableKeyword("FLOWMAP_ON");
             }
         }
+
+        public override void Remove()
+        {
+            base.Remove();
+            if (_FlowMap != null)
+                _FlowMap.Remove();
+        }
     }
 
     public enum TimeFadeMode
@@ -219,7 +226,8 @@ namespace Atmosphere
             GameObject go = cloudsPQS.gameObject;
             GameObject.DestroyImmediate(cloudsPQS);
             GameObject.DestroyImmediate(go);
-
+            if (settings!=null)
+                settings.Remove();
         }
 
     }

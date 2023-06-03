@@ -140,6 +140,8 @@ namespace Atmosphere
                 GameObject.Destroy(volumeHolder);
                 volumeHolder = null;
             }
+
+            if (particleMaterial != null) particleMaterial.Remove();
         }
 
         internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 detailRotationMatrix)

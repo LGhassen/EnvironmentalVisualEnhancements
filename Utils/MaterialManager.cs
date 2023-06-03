@@ -21,13 +21,9 @@ namespace Utils
         {
         }
 
-        
-
-
         public class InverseScaled : System.Attribute
         {
         }
-
 
         public class ScaledValue
         {
@@ -59,13 +55,6 @@ namespace Utils
             ApplyCache(material, scale);
             //Log();
         }
-        
-        public void UpdateCommandBuffer(Material mat, CommandBuffer buf)
-        {
-            Cache();
-            CloneToBuffer(mat, buf);
-        }
-
         
         private void Cache()
         {
@@ -203,58 +192,6 @@ namespace Utils
             }
         }
 
-        private void CloneToBuffer(Material mat, CommandBuffer buf)
-        {
-            foreach (KeyValuePair<object, object> field in cache)
-            {
-                object obj = field.Value;
-                //float
-                int id = (int)field.Key;
-                if (obj.GetType() == typeof(float))
-                {
-                    float value = mat.GetFloat(id);
-                    buf.SetGlobalFloat(id, value);
-                }
-                //Color
-                else if (obj.GetType() == typeof(Color))
-                {
-                    Color value = mat.GetColor(id);
-                    buf.SetGlobalColor(id, value);
-                }
-                //Color32
-                else if (obj.GetType() == typeof(Color32))
-                {
-                    Color value = mat.GetColor(id);
-                    buf.SetGlobalColor(id, value);
-                }//Vector2
-                else if (obj.GetType() == typeof(Vector2))
-                {
-                    Vector4 value = mat.GetVector(id);
-                    buf.SetGlobalVector(id, value);
-                }
-                //Vector3
-                else if (obj.GetType() == typeof(Vector3))
-                {
-                    Vector4 value = mat.GetVector(id);
-                    buf.SetGlobalVector(id, value);
-                }
-                //Vector4
-                else if (obj.GetType() == typeof(Vector4))
-                {
-                    Vector4 value = mat.GetVector(id);
-                    buf.SetGlobalVector(id, value);
-                }
-                //Matrix
-                else if (obj.GetType() == typeof(Matrix4x4))
-                {
-                    Matrix4x4 value = mat.GetMatrix(id);
-                    buf.SetGlobalMatrix(id, value);
-                }
-
-            }
-        }
-
-
         public void SaveTextures(Material material)
         {
             Cache();
@@ -273,9 +210,25 @@ namespace Utils
                     }
                     
                 }
-
             }
+        }
 
+        public virtual void Remove()
+        {
+            FieldInfo[] fields = this.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+            foreach (FieldInfo field in fields)
+            {
+                String name = field.Name;
+
+                if (field.FieldType == typeof(TextureWrapper))
+                {
+                    TextureWrapper texture = (TextureWrapper)field.GetValue(this);
+                    if (texture != null)
+                    {
+                        texture.Remove();
+                    }
+                }
+            }
         }
     }
 }

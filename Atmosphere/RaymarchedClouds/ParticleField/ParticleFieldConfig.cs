@@ -83,7 +83,7 @@ namespace Atmosphere
         { 
 
         }
-        public void Remove() { }
+        public void Remove() { if (particleTexture != null) particleTexture.Remove(); }
 
         protected void Start()
         {

@@ -108,7 +108,7 @@ namespace Atmosphere
         {
 
         }
-        public void Remove() { }
+        public void Remove() { if(boltTexture!=null) boltTexture.Remove(); }
 
         protected void Start()
         {

@@ -152,6 +152,9 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(AtmosphereMesh);
                 AtmosphereMesh = null;
             }
+
+            if (atmosphereMaterial != null)
+                atmosphereMaterial.Remove();
         }
 
         internal void UpdatePosition()

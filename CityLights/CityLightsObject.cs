@@ -208,6 +208,8 @@ namespace CityLights
 
             GameEvents.onGameSceneLoadRequested.Remove(SceneLoaded);
             GameObject.DestroyImmediate(materialPQS);
+
+            if (cityLightsMaterial != null) cityLightsMaterial.Remove();
         }
     }
 

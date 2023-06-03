@@ -367,6 +367,9 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(screenSpaceShadowGO);
                 screenSpaceShadowGO = null;
             }
+
+            if (shadowMaterial != null) shadowMaterial.Remove();
+            if (macroCloudMaterial != null) macroCloudMaterial.Remove();
         }
 
         internal void UpdateRotation(QuaternionD rotation, Matrix4x4 World2Planet, Matrix4x4 mainRotationMatrix, Matrix4x4 detailRotationMatrix)

@@ -19,5 +19,11 @@ namespace Atmosphere
         public float Displacement { get => displacement; }
 
         public bool KeepUntilingOnNoFlowAreas { get => keepUntiligOnNoFlowAreas; }
+
+        public void Remove()
+        {
+            if (texture != null)
+                texture.Remove();
+        }
     }
 }
