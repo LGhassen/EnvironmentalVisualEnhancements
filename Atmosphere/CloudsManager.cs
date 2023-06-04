@@ -130,6 +130,7 @@ namespace Atmosphere
     public class CelestialBodyCloudsHandler
     {
         CelestialBody celestialBody;
+        Transform scaledTransform;
         GameObject mainMenuGO;
         List<ConfigNode> configNodes;
         bool isLoaded;
@@ -143,6 +144,7 @@ namespace Atmosphere
         public CelestialBodyCloudsHandler(CelestialBody cb, List<ConfigNode> cn)
         {
             celestialBody = cb;
+            scaledTransform = Tools.GetScaledTransform(cb.name);
             configNodes = cn;
             isLoaded = false;
             hasRaymarchedVolumetrics = false;
@@ -160,7 +162,7 @@ namespace Atmosphere
 
         public bool Update(List<CloudsObject> objectList)
         {
-            double minDistance = Vector3d.Distance(ScaledSpace.ScaledToLocalSpace(ScaledCamera.Instance.transform.position), celestialBody.position);
+            double minDistance = Vector3d.Distance(ScaledCamera.Instance.transform.position, scaledTransform.position) * ScaledSpace.ScaleFactor;
 
             if (FlightGlobals.ActiveVessel != null)
                 minDistance = Math.Min(minDistance, Vector3d.Distance(FlightGlobals.ActiveVessel.transform.position, celestialBody.position));
