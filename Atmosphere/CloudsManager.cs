@@ -42,7 +42,7 @@ namespace Atmosphere
 
                     if (cb != null)
                     {
-                        var handler = celestialBodyCloudsHandlers.Find(x => x.celestialBody == cb);
+                        var handler = celestialBodyCloudsHandlers.Find(x => x.CelestialBody == cb);
 
                         if (handler != null)
                         {
@@ -129,11 +129,16 @@ namespace Atmosphere
 
     public class CelestialBodyCloudsHandler
     {
-        public CelestialBody celestialBody;
-        public List<ConfigNode> configNodes;
-        public bool isLoaded;
-        private bool hasRaymarchedVolumetrics;
+        CelestialBody celestialBody;
+        GameObject mainMenuGO;
+        List<ConfigNode> configNodes;
+        bool isLoaded;
+        bool hasRaymarchedVolumetrics;
         double loadDistance, unloadDistance;
+
+        static Camera mainMenuCamera = null;
+
+        public CelestialBody CelestialBody { get => celestialBody; }
 
         public CelestialBodyCloudsHandler(CelestialBody cb, List<ConfigNode> cn)
         {
@@ -160,6 +165,8 @@ namespace Atmosphere
             if (FlightGlobals.ActiveVessel != null)
                 minDistance = Math.Min(minDistance, Vector3d.Distance(FlightGlobals.ActiveVessel.transform.position, celestialBody.position));
 
+            minDistance = HandleMainMenu(minDistance);
+
             if (isLoaded)
             {
                 if (minDistance > unloadDistance)
@@ -178,6 +185,39 @@ namespace Atmosphere
             }
 
             return false;
+        }
+
+        private double HandleMainMenu(double minDistance)
+        {
+            if (HighLogic.LoadedScene == GameScenes.MAINMENU)
+            {
+                if (mainMenuCamera == null)
+                {
+                    mainMenuCamera = Camera.allCameras.Single(_cam => _cam.name == "Landscape Camera");
+                }
+
+                if (mainMenuGO == null)
+                {
+                    mainMenuGO = Tools.GetMainMenuObject(celestialBody.name);
+                }
+
+                if (mainMenuCamera != null && mainMenuGO != null && mainMenuGO.activeInHierarchy)
+                {
+                    // check if the object's position is within the camera frustum
+                    Vector3 viewport = mainMenuCamera.WorldToViewportPoint(mainMenuGO.transform.position);
+
+                    if (viewport.x > 0 && viewport.x < 1 && viewport.y > 0 && viewport.y < 1 && viewport.z > 0)
+                    {
+                        minDistance = 0.0;
+                    }
+                    else
+                    {
+                        minDistance = double.PositiveInfinity;
+                    }
+                }
+            }
+
+            return minDistance;
         }
 
         void LoadBody(List<CloudsObject> objectList)
