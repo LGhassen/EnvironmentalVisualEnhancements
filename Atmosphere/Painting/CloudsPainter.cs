@@ -688,7 +688,7 @@ namespace Atmosphere
 
             string datetime = DateTime.Now.ToString("yyyy-MM-dd\\THH-mm-ss\\Z");
 
-            string path = System.IO.Path.Combine("GameData","EVETextureExports", body);
+            string path = System.IO.Path.Combine("GameData","EVETextureExports","PluginData", body);
 
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
