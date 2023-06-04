@@ -404,6 +404,7 @@ namespace Atmosphere
                 }
                 else
                 {
+                    this.OnSphereInactive();
                     this.OnSphereActive();
                 }
             }
