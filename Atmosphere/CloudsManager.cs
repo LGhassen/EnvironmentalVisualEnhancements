@@ -195,7 +195,7 @@ namespace Atmosphere
             {
                 if (mainMenuCamera == null)
                 {
-                    mainMenuCamera = Camera.allCameras.Single(_cam => _cam.name == "Landscape Camera");
+                    mainMenuCamera = Camera.allCameras.SingleOrDefault(_cam => _cam.name == "Landscape Camera");
                 }
 
                 if (mainMenuGO == null)
