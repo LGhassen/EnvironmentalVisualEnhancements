@@ -443,7 +443,8 @@ namespace Atmosphere
             if (scene == GameScenes.MAINMENU)
             {
                 ApplyToMainMenu();
-                layerRaymarchedVolume.enabled = false;
+                if (layerRaymarchedVolume != null)
+                    layerRaymarchedVolume.enabled = false;
             }
             else
             {
