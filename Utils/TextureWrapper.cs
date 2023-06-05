@@ -54,82 +54,43 @@ namespace Utils
         }
     }
 
-    public class CubemapWrapper
+    public class CubemapWrapperConfig
     {
-
-        private static Dictionary<String,CubemapWrapper> CubemapList = new Dictionary<String,CubemapWrapper>();
+        private static Dictionary<String, CubemapWrapperConfig> CubemapList = new Dictionary<String, CubemapWrapperConfig>();
 
         private TextureTypeEnum type;
-        public string name;
+        private string name;
 
-        Texture2D texPositive;
-        Texture2D texNegative;
-        Texture2D[] texList;
+        private string texPositive;
+        private string texNegative;
+        private string[] texList;
 
-        public CubemapWrapper(string value, Texture2D[] textures, TextureTypeEnum cubeType, bool mipmaps, bool readable)
+        public TextureTypeEnum Type { get => type; }
+        public string TexPositive { get => texPositive; }
+        public string TexNegative { get => texNegative; }
+        public string[] TexList { get => texList; }
+        public string Name { get => name; }
+
+        public CubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType, bool mipmaps, bool readable)
         {
             this.name = value;
-            type = cubeType == TextureTypeEnum.RGB2_CubeMap? TextureTypeEnum.RGB2_CubeMap : TextureTypeEnum.CubeMap;
+            type = cubeType == TextureTypeEnum.RGB2_CubeMap ? TextureTypeEnum.RGB2_CubeMap : TextureTypeEnum.CubeMap;
             KSPLog.print("[EVE] Creating " + name + " Cubemap");
 
-            foreach (Texture2D tex in textures)
-            {
-                tex.wrapMode = TextureWrapMode.Clamp;
-            }
-
             if (type == TextureTypeEnum.RGB2_CubeMap)
             {
-                texPositive = textures[0];
-                texNegative = textures[1];
+                texPositive = textureNames[0];
+                texNegative = textureNames[1];
             }
             else
             {
-                /*
-                cubeTex = new Cubemap(textures[0].width, TextureFormat.RGBA32, mipmaps);
-                
-                foreach (CubemapFace face in Enum.GetValues(typeof(CubemapFace)))
-                {
-                    Texture2D tex = textures[(int)face];
-                    cubeTex.SetPixels(tex.GetPixels(), face);
-                }
-                cubeTex.Apply(mipmaps, !readable);
-                cubeTex.SmoothEdges();
-                */
-                texList = textures;
-                
+                texList = textureNames;
             }
         }
 
-        public static void GenerateCubemapWrapper(string value, Texture2D[] textures, TextureTypeEnum cubeType, bool mipmaps, bool readable)
+        public static void GenerateCubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType, bool mipmaps, bool readable)
         {
-            CubemapList[value] = new CubemapWrapper(value, textures, cubeType, mipmaps, readable);
-        }
-
-        internal void ApplyCubeMap(Material mat, string name, int index)
-        {
-            if (type == TextureTypeEnum.RGB2_CubeMap)
-            {
-                mat.SetTexture("cube" + name + "POS", texPositive);
-                mat.SetTexture("cube" + name + "NEG", texNegative);
-                mat.EnableKeyword("MAP_TYPE_CUBE2_" + index.ToString());
-                KSPLog.print("[EVE] Applying " + name + " Cubemap");
-            }
-            else
-            {
-                /*
-                KSPLog.print("[EVE] Setting cube" + name);
-                mat.SetTexture("cube" + name, cubeTex);
-                mat.EnableKeyword("MAP_TYPE_CUBE_" + index.ToString());
-                */
-                mat.SetTexture("cube" + name + "xn", texList[(int)CubemapFace.NegativeX]);
-                mat.SetTexture("cube" + name + "yn", texList[(int)CubemapFace.NegativeY]);
-                mat.SetTexture("cube" + name + "zn", texList[(int)CubemapFace.NegativeZ]);
-                mat.SetTexture("cube" + name + "xp", texList[(int)CubemapFace.PositiveX]);
-                mat.SetTexture("cube" + name + "yp", texList[(int)CubemapFace.PositiveY]);
-                mat.SetTexture("cube" + name + "zp", texList[(int)CubemapFace.PositiveZ]);
-                mat.EnableKeyword("MAP_TYPE_CUBE6_" + index.ToString());
-                
-            }
+            CubemapList[value] = new CubemapWrapperConfig(value, textureNames, cubeType, mipmaps, readable);
         }
 
         internal static bool Exists(string value, TextureTypeEnum type)
@@ -138,22 +99,106 @@ namespace Utils
             return (CubemapList.ContainsKey(value));// && CubemapList[value].type == type);
         }
 
-        public static CubemapWrapper fetchCubeMap(TextureWrapper textureWrapper)
+        public static CubemapWrapperConfig FetchCubemapConfig(string name)
         {
-            bool cubemapExists = CubemapList.ContainsKey(textureWrapper.Name);
+            bool cubemapExists = CubemapList.ContainsKey(name);
             if (cubemapExists)
             {
-                return CubemapList[textureWrapper.Name];
+                return CubemapList[name];
+            }
+            
+            return null;
+        }
+    }
+
+    public class CubemapWrapper
+    {
+        CubemapWrapperConfig cubemapWrapperConfig;
+
+        Texture2D texPositive;
+        Texture2D texNegative;
+        Texture2D[] texList;
+
+        bool texturesLoaded = false;
+
+        public static CubemapWrapper Create(string name)
+        {
+            var cubemapWrapperConfig = CubemapWrapperConfig.FetchCubemapConfig(name);
+
+            if (cubemapWrapperConfig != null)
+            {
+                return new CubemapWrapper(cubemapWrapperConfig);
+            }
+
+            return null;
+        }
+
+        protected CubemapWrapper(CubemapWrapperConfig config)
+        {
+            cubemapWrapperConfig = config;
+
+            if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
+            {
+                texPositive = TextureOnDemandLoader.GetTexture(cubemapWrapperConfig.TexPositive);
+                texNegative = TextureOnDemandLoader.GetTexture(cubemapWrapperConfig.TexNegative);
+                if (texPositive == null) Debug.LogError("[EVE] Texture " + cubemapWrapperConfig.TexPositive + " could not be found");
+                if (texNegative == null) Debug.LogError("[EVE] Texture " + cubemapWrapperConfig.TexNegative + " could not be found");
+
+                texPositive.wrapMode = TextureWrapMode.Clamp;
+                texNegative.wrapMode = TextureWrapMode.Clamp;
             }
             else
             {
-                return null;
+                texList = new Texture2D[6];
+                for (int i = 0; i < 6; i++)
+                {
+                    texList[i] = TextureOnDemandLoader.GetTexture(cubemapWrapperConfig.TexList[i]);
+                    if (texList[i] == null) Debug.LogError("[EVE] Texture " + cubemapWrapperConfig.TexList[i] + " could not be found");
+                    texList[i].wrapMode = TextureWrapMode.Clamp;
+                }
+            }
+        }
+
+        internal void ApplyCubeMap(Material mat, string name, int index)
+        {
+            if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
+            {
+                mat.SetTexture("cube" + name + "POS", texPositive);
+                mat.SetTexture("cube" + name + "NEG", texNegative);
+                mat.EnableKeyword("MAP_TYPE_CUBE2_" + index.ToString());
+                KSPLog.print("[EVE] Applying " + name + " Cubemap");
+            }
+            else
+            {
+                mat.SetTexture("cube" + name + "xn", texList[(int)CubemapFace.NegativeX]);
+                mat.SetTexture("cube" + name + "yn", texList[(int)CubemapFace.NegativeY]);
+                mat.SetTexture("cube" + name + "zn", texList[(int)CubemapFace.NegativeZ]);
+                mat.SetTexture("cube" + name + "xp", texList[(int)CubemapFace.PositiveX]);
+                mat.SetTexture("cube" + name + "yp", texList[(int)CubemapFace.PositiveY]);
+                mat.SetTexture("cube" + name + "zp", texList[(int)CubemapFace.PositiveZ]);
+                mat.EnableKeyword("MAP_TYPE_CUBE6_" + index.ToString());
+            }
+        }
+
+        public void Remove()
+        {
+            if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
+            {
+                TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexPositive);
+                TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexNegative);
+            }
+            else
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexList[i]);
+                }
             }
         }
 
         public Color Sample(Vector3 normalizedSphereVector)
         {
-            if (type != TextureTypeEnum.RGB2_CubeMap)
+            if (cubemapWrapperConfig.Type != TextureTypeEnum.RGB2_CubeMap)
             {
                 var uv = GetCubeMapUVAndFaceTosample(normalizedSphereVector, out CubemapFace faceToSample);
                 return texList[(int)faceToSample].GetPixelBilinear(uv.x, uv.y, 0);
@@ -250,13 +295,20 @@ namespace Utils
             int indexToUse = overrideIndex.HasValue ? overrideIndex.Value : index;
             if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
-                CubemapWrapper cubeMap = CubemapWrapper.fetchCubeMap(this);
-                if (cubeMap != null)
-                {
-                    cubeMap.ApplyCubeMap(mat, name, indexToUse);
-                    cubemapWrapper = cubeMap;
+                if (!textureInitialized)
+                { 
+                    CubemapWrapper cubeMap = CubemapWrapper.Create(value);
+                    if (cubeMap == null)
+                        Debug.LogError("[EVE] Cannot apply " + value + " , cubemap invalid or not found");
+                    else
+                        cubemapWrapper = cubeMap;
 
-                    // add a method to init and unapply CubemapWrapper too, maybe make the cubemapwrapper into just a config? and then actually apply/load thetextures here
+                    textureInitialized = true;
+                }
+
+                if (cubemapWrapper != null)
+                {
+                    cubemapWrapper.ApplyCubeMap(mat, name, indexToUse);
                 }
             }
             else
@@ -314,18 +366,6 @@ namespace Utils
             }
         }
 
-        public CubemapWrapper GetCubemapWrapper()
-        {
-            if ((type & TextureTypeEnum.CubeMapMask) > 0)
-            {
-                return CubemapWrapper.fetchCubeMap(this);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
         public bool isValid()
         {
             if (value == null || value == "")
@@ -334,7 +374,7 @@ namespace Utils
             }
             else if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
-                return CubemapWrapper.Exists(value, type);
+                return CubemapWrapperConfig.Exists(value, type);
             }
             else
             {
@@ -402,7 +442,8 @@ namespace Utils
         {
             if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
-                // TODO: cubemap stuff
+                if (textureInitialized && cubemapWrapper != null)
+                    cubemapWrapper.Remove();
             }
             else
             {

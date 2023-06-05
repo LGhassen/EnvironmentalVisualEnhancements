@@ -62,45 +62,43 @@ namespace TextureConfig
             if(type == TexTypeEnum.TEX_CUBE_6)
             {
                 
-                ReplaceIfNecessary(texXn, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texYn, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texZn, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texXp, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texYp, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texZp, isNormalMap, mipmaps, isReadable, isCompressed);
+                // for now No idea how to handle this logic so I can do on demand
+                // probably just add a flag inside a cubemap wrapper that if it doesn't find textures it should try later on, on-demand
+                // then it keeps a count by itself 
+
+                ReplaceIfNecessaryInGameDatabase(texXn, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texYn, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texZn, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texXp, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texYp, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texZp, isNormalMap, mipmaps, isReadable, isCompressed);
                 
-                Texture2D[] textures = new Texture2D[6];
-                textures[(int)CubemapFace.NegativeX] = GameDatabase.Instance.GetTexture(texXn, isNormalMap);
-                textures[(int)CubemapFace.NegativeY] = GameDatabase.Instance.GetTexture(texYn, isNormalMap);
-                textures[(int)CubemapFace.NegativeZ] = GameDatabase.Instance.GetTexture(texZn, isNormalMap);
-                textures[(int)CubemapFace.PositiveX] = GameDatabase.Instance.GetTexture(texXp, isNormalMap);
-                textures[(int)CubemapFace.PositiveY] = GameDatabase.Instance.GetTexture(texYp, isNormalMap);
-                textures[(int)CubemapFace.PositiveZ] = GameDatabase.Instance.GetTexture(texZp, isNormalMap);
-                CubemapWrapper.GenerateCubemapWrapper(name, textures, TextureTypeEnum.CubeMap, mipmaps, isReadable);
-             /*   foreach(Texture2D tex in textures)
-                {
-                    GameDatabase.Instance.RemoveTexture(tex.name);
-                    GameObject.DestroyImmediate(tex);
-                }
-                */
+                string[] textureNames = new string[6];
+                textureNames[(int)CubemapFace.NegativeX] = texXn;
+                textureNames[(int)CubemapFace.NegativeY] = texYn;
+                textureNames[(int)CubemapFace.NegativeZ] = texZn;
+                textureNames[(int)CubemapFace.PositiveX] = texXp;
+                textureNames[(int)CubemapFace.PositiveY] = texYp;
+                textureNames[(int)CubemapFace.PositiveZ] = texZp;
+                CubemapWrapperConfig.GenerateCubemapWrapperConfig(name, textureNames, TextureTypeEnum.CubeMap, mipmaps, isReadable);
             }
             else if(type == TexTypeEnum.TEX_CUBE_2)
             {
-                ReplaceIfNecessary(texP, isNormalMap, mipmaps, isReadable, isCompressed);
-                ReplaceIfNecessary(texN, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texP, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(texN, isNormalMap, mipmaps, isReadable, isCompressed);
 
-                Texture2D[] textures = new Texture2D[2];
-                textures[0] = GameDatabase.Instance.GetTexture(texP, isNormalMap);
-                textures[1] = GameDatabase.Instance.GetTexture(texN, isNormalMap);
-                CubemapWrapper.GenerateCubemapWrapper(name, textures, TextureTypeEnum.RGB2_CubeMap, mipmaps, isReadable);
+                string[] textureNames = new string[2];
+                textureNames[0] = texP;
+                textureNames[1] = texN;
+                CubemapWrapperConfig.GenerateCubemapWrapperConfig(name, textureNames, TextureTypeEnum.RGB2_CubeMap, mipmaps, isReadable);
             }
             else
             {
-                ReplaceIfNecessary(name, isNormalMap, mipmaps, isReadable, isCompressed);
+                ReplaceIfNecessaryInGameDatabase(name, isNormalMap, mipmaps, isReadable, isCompressed);
             }
         }
 
-        private static void ReplaceIfNecessary(string name, bool normalMap, bool mipmaps, bool readable, bool compressed)
+        private static void ReplaceIfNecessaryInGameDatabase(string name, bool normalMap, bool mipmaps, bool readable, bool compressed)
         {
             if (GameDatabase.Instance.ExistsTexture(name))
             {
@@ -130,7 +128,6 @@ namespace TextureConfig
                     }
                     info.texture.Apply(mipmaps, !readable);
                 }
-                
             }
         }
 

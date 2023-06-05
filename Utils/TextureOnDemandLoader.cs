@@ -12,7 +12,7 @@ namespace Utils
 
         public static Texture2D GetTexture(string textureName)
         {
-            if (textureName == null) return null;
+            if (string.IsNullOrEmpty(textureName)) return null;
 
             var gameDatabaseTexture = GameDatabase.Instance.GetTextureInfo(textureName);
 
@@ -23,7 +23,6 @@ namespace Utils
 
             if (textureOnDemandDictionary.TryGetValue(textureName, out TextureOnDemand existingTexture))
             {
-                Log("Texture " + textureName + " already loaded");
                 return existingTexture.UseTexture();
             }
             else
@@ -51,7 +50,7 @@ namespace Utils
                 if (existingTexture.UnloadIfNeeded())
                 {
                     textureOnDemandDictionary.Remove(textureName);
-                    Log("Texture " + textureName + " unloaded on demand");
+                    Log("Texture " + textureName + " unloaded");
                 }
             }
         }
