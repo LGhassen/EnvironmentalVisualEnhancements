@@ -1,5 +1,4 @@
-﻿using EVEManager;
-using System;
+﻿using System;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
@@ -306,6 +305,9 @@ namespace Atmosphere
                         }
                         else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
                         {
+                            if (!layer2D.Scaled) // sometiems the game events don't fire
+                                OnSphereInactive();
+
                             Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
                             Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
 
