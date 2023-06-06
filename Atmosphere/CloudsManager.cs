@@ -61,8 +61,6 @@ namespace Atmosphere
         public override void Update()
         {
             base.Update();
-
-            bool updated = false;
             
             // update only one body per frame for max scalability
             var celestialBodyCloudsHandlersCount = celestialBodyCloudsHandlers.Count;
@@ -70,13 +68,10 @@ namespace Atmosphere
             {
                 if (currentBodyIndex >= celestialBodyCloudsHandlersCount) currentBodyIndex = 0;
                 if (celestialBodyCloudsHandlers[currentBodyIndex].Update(ObjectList))
-                    updated = true;
+                    PostApplyConfigNodes();
 
                 currentBodyIndex++;
             }
-
-            if (updated)
-                PostApplyConfigNodes();
         }
 
         protected override void ApplyConfigNode(ConfigNode node)
