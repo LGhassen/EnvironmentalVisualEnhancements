@@ -25,8 +25,6 @@ namespace Atmosphere
         {
             switch (temporalUpscaling)
             {
-                // case TemporalUpscaling.off:
-                //    return new Tuple<int, int>(1, 1);
                 case TemporalUpscaling.x1:
                     return new Tuple<int, int>(1, 1);
                 case TemporalUpscaling.x2:
@@ -39,6 +37,8 @@ namespace Atmosphere
                     return new Tuple<int, int>(4, 4);
                 case TemporalUpscaling.x32:
                     return new Tuple<int, int>(8, 4);
+                case TemporalUpscaling.x64:
+                    return new Tuple<int, int>(8, 8);
                 default:
                     return new Tuple<int, int>(4, 2);
             }

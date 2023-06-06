@@ -12,6 +12,7 @@ namespace Atmosphere
         x8,
         x16,
         x32,
+        x64,
     }
 
     [ConfigName("name")]
