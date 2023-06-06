@@ -228,7 +228,7 @@ namespace Atmosphere
 
             foreach (ConfigNode node in configNodes)
             {
-                if (node.HasNode("layerVolume") && hasRaymarchedVolumetrics) continue;
+                if (!node.HasNode("layerRaymarchedVolume") && hasRaymarchedVolumetrics) continue;
 
                 try
                 {
