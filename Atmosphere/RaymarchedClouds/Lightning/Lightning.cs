@@ -1,5 +1,6 @@
 ﻿using ShaderLoader;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Utils;
 using PQSManager;
@@ -8,7 +9,8 @@ namespace Atmosphere
 {
 	public class Lightning
 	{
-		static readonly int maxConcurrent = 4; // more than this and it tanks the performance because of the lights, especially using Parallax and rain/splashes. A hardcoded limit of 16 is in the clouds shader, just in case, but never tested
+		// more than this and it tanks the performance because of the lights, especially using Parallax and rain/splashes. A hardcoded limit of 16 is in the clouds shader, just in case, but never tested
+		static readonly int maxConcurrent = 4;
 		static int currentCount = 0;
 		static int lastUpdateFrame = 0;
 
@@ -272,7 +274,19 @@ namespace Atmosphere
 							boltSoundGameObject.transform.parent = parentTransform;
 
 							var audioSource = boltSoundGameObject.AddComponent<AudioSource>();
-							audioSource.clip = soundDistance > lightningConfigObject.SoundFarThreshold ? farAudioClips[Random.Range(0, farAudioClips.Count)] : nearAudioClips[Random.Range(0, nearAudioClips.Count)];
+
+							bool isFarSound = false;
+
+							if (soundDistance > lightningConfigObject.SoundFarThreshold)
+                            {
+								audioSource.clip = farAudioClips[Random.Range(0, farAudioClips.Count)];
+								isFarSound = true;
+							}
+							else
+                            {
+								audioSource.clip = nearAudioClips[Random.Range(0, nearAudioClips.Count)];
+							}
+							
 							audioSource.rolloffMode = AudioRolloffMode.Linear;
 							audioSource.spatialBlend = 1f;
 							audioSource.minDistance = lightningConfigObject.SoundMinDistance;
@@ -290,7 +304,8 @@ namespace Atmosphere
 								audioSource.Play();
 							}
 
-							boltSoundGameObject.AddComponent<KillOnAudioClipFinished>();
+							boltSoundGameObject.AddComponent<AudioSourceHandler>().Init(isFarSound);
+
 						}
 
 						currentCount++;
@@ -301,26 +316,54 @@ namespace Atmosphere
 		}
 	}
 
-	public class KillOnAudioClipFinished : MonoBehaviour
+	public class AudioSourceHandler : MonoBehaviour
     {
+		// have to manually limit these because unity can't handle them and starts breaking other sounds, the built-in priority system isn't of much help
+		static readonly int maxConcurrentSoundsOfEachCategory = 4; // seems to be the sweet spot, more than this and it becomes a complete cacophony on Jool
+
+		static List<AudioSourceHandler> farSourceHandlers  = new List<AudioSourceHandler>();
+		static List<AudioSourceHandler> nearSourceHandlers = new List<AudioSourceHandler>();
+
 		AudioSource audioSource = null;
+		bool isFarSound = false;
 
 		public void Awake()
         {
 			audioSource = gameObject?.GetComponent<AudioSource>();
 			if (audioSource == null)
-				GameObject.Destroy(gameObject);
+				Remove();
 		}
 
 		public void Update()
         {
-			if (audioSource != null && !audioSource.isPlaying)      // works with PlayDelayed
+			if (audioSource != null && !audioSource.isPlaying) // works with PlayDelayed)
 			{
 				audioSource = null;
-				GameObject.Destroy(gameObject);
+				Remove();
 			}
 		}
-    }
+
+		public void Remove()
+        {
+			var handlersList = isFarSound ? farSourceHandlers : nearSourceHandlers;
+			handlersList.Remove(this);
+
+			GameObject.Destroy(gameObject);
+		}
+
+		public void Init(bool isFarSound)
+        {
+			this.isFarSound = isFarSound;
+
+			var handlersList = isFarSound ? farSourceHandlers : nearSourceHandlers;
+			handlersList.Add(this);
+
+			if (handlersList.Count > maxConcurrentSoundsOfEachCategory)
+            {
+				handlersList.Remove(handlersList.First()); // the first in the list is always the oldest
+			}
+		}
+	}
 
 	public class LightningInstance
 	{

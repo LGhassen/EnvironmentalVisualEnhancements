@@ -3,7 +3,6 @@ using System;
 
 namespace Atmosphere
 {
-
     public class LightningManager : GenericEVEManager<LightningConfig>
     {
         public override ObjectType objectType { get { return ObjectType.STATIC | ObjectType.MULTIPLE; } }

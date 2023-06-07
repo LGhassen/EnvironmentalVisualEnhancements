@@ -162,6 +162,7 @@
     <Compile Include="RaymarchedClouds\Lightning\Lightning.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningManager.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningConfig.cs" />
+    <Compile Include="RaymarchedClouds\Lightning\AudioSettingsStartupHandler.cs" />
     <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldManager.cs" />
     <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldConfig.cs" />
     <Compile Include="RaymarchedClouds\ParticleField\ParticleField.cs" />
