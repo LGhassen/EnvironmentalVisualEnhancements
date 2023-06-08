@@ -1,14 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace Utils
-{
+{ 
+    public class EVEDDSValues
+    {
+        public static uint BC4U = MakePixelFormatFourCC("BC4U");
+
+        // Source: https://gist.github.com/Scobalula/d9474f3fcf3d5a2ca596fceb64e16c98#file-directxtexutil-cs
+        private static uint MakePixelFormatFourCC(string format)
+        {
+            char[] chars = format.ToCharArray(0, 4);
+            return Convert.ToByte(chars[0]) | (uint)Convert.ToByte(chars[1]) << 8 | (uint)Convert.ToByte(chars[2]) << 16 | (uint)Convert.ToByte(chars[3]) << 24;
+        }
+    }
+
     public class TextureConverter
     {
 
@@ -675,6 +683,13 @@ namespace Utils
                             texture.texture.Apply(false, !texture.isReadable);
                         }
                     }
+                    else if (dDSHeader.ddspf.dwFourCC == EVEDDSValues.BC4U)
+                    {
+                        GameObject.DestroyImmediate(texture.texture);
+                        texture.texture = new Texture2D((int)dDSHeader.dwWidth, (int)dDSHeader.dwHeight, GraphicsFormat.R_BC4_UNorm, mipmap ? TextureCreationFlags.MipChain : TextureCreationFlags.None);
+                        texture.texture.LoadRawTextureData(binaryReader.ReadBytes((int)(binaryReader.BaseStream.Length - binaryReader.BaseStream.Position)));
+                        texture.texture.Apply(false, !texture.isReadable);
+                    }
                     else if (dDSHeader.ddspf.dwFourCC == DDSHeaders.DDSValues.uintDXT2)
                     {
                         Debug.Log("DXT2 not supported");
@@ -723,7 +738,7 @@ namespace Utils
                     else
                     {
                         ok = false;
-                        Debug.Log("Only DXT1, DXT5, A8, RGB24, RGBA32, RGB565, ARGB4444 and RGBA4444 are supported");
+                        Debug.Log("Only DXT1, DXT5, BC4U, A8, RGB24, RGBA32, RGB565, ARGB4444 and RGBA4444 are supported");
                     }
                     if (ok)
                     {
