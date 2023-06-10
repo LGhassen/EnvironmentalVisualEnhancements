@@ -168,5 +168,10 @@ namespace Utils
         {
             return color.r > 1f || color.g > 1f || color.b > 1f || color.a > 1f;
         }
+
+        public static float getDeltaTime()
+        {
+            return Time.deltaTime * TimeWarp.CurrentRate * Time.timeScale;
+        }
     }
 }

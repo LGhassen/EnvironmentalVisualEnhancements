@@ -414,7 +414,7 @@ namespace Atmosphere
 
             if (cloudsMat.FlowMap != null && cloudsMat.FlowMap.Texture != null)
             {
-                flowLoopTime += Time.deltaTime * TimeWarp.CurrentRate * cloudsMat.FlowMap.Speed;
+                flowLoopTime += Tools.getDeltaTime() * cloudsMat.FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
                 CloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);

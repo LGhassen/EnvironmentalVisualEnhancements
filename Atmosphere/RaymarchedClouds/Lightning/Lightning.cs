@@ -34,7 +34,7 @@ namespace Atmosphere
 				{
 					var nextNode = lightningNode.Next;
 
-					if (lightningNode.Value.Update(Time.deltaTime * TimeWarp.CurrentRate))
+					if (lightningNode.Value.Update(Tools.getDeltaTime()))
                     {
 						activeLightningList.Remove(lightningNode);
 						currentCount--;
@@ -172,7 +172,7 @@ namespace Atmosphere
 
 			if (nextIndex < lastSpawnedIndex && time > spawnTimesList[lastSpawnedIndex]) return;
 
-			if (TimeWarp.CurrentRate < 5f)
+			if (TimeWarp.CurrentRate * Time.timeScale < 5f)
             {
                 // TODO: when you generate the lightning make the number of "brightness bumps" parametric from 1-3 and make up a formula for them
                 while (ShouldSpawn(time, nextIndex))
