@@ -285,6 +285,8 @@ namespace Atmosphere
                     {
                         if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
                         {
+                            if (layer2D.Scaled) // sometiems the game events don't fire
+                                OnSphereActive();
 
                             layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
                                                    world2SphereMatrix,
@@ -305,7 +307,7 @@ namespace Atmosphere
                         }
                         else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
                         {
-                            if (!layer2D.Scaled) // sometiems the game events don't fire
+                            if (!layer2D.Scaled) // sometimes the game events don't fire
                                 OnSphereInactive();
 
                             Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
@@ -406,6 +408,13 @@ namespace Atmosphere
                 {
                     this.OnSphereInactive();
                     this.OnSphereActive();
+                }
+
+                // This is only an issue in map view, horrible apply time though
+                if (MapView.MapIsEnabled)
+                { 
+                    this.OnSetup();
+                    pqs.EnableSphere();
                 }
             }
             else
