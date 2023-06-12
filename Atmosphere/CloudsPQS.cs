@@ -7,7 +7,7 @@ using PQSManager;
 
 namespace Atmosphere
 {
-    public class CloudsPQS : PQSMod
+    public class CloudsPQS : MonoBehaviour
     {
         private String body;
         private float altitude;
@@ -24,6 +24,9 @@ namespace Atmosphere
 
         private bool volumeApplied = false;
         private double radius;
+
+        PQS sphere = null;
+        bool scaled = true;
         
         Vector3d detailPeriod;
         Vector3d mainPeriod;
@@ -58,7 +61,7 @@ namespace Atmosphere
             }
         }
 
-        public override void OnSphereActive()
+        public void OnSphereActive()
         {
             CloudsManager.Log("CloudsPQS: ("+this.name+") OnSphereActive");
             if (layer2D != null)
@@ -75,8 +78,10 @@ namespace Atmosphere
 
                 volumeApplied = true;
             }
+
+            scaled = false;
         }
-        public override void OnSphereInactive()
+        public void OnSphereInactive()
         {
             CloudsManager.Log("CloudsPQS: (" + this.name + ") OnSphereInactive");
             if (layer2D != null)
@@ -93,6 +98,8 @@ namespace Atmosphere
 
                 volumeApplied = false;
             }
+
+            scaled = true;
         }
 
         protected void ExitMapView()
@@ -153,7 +160,6 @@ namespace Atmosphere
 
         protected void Update()
         {
-            //these are always active even if off-screen or smaller than 1 pixel, to do: take it into account in the visible calculation just like in singularity
             bool visible = HighLogic.LoadedScene == GameScenes.TRACKSTATION || HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.MAINMENU;
 
             float currentTimeFade = 1f;
@@ -203,6 +209,16 @@ namespace Atmosphere
 
                 if (this.sphere != null)
                 {
+                    if (sphere.isActive && scaled && !MapView.MapIsEnabled)
+                    {
+                        OnSphereActive();
+                    }
+                    
+                    if (!scaled && (!sphere.isActive || MapView.MapIsEnabled))
+                    {
+                        OnSphereInactive();
+                    }
+
                     Matrix4x4 world2SphereMatrix = this.sphere.transform.worldToLocalMatrix;
 
                     if (layerVolume != null && sphere.isActive)
@@ -236,10 +252,6 @@ namespace Atmosphere
                         }
                     }
 
-                    //here check it's enabling and disabling conditions of raymarchedLayer
-                    //1. check it's below max altitude
-                    //2. check the time intervals for enabling/disabling
-                    //after we do this get it's fade and pass it to the 2D cloud layer
                     float scaledLayerFade = 1f;
 
                     if (layerRaymarchedVolume != null)
@@ -285,9 +297,6 @@ namespace Atmosphere
                     {
                         if (HighLogic.LoadedScene == GameScenes.SPACECENTER || (HighLogic.LoadedScene == GameScenes.FLIGHT && sphere.isActive && !MapView.MapIsEnabled))
                         {
-                            if (layer2D.Scaled) // sometiems the game events don't fire
-                                OnSphereActive();
-
                             layer2D.UpdateRotation(Quaternion.FromToRotation(Vector3.up, this.sphere.relativeTargetPosition),
                                                    world2SphereMatrix,
                                                    mainRotationMatrix,
@@ -307,9 +316,6 @@ namespace Atmosphere
                         }
                         else if (MapView.MapIsEnabled || HighLogic.LoadedScene == GameScenes.TRACKSTATION || (HighLogic.LoadedScene == GameScenes.FLIGHT && !sphere.isActive))
                         {
-                            if (!layer2D.Scaled) // sometimes the game events don't fire
-                                OnSphereInactive();
-
                             Transform transform = ScaledCamera.Instance.galaxyCamera.transform;
                             Vector3 pos = scaledCelestialTransform.InverseTransformPoint(transform.position);
 
@@ -375,9 +381,6 @@ namespace Atmosphere
             {
                 this.sphere = pqs;
                 this.transform.parent = pqs.transform;
-                this.requirements = PQS.ModiferRequirements.Default;
-                this.modEnabled = true;
-                this.order += 10;
 
                 this.transform.localPosition = Vector3.zero;
                 this.transform.localRotation = Quaternion.identity;
@@ -408,13 +411,6 @@ namespace Atmosphere
                 {
                     this.OnSphereInactive();
                     this.OnSphereActive();
-                }
-
-                // This is only an issue in map view, horrible apply time though
-                if (MapView.MapIsEnabled)
-                { 
-                    this.OnSetup();
-                    pqs.EnableSphere();
                 }
             }
             else
