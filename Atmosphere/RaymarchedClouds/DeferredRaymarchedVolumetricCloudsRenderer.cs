@@ -73,6 +73,7 @@ namespace Atmosphere
 
         bool renderingEnabled = false;
         bool isInitialized = false;
+        bool hdrEnabled = false;
 
         private Camera targetCamera;
         private FlipFlop<CommandBuffer> commandBuffer; // indexed by isRightEye
@@ -100,12 +101,11 @@ namespace Atmosphere
         int reprojectionYfactor = 2;
 
         // sampling sequences that distribute samples in a cross pattern for reprojection
-        int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
-        int[] samplingSequence8 = new int[] { 0, 4, 2, 6, 3, 7, 1, 5 };
-        int[] samplingSequence16 = new int[] { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
-        int[] samplingSequence32 = new int[] { 0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31 };
-        int[] samplingSequence64 = new int[] { 0, 32, 16, 48, 8, 40, 24, 56, 4, 36, 20, 52, 12, 44, 28, 60, 2, 34, 18, 50, 10, 42, 26, 58, 6, 38, 22, 54, 14, 46, 30, 62, 1, 33, 17, 49, 9, 41, 25, 57, 5, 37, 21, 53, 13, 45, 29, 61, 3, 35, 19, 51, 11, 43, 27, 59, 7, 39, 23, 55, 15, 47, 31, 63 };
-
+        private static readonly int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
+        private static readonly int[] samplingSequence8 = new int[] { 0, 4, 2, 6, 3, 7, 1, 5 };
+        private static readonly int[] samplingSequence16 = new int[] { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+        private static readonly int[] samplingSequence32 = new int[] { 0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31 };
+        private static readonly int[] samplingSequence64 = new int[] { 0, 32, 16, 48, 8, 40, 24, 56, 4, 36, 20, 52, 12, 44, 28, 60, 2, 34, 18, 50, 10, 42, 26, 58, 6, 38, 22, 54, 14, 46, 30, 62, 1, 33, 17, 49, 9, 41, 25, 57, 5, 37, 21, 53, 13, 45, 29, 61, 3, 35, 19, 51, 11, 43, 27, 59, 7, 39, 23, 55, 15, 47, 31, 63 };
 
         int width, height;
 
@@ -164,14 +164,7 @@ namespace Atmosphere
                 height = targetCamera.activeTexture.height;
             }
 
-            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
-            secondaryHistoryRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.ARGB32, FilterMode.Bilinear);
-            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
-
-            newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
-            newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.ARGB32, FilterMode.Point);
-            newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
-            lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
+            InitRenderTextures();
 
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
@@ -182,9 +175,28 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
             reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
 
-            commandBuffer = new FlipFlop<CommandBuffer>(supportVR ? new CommandBuffer() : null, new CommandBuffer());
+            commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
             isInitialized = true;
+        }
+
+        private void InitRenderTextures()
+        {
+            hdrEnabled = targetCamera.allowHDR;
+            var colorFormat = hdrEnabled ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.ARGB32;
+
+            bool supportVR = VRUtils.VREnabled();
+
+            ReleaseRenderTextures();
+
+            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, colorFormat, FilterMode.Bilinear);
+            secondaryHistoryRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, colorFormat, FilterMode.Bilinear);
+            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
+
+            newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, colorFormat, FilterMode.Point);
+            newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, colorFormat, FilterMode.Point);
+            newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
+            lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
         }
 
         private void SetReprojectionFactors()
@@ -221,6 +233,11 @@ namespace Atmosphere
         {
             if (isInitialized)
             {
+                if (hdrEnabled != targetCamera.allowHDR)
+                {
+                    InitRenderTextures();
+                }
+
                 volumesAdded.Add(volume);
 
                 renderingEnabled = true;
@@ -508,13 +525,8 @@ namespace Atmosphere
 
         void Cleanup()
         {
-            VRUtils.ReleaseVRFlipFlopRT(ref historyRT);
-            VRUtils.ReleaseVRFlipFlopRT(ref secondaryHistoryRT);
-            VRUtils.ReleaseVRFlipFlopRT(ref historyMotionVectorsRT);
-            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysRT);
-            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysSecondaryRT);
-            RenderTextureUtils.ReleaseFlipFlopRT(ref newMotionVectorsRT);
-            
+            ReleaseRenderTextures();
+
             if (targetCamera != null)
             {
                 if (commandBuffer[true] != null)
@@ -527,6 +539,17 @@ namespace Atmosphere
 
             renderingEnabled = false;
             isInitialized = false;
+        }
+
+        private void ReleaseRenderTextures()
+        {
+            VRUtils.ReleaseVRFlipFlopRT(ref historyRT);
+            VRUtils.ReleaseVRFlipFlopRT(ref secondaryHistoryRT);
+            VRUtils.ReleaseVRFlipFlopRT(ref historyMotionVectorsRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysSecondaryRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref newMotionVectorsRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref lightningOcclusionRT);
         }
 
         public void OnDestroy()
