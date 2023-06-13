@@ -310,7 +310,7 @@ namespace Atmosphere
                 commandBuffer.Clear();
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
-                int frame = Time.frameCount % (256);
+                int frame = Time.frameCount % ShaderLoader.ShaderLoaderClass.stbnDimensions.z;
 
                 bool useFlipRaysBuffer = true;
                 bool isFirstLayerRendered  = true;

@@ -15,7 +15,7 @@ namespace ShaderLoader
     {
         static Dictionary<string, Shader> shaderDictionary = null;
 
-        public static Vector3 stbnDimensions = new Vector3(128, 128, 64);
+        public static Vector3Int stbnDimensions = new Vector3Int(128, 128, 64);
         public static Texture2D stbn;
 
         public static bool loaded = false;
