@@ -68,20 +68,24 @@ namespace Atmosphere
         public void Update(float coverage)
         {
             if (coverage < 0.05)
-            { 
+            {
+                audioSource.volume = 0f;
                 audioSource.Pause();
 
                 if (ivaAudioSource != null)
+                {
+                    ivaAudioSource.volume = 0f;
                     ivaAudioSource.Pause();
+                }
             }
             else
             {
-                audioSource.volume = coverage * (ivaPlaying ? 0.8f : 1f);
+                smoothVolumeChange(audioSource, coverage * (ivaPlaying ? 0.8f : 1f));
                 audioSource.UnPause();
 
                 if (ivaAudioSource != null && ivaPlaying)
                 {
-                    ivaAudioSource.volume = coverage;
+                    smoothVolumeChange(ivaAudioSource, coverage);
                     ivaAudioSource.UnPause();
                 }
             }
@@ -97,9 +101,13 @@ namespace Atmosphere
                 if (!value)
                 {
                     audioSource.Pause();
+                    audioSource.volume = 0f;
 
                     if (ivaAudioSource != null)
+                    {
+                        ivaAudioSource.volume = 0f;
                         ivaAudioSource.Pause();
+                    }
                 }
                     
             }
@@ -119,8 +127,14 @@ namespace Atmosphere
             else
             { 
                 ivaPlaying = false;
+                ivaAudioSource.volume = 0f;
                 ivaAudioSource.Pause();
             }
+        }
+
+        private static void smoothVolumeChange(AudioSource audiosource, float targetVolume)
+        {
+            audiosource.volume = Mathf.Lerp(audiosource.volume, targetVolume, 0.02f);
         }
     }
 }
