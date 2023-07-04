@@ -135,6 +135,8 @@ namespace Atmosphere
         private float currentTimeFadeDensity = 1f;
         private float currentTimeFadeCoverage = 1f;
 
+        Light sunlight;
+
         public bool enabled
         {
             get { return _enabled; }
@@ -347,6 +349,8 @@ namespace Atmosphere
                     ambientSound = null;
                 }
             }
+
+            sunlight = Sun.Instance.GetComponent<Light>();
 
             raymarchedCloudMaterial.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(celestialBody) ? 1f : 0f);
         }
@@ -571,39 +575,9 @@ namespace Atmosphere
             return 0f;
         }
 
-        public void UpdateCloudNoiseOffsets()
+        public void UpdateShaderParams()
         {
-            double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
-
-            Vector3 upwardsVector = (parentTransform.position).normalized; //usually this is fine but if you see some issues add the camera
-            noiseReprojectionOffset = - Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
-
-            upwardsVector = cloudRotationMatrix.MultiplyVector(upwardsVector);
-
-            Vector3 cloudSpaceNoiseOffset = Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
-
-            timeXoffset += cloudSpaceNoiseOffset.x; timeYoffset += cloudSpaceNoiseOffset.y; timeZoffset += cloudSpaceNoiseOffset.z;
-
-            xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
-
-            Vector4[] baseNoiseOffsets = new Vector4[cloudTypes.Count];
-            Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
-            for (int i = 0; i < cloudTypes.Count; i++)
-            {
-                GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i], out noTileNoiseOffsets[i]);
-            }
-            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
-            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
-
-            GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling ,out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
-            raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
-            raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
-
-            if (curlNoise != null)
-            {
-                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
-                raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
-            }
+            UpdateNoiseOffsets();
 
             if (shadowCasterLayerRaymarchedVolume != null)
             {
@@ -628,6 +602,46 @@ namespace Atmosphere
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
+            }
+
+            if (sunlight!=null)
+            {
+                raymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
+            }
+        }
+
+        private void UpdateNoiseOffsets()
+        {
+            double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
+
+            Vector3 upwardsVector = (parentTransform.position).normalized; //usually this is fine but if you see some issues add the camera
+            noiseReprojectionOffset = -Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
+
+            upwardsVector = cloudRotationMatrix.MultiplyVector(upwardsVector);
+
+            Vector3 cloudSpaceNoiseOffset = Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
+
+            timeXoffset += cloudSpaceNoiseOffset.x; timeYoffset += cloudSpaceNoiseOffset.y; timeZoffset += cloudSpaceNoiseOffset.z;
+
+            xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
+
+            Vector4[] baseNoiseOffsets = new Vector4[cloudTypes.Count];
+            Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
+            for (int i = 0; i < cloudTypes.Count; i++)
+            {
+                GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i], out noTileNoiseOffsets[i]);
+            }
+            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
+            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
+
+            GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling, out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
+            raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
+            raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
+
+            if (curlNoise != null)
+            {
+                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
+                raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
             }
         }
 
@@ -841,7 +855,7 @@ namespace Atmosphere
 
             public void Update()
             {
-                volume.UpdateCloudNoiseOffsets();
+                volume.UpdateShaderParams();
             }
         }
     }
