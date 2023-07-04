@@ -1,10 +1,13 @@
-﻿float3 brushPosition;
+﻿#define PIE 3.1415926535897932384626
+#define TWOPIE (2.0*PIE) 
+
+float3 brushPosition;
 float4x4 cloudRotationMatrix;
 
 float3 GetDirectionFromEquiRectangularUV(float2 uv)
 {
-	float 	phi = (uv.x - 0.5) * TWO_PI;
-	float 	theta = (uv.y) * PI;
+	float 	phi = (uv.x - 0.5) * TWOPIE;
+	float 	theta = (uv.y) * PIE;
 
 	float 	sintheta = sin(theta);
 
