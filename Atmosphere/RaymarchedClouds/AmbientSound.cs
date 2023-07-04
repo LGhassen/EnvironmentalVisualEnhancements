@@ -120,15 +120,18 @@ namespace Atmosphere
 
         private void CameraChanged(CameraManager.CameraMode cameraMode)
         {
-            if (ivaAudioSource != null && (cameraMode == CameraManager.CameraMode.IVA || cameraMode == CameraManager.CameraMode.Internal))
-            {
-                ivaPlaying = true;
-            }
-            else
+            if (ivaAudioSource != null)
             { 
-                ivaPlaying = false;
-                ivaAudioSource.volume = 0f;
-                ivaAudioSource.Pause();
+                if (cameraMode == CameraManager.CameraMode.IVA || cameraMode == CameraManager.CameraMode.Internal)
+                {
+                    ivaPlaying = true;
+                }
+                else
+                {
+                    ivaPlaying = false;
+                    ivaAudioSource.volume = 0f;
+                    ivaAudioSource.Pause();
+                }
             }
         }
 
