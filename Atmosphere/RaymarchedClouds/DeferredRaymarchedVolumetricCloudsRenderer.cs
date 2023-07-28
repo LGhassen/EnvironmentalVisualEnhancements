@@ -349,8 +349,6 @@ namespace Atmosphere
 
                     Lightning.SetShaderParams(cloudMaterial);
 
-                    var mr = intersection.layer.volumeHolder.GetComponent<MeshRenderer>(); //TODO: change this to not use a GetComponent
-
                     //set material properties
                     cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(width, height));
                     cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / width, 1.0f / height));
@@ -385,13 +383,13 @@ namespace Atmosphere
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRaysSecondary_PROPERTY, newRaysSecondaryRT[!useFlipRaysBuffer]);
 
-                    commandBuffer.DrawRenderer(mr, cloudMaterial, 0, 0); // pass 0 render clouds
+                    commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 0); // pass 0 render clouds
                     
                     if (Lightning.CurrentCount > 0)
                     {
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
                         commandBuffer.SetRenderTarget(useFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
-                        commandBuffer.DrawRenderer(mr, cloudMaterial, 0, 1); // pass 1 render lightning occlusion
+                        commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 1); // pass 1 render lightning occlusion
                     }
 
                     isFirstLayerRendered = false;

@@ -159,6 +159,9 @@
     <Compile Include="RaymarchedClouds\AmbientSound.cs" />
     <Compile Include="RaymarchedClouds\CurlNoise.cs" />
     <Compile Include="RaymarchedClouds\DepthToDistanceCommandBuffer.cs" />
+    <Compile Include="RaymarchedClouds\Droplets\Droplets.cs" />
+    <Compile Include="RaymarchedClouds\Droplets\DropletsConfig.cs" />
+    <Compile Include="RaymarchedClouds\Droplets\DropletsManager.cs" />
     <Compile Include="RaymarchedClouds\Lightning\Lightning.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningManager.cs" />
     <Compile Include="RaymarchedClouds\Lightning\LightningConfig.cs" />

@@ -296,14 +296,12 @@ namespace Atmosphere
 			fieldRendererGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
 			fieldRendererGO.name = "ParticleFieldRenderer";
 
+			cl = fieldRendererGO.GetComponent<Collider>();
+			if (cl != null) GameObject.Destroy(cl);
+
 			fieldRendererGO.transform.parent = parent;
 			fieldRendererGO.transform.localPosition = Vector3.zero;
 			fieldRendererGO.layer = (int)Tools.Layer.Local;
-
-			cl = fieldHolderGO.GetComponent<Collider>();
-
-			if (cl != null)
-				GameObject.Destroy(cl);
 
 			fieldMeshRenderer = fieldRendererGO.GetComponent<MeshRenderer>();
 
@@ -416,7 +414,6 @@ namespace Atmosphere
 
 		public class FieldUpdater : MonoBehaviour
 		{
-			public Material mat;
 			public Transform parent;
 			public ParticleField field;
 

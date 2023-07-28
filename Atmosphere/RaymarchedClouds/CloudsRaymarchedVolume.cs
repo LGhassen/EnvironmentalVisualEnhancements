@@ -78,6 +78,9 @@ namespace Atmosphere
         ParticleField particleField = null;
 
         [ConfigItem, Optional]
+        Droplets droplets = null;
+
+        [ConfigItem, Optional]
         Lightning lightning = null;
 
         [ConfigItem, Optional]
@@ -159,6 +162,11 @@ namespace Atmosphere
                 if (ambientSound != null)
                 {
                     ambientSound.SetEnabled(value);
+                }
+
+                if (droplets != null)
+                {
+                    droplets.SetDropletsEnabled(value);
                 }
             }
         }
@@ -250,7 +258,7 @@ namespace Atmosphere
         public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
         public float DetailScale { get => detailScale; }
 
-        private MeshRenderer volumeMeshrenderer;
+        public MeshRenderer volumeMeshrenderer;
 
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody)
         {
@@ -333,6 +341,15 @@ namespace Atmosphere
                 {
                     particleField.Remove();
                     particleField = null;
+                }
+            }
+
+            if (droplets != null)
+            {
+                if (!droplets.Apply(parent, celestialBody, this))
+                {
+                    droplets.Remove();
+                    droplets = null;
                 }
             }
 
@@ -678,6 +695,9 @@ namespace Atmosphere
             if (particleField != null)
                 particleField.Remove();
 
+            if (droplets != null)
+                droplets.Remove();
+
             if (ambientSound != null)
                 ambientSound.Remove();
 
@@ -735,6 +755,8 @@ namespace Atmosphere
                 tangentialMovementDirection = (-lastPosition).normalized;
 
                 if (particleField != null) particleField.Update();
+
+                if (droplets != null) droplets.Update();
 
                 if (lightning != null) lightning.Update();
 
