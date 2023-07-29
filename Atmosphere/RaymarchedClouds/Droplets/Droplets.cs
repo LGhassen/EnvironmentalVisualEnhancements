@@ -23,20 +23,20 @@ namespace Atmosphere
 		CelestialBody parentCelestialBody;
 
 		float currentCoverage = 0f;
-
 		bool cloudLayerEnabled = false;
 		bool ivaEnabled = false;
 
-		PartsRenderer dropletsRenderer;
+		PartsRenderer partsRenderer;
 
-		bool fadeLerpInProgress = false;
-		Vector3 currentDropletDirectionVector = Vector3.zero;
-		Vector3 nextDropletDirectionVector = Vector3.zero;
+		bool directionFadeLerpInProgress = false;
+		Vector3 currentShipRelativeDropletDirectionVector = Vector3.zero;
+		Vector3 nextShipRelativeDropletDirectionVector = Vector3.zero;
 
 		float fadeLerpTime = 0f;
 		float fadeLerpDuration = 0f;
 
-		float accumulatedTimeOffset = 0f;
+		float accumulatedTimeOffset1 = 0f;
+		float accumulatedTimeOffset2 = 0f;
 
 		static Shader dropletsIvaShader = null;
 		static Shader DropletsIvaShader
@@ -59,22 +59,23 @@ namespace Atmosphere
 			parentCelestialBody = celestialBody;
 			parentTransform = parent;
 
-			dropletsRenderer = FlightCamera.fetch.mainCamera.gameObject.AddComponent<PartsRenderer>();
-
 			InitMaterials();
 			InitGameObjects(parent);
+
+			partsRenderer = FlightCamera.fetch.mainCamera.gameObject.AddComponent<PartsRenderer>();
 
 			GameEvents.OnCameraChange.Add(CameraChanged);
 
 			Vector3 initialGravityVector = -parentTransform.position.normalized;
 
 			if (FlightCamera.fetch != null)
-			{
 				initialGravityVector = (FlightCamera.fetch.transform.position - parentTransform.position).normalized;
-			}
 
-			currentDropletDirectionVector = initialGravityVector;
-			nextDropletDirectionVector    = initialGravityVector;
+			if (FlightGlobals.ActiveVessel != null )
+				initialGravityVector = FlightGlobals.ActiveVessel.transform.worldToLocalMatrix.MultiplyVector(initialGravityVector);
+
+			currentShipRelativeDropletDirectionVector = initialGravityVector;
+			nextShipRelativeDropletDirectionVector    = initialGravityVector;
 
 			return true;
         }
@@ -88,9 +89,9 @@ namespace Atmosphere
 				dropletsGO = null;
 			}
 
-			if (dropletsRenderer != null)
+			if (partsRenderer != null)
             {
-				Component.DestroyImmediate(dropletsRenderer);
+				Component.DestroyImmediate(partsRenderer);
 			}
 
 			GameEvents.OnCameraChange.Remove(CameraChanged);
@@ -102,97 +103,101 @@ namespace Atmosphere
 			// currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
 			currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
 
-			/*
-			if (currentCoverage > 0f)
-				SetRendererEnabled(true);
-			else
-				SetRendererEnabled(false);
-			*/
+			dropletsIvaMaterial.SetFloat("_Coverage", currentCoverage);
 
-			// dropletsWorldMaterial.SetFloat("_Coverage", currentCoverage);
-			dropletsIvaMaterial.SetFloat("_Coverage", 1f);
-
-			Vector3 gravityVector = -parentTransform.position.normalized;
-			if (FlightCamera.fetch != null) gravityVector = (FlightCamera.fetch.transform.position - parentTransform.position).normalized;
+			if (InternalSpace.Instance != null)
+				dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
 
 			if (FlightGlobals.ActiveVessel != null)
-			{
-				dropletsIvaMaterial.SetMatrix("worldToCraftMatrix", FlightGlobals.ActiveVessel.transform.worldToLocalMatrix);
+            {
+                float deltaTime = Tools.getDeltaTime();
 
-				float deltaTime = Tools.getDeltaTime();
+                UpdateSpeedRelatedMaterialParams(deltaTime);
+                HandleDirectionChanges(deltaTime);
+            }
+        }
 
-				float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
+        private void HandleDirectionChanges(float deltaTime)
+        {
+            if (directionFadeLerpInProgress)
+            {
+                // TODO: Set shader keywords
+                fadeLerpTime += deltaTime;
 
-				accumulatedTimeOffset += deltaTime * Mathf.Max(1f, currentSpeed * dropletsConfigObject.SpeedIncreaseFactor);
-				dropletsIvaMaterial.SetFloat("accumulatedTimeOffset", accumulatedTimeOffset);
-
-				float speedModulationLerp = Mathf.Clamp01(currentSpeed / dropletsConfigObject.MaxModulationSpeed);
-				dropletsIvaMaterial.SetFloat("_StreaksRatio", Mathf.Lerp(dropletsConfigObject.LowSpeedStreakRatio, dropletsConfigObject.HighSpeedStreakRatio, speedModulationLerp));
-
-				dropletsIvaMaterial.SetFloat("_DistorsionStrength", Mathf.Lerp(dropletsConfigObject.LowSpeedNoiseStrength, dropletsConfigObject.HighSpeedNoiseStrength, speedModulationLerp));
-				dropletsIvaMaterial.SetFloat("_DistorsionScale", Mathf.Lerp(dropletsConfigObject.LowSpeedNoiseScale, dropletsConfigObject.HighSpeedNoiseScale, speedModulationLerp));
-
-				if (fadeLerpInProgress)
+                if (fadeLerpTime > fadeLerpDuration)
                 {
-					// TODO: Set shader keywords
+                    fadeLerpTime = 0f;
+                    directionFadeLerpInProgress = false;
+                    currentShipRelativeDropletDirectionVector = nextShipRelativeDropletDirectionVector;
+                    accumulatedTimeOffset1 = accumulatedTimeOffset2;
+                }
 
-					fadeLerpTime += deltaTime;
+                dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
+                dropletsIvaMaterial.SetMatrix("rotationMatrix2", Matrix4x4.Rotate(Quaternion.FromToRotation(nextShipRelativeDropletDirectionVector, Vector3.up)));
 
-					if (fadeLerpTime > fadeLerpDuration)
-                    {
-						fadeLerpTime = 0f;
-						fadeLerpInProgress = false;
-						currentDropletDirectionVector = nextDropletDirectionVector;
-					}
+                dropletsIvaMaterial.SetFloat("lerp12", fadeLerpTime / fadeLerpDuration);
+            }
+            else
+            {
+                Vector3 gravityVector = -parentTransform.position.normalized;
+                if (FlightCamera.fetch != null) gravityVector = (FlightCamera.fetch.transform.position - parentTransform.position).normalized;
 
-					dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentDropletDirectionVector, Vector3.up)));
-					dropletsIvaMaterial.SetMatrix("rotationMatrix2", Matrix4x4.Rotate(Quaternion.FromToRotation(nextDropletDirectionVector, Vector3.up)));
+                gravityVector = (12 * gravityVector + (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized;
+                nextShipRelativeDropletDirectionVector = FlightGlobals.ActiveVessel.transform.worldToLocalMatrix.MultiplyVector(gravityVector);
 
-					dropletsIvaMaterial.SetFloat("lerp12", fadeLerpTime / fadeLerpDuration);
-				}
+                float dotValue = Vector3.Dot(nextShipRelativeDropletDirectionVector, currentShipRelativeDropletDirectionVector);
+
+                if (dotValue > 0.998)
+                {
+                    // slow rotation lerp for small changes
+                    // note: this will sometimes make the whole thing rotate around the axis which is busted, to be checked
+                    float t = deltaTime / 10f;
+                    var rotationQuaternion = Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, nextShipRelativeDropletDirectionVector);
+                    rotationQuaternion = Quaternion.Slerp(Quaternion.identity, rotationQuaternion, t);
+
+                    currentShipRelativeDropletDirectionVector = rotationQuaternion * currentShipRelativeDropletDirectionVector;
+                    dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
+                }
                 else
-				{
-					gravityVector = (12 * gravityVector + (Vector3)FlightGlobals.ActiveVessel.srf_velocity).normalized;
-					nextDropletDirectionVector = FlightGlobals.ActiveVessel.transform.worldToLocalMatrix.MultiplyVector(gravityVector);
+                {
+                    fadeLerpDuration = Mathf.Lerp(0.25f, 1f, dotValue * 0.5f + 0.5f);
+                    directionFadeLerpInProgress = true;
+                    accumulatedTimeOffset2 = 0f;
+                }
+            }
+        }
 
-					float dotValue = Vector3.Dot(nextDropletDirectionVector, currentDropletDirectionVector);
+        private void UpdateSpeedRelatedMaterialParams(float deltaTime)
+        {
+			float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
 
-					
-					if (dotValue > 0.998)
-					{
-						// slow rotation lerp for small changes
-						float t = deltaTime / 10f;
-						var rotationQuaternion = Quaternion.FromToRotation(currentDropletDirectionVector, nextDropletDirectionVector);
-						rotationQuaternion = Quaternion.Slerp(Quaternion.identity, rotationQuaternion, t);
+			accumulatedTimeOffset1 += deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
+            accumulatedTimeOffset2 += deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
 
-						currentDropletDirectionVector = rotationQuaternion * currentDropletDirectionVector;
-						dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentDropletDirectionVector, Vector3.up)));
-					}
-					else
-					
-                    {
-						// fade rotation lerp for big changes
-						//fadeLerpDuration = Mathf.Lerp(1f, 3f, 1f - (dotValue * 0.5f + 0.5f)); // this works surprisingly well lol
-						//fadeLerpDuration = Mathf.Lerp(0.5f, 2f, dotValue * 0.5f + 0.5f); // let's go with this for now
+            if (accumulatedTimeOffset1 > 20000f) accumulatedTimeOffset1 = 0f;
+            if (accumulatedTimeOffset2 > 20000f) accumulatedTimeOffset2 = 0f;
 
-						fadeLerpDuration = Mathf.Lerp(0.25f, 1f, dotValue * 0.5f + 0.5f);
+            dropletsIvaMaterial.SetFloat("accumulatedTimeOffset1", accumulatedTimeOffset1);
+            dropletsIvaMaterial.SetFloat("accumulatedTimeOffset2", accumulatedTimeOffset2);
 
-						fadeLerpInProgress = true;
-					}
-				}
-			}
-		}
+            float speedModulationLerp = Mathf.Clamp01(currentSpeed / dropletsConfigObject.MaxModulationSpeed);
+            dropletsIvaMaterial.SetFloat("_StreaksRatio", Mathf.Lerp(dropletsConfigObject.LowSpeedStreakRatio, dropletsConfigObject.HighSpeedStreakRatio, speedModulationLerp));
 
-		void InitMaterials()
+            dropletsIvaMaterial.SetFloat("_DistorsionStrength", Mathf.Lerp(dropletsConfigObject.LowSpeedNoiseStrength, dropletsConfigObject.HighSpeedNoiseStrength, speedModulationLerp));
+            dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.NoiseScale);
+
+            dropletsIvaMaterial.SetFloat("_SpeedRandomness", Mathf.Lerp(dropletsConfigObject.LowSpeedTimeRandomness, dropletsConfigObject.HighSpeedTimeRandomness, speedModulationLerp));
+        }
+
+        void InitMaterials()
         {
 			dropletsIvaMaterial = new Material(DropletsIvaShader);
-			dropletsIvaMaterial.renderQueue = 6000;
+			dropletsIvaMaterial.renderQueue = 0;
 
 			dropletsIvaMaterial.SetFloat("_DropletSpeed", dropletsConfigObject.Speed);
 			dropletsIvaMaterial.SetFloat("_RefractionStrength", dropletsConfigObject.RefractionStrength);
-			dropletsIvaMaterial.SetFloat("_DropletSpeed", dropletsConfigObject.Speed);
 			dropletsIvaMaterial.SetFloat("_DistorsionStrength", dropletsConfigObject.LowSpeedNoiseStrength);
-			dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.LowSpeedNoiseScale);
+			dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.NoiseScale);
 			dropletsIvaMaterial.SetFloat("_SpecularStrength", dropletsConfigObject.SpecularStrength);
 
 			dropletsIvaMaterial.SetFloat("_SpeedRandomness", 1f);
@@ -221,7 +226,9 @@ namespace Atmosphere
 
 			dropletsGO.transform.parent = parent;
 			dropletsGO.transform.localPosition = Vector3.zero;
-			dropletsGO.layer = (int)Tools.Layer.Local; // with this make it so it only renders if IVAcamera is active
+			dropletsGO.layer = (int)Tools.Layer.Internal;
+			
+			dropletsGO.SetActive(false);
 		}
 		
 
@@ -229,13 +236,13 @@ namespace Atmosphere
         {
 			cloudLayerEnabled = value;
 
-			bool finalEnabled = cloudLayerEnabled && ivaEnabled;
+			bool finalEnabled = cloudLayerEnabled && ivaEnabled && currentCoverage > 0f;
 
 			if (dropletsGO != null)
 				dropletsGO.SetActive(finalEnabled);
 
-			if (dropletsRenderer != null)
-				dropletsRenderer.SetEnabled(finalEnabled);
+			if (partsRenderer != null)
+				partsRenderer.SetEnabled(finalEnabled);
 		}
 
 		private void CameraChanged(CameraManager.CameraMode cameraMode)
@@ -246,7 +253,6 @@ namespace Atmosphere
 		public class PartsRenderer : MonoBehaviour
         {
 			// TODO: make this an instance thing?
-
 			Camera partsCamera;
 			GameObject partsCameraGO;
 
@@ -264,7 +270,6 @@ namespace Atmosphere
 					return partDepthShader;
 				}
 			}
-
 
 			private RenderTexture depthRT;
 
@@ -293,7 +298,7 @@ namespace Atmosphere
 					height = targetCamera.activeTexture.height;
 				}
 
-				depthRT = new RenderTexture(width, height, 16, RenderTextureFormat.RFloat);
+				depthRT = new RenderTexture(width, height, 16, RenderTextureFormat.RFloat); // TODO: half precision
 				depthRT.autoGenerateMips = false;
 				depthRT.Create();
 
@@ -321,30 +326,13 @@ namespace Atmosphere
 					partsCamera.clearFlags = CameraClearFlags.SolidColor;
 					partsCamera.enabled = false;
 					partsCamera.cullingMask = (int)Tools.Layer.Parts;
-					partsCamera.nearClipPlane = 0.01f;
+					partsCamera.nearClipPlane = 0.0001f;
 					partsCamera.farClipPlane  = 30f;
 
 					partsCamera.targetTexture = depthRT;
 					partsCamera.RenderWithShader(PartDepthShader, ""); // TODO: replacement tag for transparencies as well so we render less fluff?
 
 					Shader.SetGlobalTexture("PartsDepthTexture", depthRT);
-
-					/*
-					dropletsIvaMaterial.SetTexture("PartsDepthTexture", depthRT);
-					dropletsIvaMaterial.SetMatrix(ShaderProperties.cameraToWorldMatrix_PROPERTY, targetCamera.cameraToWorldMatrix); // this isn't gonna work, replace with unity_MatrixInvV in shader
-
-					dropletsCommandBuffer.Clear();
-
-					int screenCopyID = Shader.PropertyToID("_ScreenCopyTexture");
-					dropletsCommandBuffer.GetTemporaryRT(screenCopyID, -1, -1, 0, FilterMode.Bilinear);
-					dropletsCommandBuffer.Blit(BuiltinRenderTextureType.CurrentActive, screenCopyID);
-
-					dropletsCommandBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
-					dropletsCommandBuffer.SetGlobalTexture("_DropletBackGround", screenCopyID);
-					dropletsCommandBuffer.Blit(null, BuiltinRenderTextureType.CameraTarget, dropletsIvaMaterial); // material here for droplets, make sure to use the backGroundTexture and set depthRT as property
-
-					targetCamera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, dropletsCommandBuffer); // try this or afterAll?
-					*/
 				}
             }
 

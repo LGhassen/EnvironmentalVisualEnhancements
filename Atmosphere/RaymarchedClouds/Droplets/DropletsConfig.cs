@@ -14,6 +14,9 @@ namespace Atmosphere
 		float speed = 1f;
 
         [ConfigItem]
+        float maxSpeed = 1f;
+
+        [ConfigItem]
         float speedIncreaseFactor = 0.1f;
 
         [ConfigItem]
@@ -32,22 +35,25 @@ namespace Atmosphere
         TextureWrapper noise = null;
 
         [ConfigItem]
+        float noiseScale = 4f;
+
+        [ConfigItem]
         float lowSpeedNoiseStrength = 0.01f;
 
         [ConfigItem]
-        float lowSpeedNoiseScale = 4f;
-
-        [ConfigItem]
         float highSpeedNoiseStrength = 0.01f;
-
-        [ConfigItem]
-        float highSpeedNoiseScale = 2f;
 
         [ConfigItem]
         float lowSpeedStreakRatio = 0.05f;
 
         [ConfigItem]
         float highSpeedStreakRatio = 0.12f;
+
+        [ConfigItem]
+        float lowSpeedTimeRandomness = 1f;
+
+        [ConfigItem]
+        float highSpeedTimeRandomness = 0.3f;
 
         [ConfigItem]
         float maxModulationSpeed = 100f;
@@ -60,12 +66,13 @@ namespace Atmosphere
         public float SpecularStrength { get => specularStrength; }
         public float UVScale { get => uvScale; }
         public float TriplanarTransitionSharpness { get => triplanarTransitionSharpness; }
+        public float NoiseScale { get => noiseScale; }
         public float LowSpeedNoiseStrength { get => lowSpeedNoiseStrength; }
-        public float LowSpeedNoiseScale { get => lowSpeedNoiseScale; }
         public float HighSpeedNoiseStrength { get => highSpeedNoiseStrength; }
-        public float HighSpeedNoiseScale { get => highSpeedNoiseScale; }
         public float LowSpeedStreakRatio { get => lowSpeedStreakRatio; }
         public float HighSpeedStreakRatio { get => highSpeedStreakRatio; }
+        public float LowSpeedTimeRandomness { get => lowSpeedTimeRandomness; }
+        public float HighSpeedTimeRandomness { get => highSpeedTimeRandomness; }
         public float MaxModulationSpeed { get => maxModulationSpeed; }
 
         public void LoadConfigNode(ConfigNode node)
