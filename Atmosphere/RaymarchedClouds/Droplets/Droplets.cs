@@ -298,7 +298,7 @@ namespace Atmosphere
 					height = targetCamera.activeTexture.height;
 				}
 
-				depthRT = new RenderTexture(width, height, 16, RenderTextureFormat.RFloat); // TODO: half precision
+				depthRT = new RenderTexture(width / 2, height / 2, 16, RenderTextureFormat.RFloat); // tried 16-bit but it's not nice enough, quarter-res 32-bit looks the same
 				depthRT.autoGenerateMips = false;
 				depthRT.Create();
 
