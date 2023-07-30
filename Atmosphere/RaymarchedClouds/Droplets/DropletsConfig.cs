@@ -10,7 +10,13 @@ namespace Atmosphere
 		[ConfigItem]
 		string name = "new droplets config";
 
-		[ConfigItem]
+        [ConfigItem]
+        float minCoverageThreshold = 0.0f;
+
+        [ConfigItem]
+        float maxCoverageThreshold = 0.6f;
+
+        [ConfigItem]
 		float speed = 1f;
 
         [ConfigItem]
@@ -60,6 +66,8 @@ namespace Atmosphere
 
         public string Name { get => name; }
         public TextureWrapper Noise { get => noise; }
+        public float MinCoverageThreshold { get => minCoverageThreshold; }
+        public float MaxCoverageThreshold { get => maxCoverageThreshold; }
         public float Speed { get => speed; }
         public float SpeedIncreaseFactor { get => speedIncreaseFactor; }
         public float RefractionStrength { get => refractionStrength; }

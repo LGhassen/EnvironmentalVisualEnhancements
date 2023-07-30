@@ -100,7 +100,8 @@ namespace Atmosphere
 		public void Update()
 		{
 			currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
-			// currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
+			currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
+
 			currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
 
 			dropletsIvaMaterial.SetFloat("_Coverage", currentCoverage);
