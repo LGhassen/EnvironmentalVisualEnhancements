@@ -131,7 +131,6 @@ namespace Atmosphere
                     fadeLerpTime = 0f;
                     directionFadeLerpInProgress = false;
                     currentShipRelativeDropletDirectionVector = nextShipRelativeDropletDirectionVector;
-                    accumulatedTimeOffset1 = accumulatedTimeOffset2;
                 }
 
                 dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
@@ -164,7 +163,6 @@ namespace Atmosphere
                 {
                     fadeLerpDuration = Mathf.Lerp(0.25f, 1f, dotValue * 0.5f + 0.5f);
                     directionFadeLerpInProgress = true;
-                    accumulatedTimeOffset2 = 0f;
                 }
             }
         }
@@ -186,7 +184,6 @@ namespace Atmosphere
             dropletsIvaMaterial.SetFloat("_StreaksRatio", Mathf.Lerp(dropletsConfigObject.LowSpeedStreakRatio, dropletsConfigObject.HighSpeedStreakRatio, speedModulationLerp));
 
             dropletsIvaMaterial.SetFloat("_DistorsionStrength", Mathf.Lerp(dropletsConfigObject.LowSpeedNoiseStrength, dropletsConfigObject.HighSpeedNoiseStrength, speedModulationLerp));
-            dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.NoiseScale);
 
             dropletsIvaMaterial.SetFloat("_SpeedRandomness", Mathf.Lerp(dropletsConfigObject.LowSpeedTimeRandomness, dropletsConfigObject.HighSpeedTimeRandomness, speedModulationLerp));
         }
@@ -200,7 +197,7 @@ namespace Atmosphere
 			dropletsIvaMaterial.SetFloat("_Translucency", dropletsConfigObject.Translucency);
 			dropletsIvaMaterial.SetVector("_Color", dropletsConfigObject.Color / 255f);
 			dropletsIvaMaterial.SetFloat("_DistorsionStrength", dropletsConfigObject.LowSpeedNoiseStrength);
-			dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.NoiseScale);
+			dropletsIvaMaterial.SetFloat("_DistorsionScale", 1f/dropletsConfigObject.NoiseScale);
 			dropletsIvaMaterial.SetFloat("_SpecularStrength", dropletsConfigObject.SpecularStrength);
 
 			dropletsIvaMaterial.SetFloat("_SpeedRandomness", 1f);

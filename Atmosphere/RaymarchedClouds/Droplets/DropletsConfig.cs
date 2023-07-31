@@ -45,7 +45,7 @@ namespace Atmosphere
         TextureWrapper noise = null;
 
         [ConfigItem]
-        float noiseScale = 4f;
+        float noiseScale = 1/6f;
 
         [ConfigItem]
         float lowSpeedNoiseStrength = 0.01f;
