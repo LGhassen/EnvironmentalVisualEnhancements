@@ -4,6 +4,7 @@ using Utils;
 using ShaderLoader;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Random = UnityEngine.Random;
 
 namespace Atmosphere
@@ -195,17 +196,38 @@ namespace Atmosphere
 			dropletsIvaMaterial = new Material(DropletsIvaShader);
 			dropletsIvaMaterial.renderQueue = 0;
 
-			dropletsIvaMaterial.SetFloat("_DropletSpeed", dropletsConfigObject.Speed);
 			dropletsIvaMaterial.SetFloat("_RefractionStrength", dropletsConfigObject.RefractionStrength);
+			dropletsIvaMaterial.SetFloat("_Translucency", dropletsConfigObject.Translucency);
+			dropletsIvaMaterial.SetVector("_Color", dropletsConfigObject.Color / 255f);
 			dropletsIvaMaterial.SetFloat("_DistorsionStrength", dropletsConfigObject.LowSpeedNoiseStrength);
 			dropletsIvaMaterial.SetFloat("_DistorsionScale", dropletsConfigObject.NoiseScale);
 			dropletsIvaMaterial.SetFloat("_SpecularStrength", dropletsConfigObject.SpecularStrength);
 
 			dropletsIvaMaterial.SetFloat("_SpeedRandomness", 1f);
-			dropletsIvaMaterial.SetFloat("dropletUVMultiplier", dropletsConfigObject.UVScale);
+			dropletsIvaMaterial.SetFloat("dropletUVMultiplier", 1f/(dropletsConfigObject.Scale * 0.16f));
 			dropletsIvaMaterial.SetFloat("_DropletsTransitionSharpness", dropletsConfigObject.TriplanarTransitionSharpness);
 
 			if (dropletsConfigObject.Noise != null) { dropletsConfigObject.Noise.ApplyTexture(dropletsIvaMaterial, "_DropletDistorsion"); }
+
+			float[] sideDropletLayerSize = new float[dropletsConfigObject.SideDropletLayers.Count];
+			float[] sideDropletLayerSpeed = new float[dropletsConfigObject.SideDropletLayers.Count];
+			float[] sideDropletLayerAspectRatio = new float[dropletsConfigObject.SideDropletLayers.Count];
+			float[] sideDropletLayerStreakPercentage = new float[dropletsConfigObject.SideDropletLayers.Count];
+
+			for (int i=0; i < dropletsConfigObject.SideDropletLayers.Count; i++)
+            {
+				var sideLayerConfig = dropletsConfigObject.SideDropletLayers.ElementAt(i);
+				sideDropletLayerSize[i] = 1f/sideLayerConfig.Scale;
+				sideDropletLayerSpeed[i] = sideLayerConfig.FallSpeed;
+				sideDropletLayerAspectRatio[i] = sideLayerConfig.DropletToTrailAspectRatio;
+				sideDropletLayerStreakPercentage[i] = sideLayerConfig.StreakRatio;
+			}
+
+			dropletsIvaMaterial.SetInt("sideDropletLayerCount", dropletsConfigObject.SideDropletLayers.Count);
+			dropletsIvaMaterial.SetFloatArray("sideDropletLayerSize", sideDropletLayerSize);
+			dropletsIvaMaterial.SetFloatArray("sideDropletLayerSpeed", sideDropletLayerSpeed);
+			dropletsIvaMaterial.SetFloatArray("sideDropletLayerAspectRatio", sideDropletLayerAspectRatio);
+			dropletsIvaMaterial.SetFloatArray("sideDropletLayerStreakPercentage", sideDropletLayerStreakPercentage);
 
 			dropletsIvaMaterial.SetFloat("lerp12", 0f);
 		}
