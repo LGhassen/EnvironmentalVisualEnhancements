@@ -27,8 +27,6 @@ namespace Atmosphere
 		bool cloudLayerEnabled = false;
 		bool ivaEnabled = false;
 
-		PartsRenderer partsRenderer;
-
 		bool directionFadeLerpInProgress = false;
 		Vector3 currentShipRelativeDropletDirectionVector = Vector3.zero;
 		Vector3 nextShipRelativeDropletDirectionVector = Vector3.zero;
@@ -63,8 +61,6 @@ namespace Atmosphere
 			InitMaterials();
 			InitGameObjects(parent);
 
-			partsRenderer = FlightCamera.fetch.mainCamera.gameObject.AddComponent<PartsRenderer>();
-
 			GameEvents.OnCameraChange.Add(CameraChanged);
 
 			Vector3 initialGravityVector = -parentTransform.position.normalized;
@@ -88,11 +84,6 @@ namespace Atmosphere
 				dropletsGO.transform.parent = null;
 				GameObject.Destroy(dropletsGO);
 				dropletsGO = null;
-			}
-
-			if (partsRenderer != null)
-            {
-				Component.DestroyImmediate(partsRenderer);
 			}
 
 			GameEvents.OnCameraChange.Remove(CameraChanged);
@@ -258,11 +249,9 @@ namespace Atmosphere
 
 			bool finalEnabled = cloudLayerEnabled && ivaEnabled && currentCoverage > 0f;
 
-			if (dropletsGO != null)
-				dropletsGO.SetActive(finalEnabled);
+			if (dropletsGO != null) dropletsGO.SetActive(finalEnabled);
 
-			if (partsRenderer != null)
-				partsRenderer.SetEnabled(finalEnabled);
+			if (finalEnabled && HighLogic.LoadedScene == GameScenes.FLIGHT) PartsRenderer.EnableForFrame();
 		}
 
 		private void CameraChanged(CameraManager.CameraMode cameraMode)
@@ -272,7 +261,22 @@ namespace Atmosphere
 
 		public class PartsRenderer : MonoBehaviour
         {
-			// TODO: make this an instance thing?
+			private static PartsRenderer instance;
+
+			public static void EnableForFrame()
+			{
+				if (instance == null && FlightCamera.fetch?.mainCamera != null)
+				{
+					instance = FlightCamera.fetch.mainCamera.gameObject.AddComponent<PartsRenderer>();
+				}
+
+				if (instance != null)
+				{
+					instance.isEnabled = true;
+					instance.framesEnabledCounter = 0;
+				}
+			}
+
 			Camera partsCamera;
 			GameObject partsCameraGO;
 
@@ -280,6 +284,9 @@ namespace Atmosphere
 
 			bool isEnabled = false;
 			bool isInitialized = false;
+			int framesEnabledCounter = 0;
+
+			int width, height;
 
 			static Shader partDepthShader = null;
 			static Shader PartDepthShader
@@ -293,20 +300,14 @@ namespace Atmosphere
 
 			private RenderTexture depthRT;
 
-			public void SetEnabled(bool enabled)
-            {
-				isEnabled = enabled;
-            }
-
 			public void Initialize()
             {
-				targetCamera = FlightCamera.fetch.mainCamera;
+                targetCamera = FlightCamera.fetch.mainCamera;
 
-				if (targetCamera == null || targetCamera.activeTexture == null)
-					return;
+                if (targetCamera == null || targetCamera.activeTexture == null)
+                    return;
 
 				bool supportVR = VRUtils.VREnabled();
-				int width, height;
 
 				if (supportVR)
 				{
@@ -318,29 +319,37 @@ namespace Atmosphere
 					height = targetCamera.activeTexture.height;
 				}
 
-				depthRT = new RenderTexture(width / 2, height / 2, 16, RenderTextureFormat.RFloat); // tried 16-bit but it's not nice enough, quarter-res 32-bit looks the same
-				depthRT.autoGenerateMips = false;
-				depthRT.Create();
+				CreateDepthRT();
 
-				partsCameraGO = new GameObject("EVE parts camera");
+                partsCameraGO = new GameObject("EVE parts camera");
 
-				partsCamera = partsCameraGO.AddComponent<Camera>();
-				partsCamera.enabled = false;
+                partsCamera = partsCameraGO.AddComponent<Camera>();
+                partsCamera.enabled = false;
 
-				partsCamera.transform.position = FlightCamera.fetch.transform.position;
-				partsCamera.transform.parent = FlightCamera.fetch.transform;
+                partsCamera.transform.position = FlightCamera.fetch.transform.position;
+                partsCamera.transform.parent = FlightCamera.fetch.transform;
 
-				partsCamera.targetTexture = depthRT;
-				partsCamera.clearFlags = CameraClearFlags.SolidColor;
-				partsCamera.backgroundColor = Color.black;
+                partsCamera.targetTexture = depthRT;
+                partsCamera.clearFlags = CameraClearFlags.SolidColor;
+                partsCamera.backgroundColor = Color.black;
 
-				isInitialized = true;
-			}
+                isInitialized = true;
+            }
 
-			public void OnPreRender()
+            private void CreateDepthRT()
+            {
+                depthRT = new RenderTexture(width / 2, height / 2, 16, RenderTextureFormat.RFloat); // tried 16-bit but it's not nice enough, quarter-res 32-bit looks the same
+                depthRT.autoGenerateMips = false;
+                depthRT.Create();
+            }
+
+            public void OnPreRender()
             {
 				if (isEnabled && isInitialized)
 				{
+					if (depthRT == null)
+						CreateDepthRT();
+
 					partsCamera.CopyFrom(targetCamera);
 					partsCamera.depthTextureMode = DepthTextureMode.None;
 					partsCamera.clearFlags = CameraClearFlags.SolidColor;
@@ -360,6 +369,21 @@ namespace Atmosphere
             {
 				if (!isInitialized && isEnabled)
 					Initialize();
+
+				if (isEnabled)
+				{
+					bool doneRendering = targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
+					if (doneRendering)
+					{
+						framesEnabledCounter++;
+						if (framesEnabledCounter > 5)
+						{
+							isEnabled = false;
+							depthRT.Release();
+							depthRT = null;
+						}
+					}
+				}
 			}
 			
 			public void OnDestroy()
