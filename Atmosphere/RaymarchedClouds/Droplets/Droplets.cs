@@ -114,18 +114,14 @@ namespace Atmosphere
         {
             if (directionFadeLerpInProgress)
             {
-                // TODO: Set shader keywords
                 fadeLerpTime += deltaTime;
 
                 if (fadeLerpTime > fadeLerpDuration)
                 {
-                    fadeLerpTime = 0f;
                     directionFadeLerpInProgress = false;
                     currentShipRelativeDropletDirectionVector = nextShipRelativeDropletDirectionVector;
-                }
-
-                dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
-                dropletsIvaMaterial.SetMatrix("rotationMatrix2", Matrix4x4.Rotate(Quaternion.FromToRotation(nextShipRelativeDropletDirectionVector, Vector3.up)));
+					accumulatedTimeOffset1 = accumulatedTimeOffset2;
+				}
 
                 dropletsIvaMaterial.SetFloat("lerp12", fadeLerpTime / fadeLerpDuration);
             }
@@ -148,15 +144,21 @@ namespace Atmosphere
                     rotationQuaternion = Quaternion.Slerp(Quaternion.identity, rotationQuaternion, t);
 
                     currentShipRelativeDropletDirectionVector = rotationQuaternion * currentShipRelativeDropletDirectionVector;
-                    dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
-                }
+				}
                 else
                 {
-                    fadeLerpDuration = Mathf.Lerp(0.25f, 1f, dotValue * 0.5f + 0.5f);
-                    directionFadeLerpInProgress = true;
-                }
-            }
-        }
+					directionFadeLerpInProgress = true;
+					fadeLerpDuration = Mathf.Lerp(0.25f, 1f, dotValue * 0.5f + 0.5f);
+					fadeLerpTime = 0f;
+				}
+
+				dropletsIvaMaterial.SetFloat("lerp12", 0f);
+				accumulatedTimeOffset2 = 0f;
+			}
+
+			dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
+			dropletsIvaMaterial.SetMatrix("rotationMatrix2", Matrix4x4.Rotate(Quaternion.FromToRotation(nextShipRelativeDropletDirectionVector, Vector3.up)));
+		}
 
         private void UpdateSpeedRelatedMaterialParams(float deltaTime)
         {
