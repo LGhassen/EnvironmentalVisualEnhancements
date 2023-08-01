@@ -45,13 +45,13 @@ namespace Atmosphere
         TextureWrapper noise = null;
 
         [ConfigItem]
-        float noiseScale = 1/6f;
+        float sideNoiseScale = 1/6f;
 
         [ConfigItem]
-        float lowSpeedNoiseStrength = 0.01f;
+        float sideLowSpeedNoiseStrength = 0.01f;
 
         [ConfigItem]
-        float highSpeedNoiseStrength = 0.01f;
+        float sideHighSpeedNoiseStrength = 0.01f;
 
         [ConfigItem]
         float lowSpeedStreakRatio = 1f;
@@ -64,6 +64,12 @@ namespace Atmosphere
 
         [ConfigItem]
         float highSpeedTimeRandomness = 0.3f;
+
+        [ConfigItem]
+        float topNoiseScale = 1f;
+
+        [ConfigItem]
+        float topNoiseStrength = 0.01f;
 
         [ConfigItem]
         List<SideDropletLayer> sideDropletLayers = new List<SideDropletLayer>();
@@ -81,10 +87,11 @@ namespace Atmosphere
         public Vector3 Color { get => color; }
         public float SpecularStrength { get => specularStrength; }
         public float Scale { get => scale; }
+        public float DryingSpeed { get => dryingSpeed; }
         public float TriplanarTransitionSharpness { get => triplanarTransitionSharpness; }
-        public float NoiseScale { get => noiseScale; }
-        public float LowSpeedNoiseStrength { get => lowSpeedNoiseStrength; }
-        public float HighSpeedNoiseStrength { get => highSpeedNoiseStrength; }
+        public float SideNoiseScale { get => sideNoiseScale; }
+        public float SideLowSpeedNoiseStrength { get => sideLowSpeedNoiseStrength; }
+        public float SideHighSpeedNoiseStrength { get => sideHighSpeedNoiseStrength; }
         public float LowSpeedStreakRatio { get => lowSpeedStreakRatio; }
         public float HighSpeedStreakRatio { get => highSpeedStreakRatio; }
         public float LowSpeedTimeRandomness { get => lowSpeedTimeRandomness; }
@@ -93,6 +100,8 @@ namespace Atmosphere
         public List<SideDropletLayer> SideDropletLayers { get => sideDropletLayers; }
         public List<TopDropletLayer> TopDropletLayers { get => topDropletLayers; }
 
+        public float TopNoiseScale { get => topNoiseScale; }
+        public float TopNoiseStrength { get => topNoiseStrength; }
 
         public void LoadConfigNode(ConfigNode node)
         {

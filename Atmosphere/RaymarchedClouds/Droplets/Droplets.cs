@@ -176,10 +176,10 @@ namespace Atmosphere
             float speedModulationLerp = Mathf.Clamp01(currentSpeed / dropletsConfigObject.MaxModulationSpeed);
             dropletsIvaMaterial.SetFloat("_StreaksRatio", Mathf.Lerp(dropletsConfigObject.LowSpeedStreakRatio, dropletsConfigObject.HighSpeedStreakRatio, speedModulationLerp));
 
-            dropletsIvaMaterial.SetFloat("_DistorsionStrength", Mathf.Lerp(dropletsConfigObject.LowSpeedNoiseStrength, dropletsConfigObject.HighSpeedNoiseStrength, speedModulationLerp));
+            dropletsIvaMaterial.SetFloat("_SideDistorsionStrength", Mathf.Lerp(dropletsConfigObject.SideLowSpeedNoiseStrength, dropletsConfigObject.SideHighSpeedNoiseStrength, speedModulationLerp));
 
             dropletsIvaMaterial.SetFloat("_SpeedRandomness", Mathf.Lerp(dropletsConfigObject.LowSpeedTimeRandomness, dropletsConfigObject.HighSpeedTimeRandomness, speedModulationLerp));
-        }
+		}
 
         void InitMaterials()
         {
@@ -189,13 +189,16 @@ namespace Atmosphere
 			dropletsIvaMaterial.SetFloat("_RefractionStrength", dropletsConfigObject.RefractionStrength);
 			dropletsIvaMaterial.SetFloat("_Translucency", dropletsConfigObject.Translucency);
 			dropletsIvaMaterial.SetVector("_Color", dropletsConfigObject.Color / 255f);
-			dropletsIvaMaterial.SetFloat("_DistorsionStrength", dropletsConfigObject.LowSpeedNoiseStrength);
-			dropletsIvaMaterial.SetFloat("_DistorsionScale", 1f/dropletsConfigObject.NoiseScale);
 			dropletsIvaMaterial.SetFloat("_SpecularStrength", dropletsConfigObject.SpecularStrength);
 
 			dropletsIvaMaterial.SetFloat("_SpeedRandomness", 1f);
 			dropletsIvaMaterial.SetFloat("dropletUVMultiplier", 1f/(dropletsConfigObject.Scale * 0.16f));
 			dropletsIvaMaterial.SetFloat("_DropletsTransitionSharpness", dropletsConfigObject.TriplanarTransitionSharpness);
+
+			dropletsIvaMaterial.SetFloat("_SideDistorsionScale", 1f / dropletsConfigObject.SideNoiseScale);
+
+			dropletsIvaMaterial.SetFloat("_TopDistorsionStrength", dropletsConfigObject.TopNoiseStrength);
+			dropletsIvaMaterial.SetFloat("_TopDistorsionScale", 1f / dropletsConfigObject.TopNoiseScale);
 
 			if (dropletsConfigObject.Noise != null) { dropletsConfigObject.Noise.ApplyTexture(dropletsIvaMaterial, "_DropletDistorsion"); }
 
