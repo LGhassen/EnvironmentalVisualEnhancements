@@ -24,6 +24,8 @@ namespace Atmosphere
 		CelestialBody parentCelestialBody;
 
 		float currentCoverage = 0f;
+		float currentWetness  = 0f;
+
 		bool cloudLayerEnabled = false;
 		bool ivaEnabled = false;
 
@@ -94,24 +96,41 @@ namespace Atmosphere
 
 		public void Update()
 		{
-			currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightCamera.fetch.transform.position, out float cloudType);
-			currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
-
-			currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
-
-			dropletsIvaMaterial.SetFloat("_Coverage", currentCoverage);
-
-			if (InternalSpace.Instance != null)
-				dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
-
 			if (FlightGlobals.ActiveVessel != null)
             {
                 float deltaTime = Tools.getDeltaTime();
 
                 UpdateSpeedRelatedMaterialParams(deltaTime);
                 HandleDirectionChanges(deltaTime);
+
+                HandleCoverageAndWetness(deltaTime);
+
+                dropletsIvaMaterial.SetFloat("_Coverage", currentWetness);
+
+                if (InternalSpace.Instance != null)
+                    dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
             }
         }
+
+        private void HandleCoverageAndWetness(float deltaTime)
+        {
+            currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightGlobals.ActiveVessel.transform.position, out float cloudType); // should do this not on the camera position but on the vessel
+            currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
+            currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
+
+			if (currentWetness > currentCoverage)
+            {
+                ApplyDrying(deltaTime);
+            }
+
+            currentWetness = Mathf.Max(currentWetness, currentCoverage);
+        }
+
+        private void ApplyDrying(float deltaTime)
+        {
+			//currentWetness = Mathf.Clamp01(currentWetness - deltaTime * dropletsConfigObject.DryingSpeed * Mathf.Max(Mathf.Log((float)FlightGlobals.ActiveVessel.srf_velocity.magnitude, 1f)));
+			currentWetness = Mathf.Clamp01(currentWetness - deltaTime * dropletsConfigObject.DryingSpeed);
+		}
 
         private void HandleDirectionChanges(float deltaTime)
         {
@@ -179,13 +198,17 @@ namespace Atmosphere
 			dropletsIvaMaterial.SetFloat("sideDropletsTimeOffset2", sideDropletsTimeOffset2);
 
 			// Note: using Log here
-			float topDropletTimeDelta = deltaTime * Mathf.Max(1f, 0.1f * Mathf.Log(Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed)));
 
-			topDropletsTimeOffset1 += topDropletTimeDelta;
-			topDropletsTimeOffset2 += topDropletTimeDelta;
+			if (currentCoverage > 0f && currentWetness <= currentCoverage)
+			{ 
+				float topDropletTimeDelta = deltaTime * Mathf.Max(1f, 0.1f * Mathf.Log(Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed))) * Mathf.Clamp01(1f - (currentCoverage - currentWetness));
 
-			if (topDropletsTimeOffset1 > 20000f) topDropletsTimeOffset1 = 0f;
-			if (topDropletsTimeOffset2 > 20000f) topDropletsTimeOffset2 = 0f;
+				topDropletsTimeOffset1 += topDropletTimeDelta;
+				topDropletsTimeOffset2 += topDropletTimeDelta;
+
+				if (topDropletsTimeOffset1 > 20000f) topDropletsTimeOffset1 = 0f;
+				if (topDropletsTimeOffset2 > 20000f) topDropletsTimeOffset2 = 0f;
+			}
 
 			dropletsIvaMaterial.SetFloat("topDropletsTimeOffset1", topDropletsTimeOffset1);
 			dropletsIvaMaterial.SetFloat("topDropletsTimeOffset2", topDropletsTimeOffset2);
@@ -290,7 +313,7 @@ namespace Atmosphere
         {
 			cloudLayerEnabled = value;
 
-			bool finalEnabled = cloudLayerEnabled && ivaEnabled && currentCoverage > 0f;
+			bool finalEnabled = cloudLayerEnabled && ivaEnabled && currentWetness > 0f;
 
 			if (dropletsGO != null) dropletsGO.SetActive(finalEnabled);
 
