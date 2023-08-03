@@ -99,24 +99,25 @@ namespace Atmosphere
 			if (FlightGlobals.ActiveVessel != null)
             {
                 float deltaTime = Tools.getDeltaTime();
+				float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
 
-                UpdateSpeedRelatedMaterialParams(deltaTime);
-                HandleDirectionChanges(deltaTime);
+				HandleCoverageAndWetness(deltaTime, currentSpeed);
+				if (currentWetness > 0f)
+				{ 
+					UpdateSpeedRelatedMaterialParams(deltaTime, currentSpeed);
+					HandleDirectionChanges(deltaTime);
 
-                HandleCoverageAndWetness(deltaTime);
-
-                dropletsIvaMaterial.SetFloat("_Coverage", currentWetness);
-
-                if (InternalSpace.Instance != null)
-                    dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
-            }
+					if (InternalSpace.Instance != null)
+						dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
+				}
+			}
         }
 
-        private void HandleCoverageAndWetness(float deltaTime)
+        private void HandleCoverageAndWetness(float deltaTime, float currentSpeed)
         {
             currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightGlobals.ActiveVessel.transform.position, out float cloudType); // should do this not on the camera position but on the vessel
             currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
-            currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeParticleFieldDensity(cloudType);
+            currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeDropletsDensity(cloudType);
 
 			if (currentWetness > currentCoverage)
             {
@@ -124,7 +125,10 @@ namespace Atmosphere
             }
 
             currentWetness = Mathf.Max(currentWetness, currentCoverage);
-        }
+			currentWetness = Mathf.Lerp(currentWetness, 0f, (currentSpeed - dropletsConfigObject.FadeOutStartSpeed) / (dropletsConfigObject.FadeOutEndSpeed - dropletsConfigObject.FadeOutStartSpeed));
+
+			dropletsIvaMaterial.SetFloat("_Coverage", currentWetness);
+		}
 
         private void ApplyDrying(float deltaTime)
         {
@@ -182,10 +186,8 @@ namespace Atmosphere
 			dropletsIvaMaterial.SetMatrix("rotationMatrix2", Matrix4x4.Rotate(Quaternion.FromToRotation(nextShipRelativeDropletDirectionVector, Vector3.up)));
 		}
 
-        private void UpdateSpeedRelatedMaterialParams(float deltaTime)
+        private void UpdateSpeedRelatedMaterialParams(float deltaTime, float currentSpeed)
         {
-			float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
-
 			float sideDropletTimeDelta = deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
 
 			sideDropletsTimeOffset1 += sideDropletTimeDelta;
@@ -219,6 +221,8 @@ namespace Atmosphere
             dropletsIvaMaterial.SetFloat("_SideDistorsionStrength", Mathf.Lerp(dropletsConfigObject.SideLowSpeedNoiseStrength, dropletsConfigObject.SideHighSpeedNoiseStrength, speedModulationLerp));
 
             dropletsIvaMaterial.SetFloat("_SpeedRandomness", Mathf.Lerp(dropletsConfigObject.LowSpeedTimeRandomness, dropletsConfigObject.HighSpeedTimeRandomness, speedModulationLerp));
+
+
 		}
 
         void InitMaterials()

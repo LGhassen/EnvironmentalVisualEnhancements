@@ -812,32 +812,42 @@ namespace Atmosphere
 
         public float GetInterpolatedCloudTypeParticleFieldDensity(float cloudType)
         {
-            cloudType *= CloudTypes.Count - 1;
-            int currentCloudType = (int)cloudType;
-            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
-            float cloudFrac = cloudType - currentCloudType;
+            int currentCloudType, nextCloudType;
+            float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
 
             return Mathf.Lerp(cloudTypes[currentCloudType].ParticleFieldDensity, cloudTypes[nextCloudType].ParticleFieldDensity, cloudFrac);
         }
 
+        public float GetInterpolatedCloudTypeDropletsDensity(float cloudType)
+        {
+            int currentCloudType, nextCloudType;
+            float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
+
+            return Mathf.Lerp(cloudTypes[currentCloudType].DropletsDensity, cloudTypes[nextCloudType].DropletsDensity, cloudFrac);
+        }
+
         public float GetInterpolatedCloudTypeLightningFrequency(float cloudType)
         {
-            cloudType *= CloudTypes.Count - 1;
-            int currentCloudType = (int)cloudType;
-            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
-            float cloudFrac = cloudType - currentCloudType;
+            int currentCloudType, nextCloudType;
+            float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
 
             return Mathf.Lerp(cloudTypes[currentCloudType].LightningFrequency, cloudTypes[nextCloudType].LightningFrequency, cloudFrac);
         }
 
         public float GetInterpolatedCloudTypeAmbientVolume(float cloudType)
         {
-            cloudType *= CloudTypes.Count - 1;
-            int currentCloudType = (int)cloudType;
-            int nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
-            float cloudFrac = cloudType - currentCloudType;
+            int currentCloudType, nextCloudType;
+            float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
 
             return Mathf.Lerp(cloudTypes[currentCloudType].AmbientVolume, cloudTypes[nextCloudType].AmbientVolume, cloudFrac);
+        }
+
+        private float getCloudFrac(float cloudType, out int currentCloudType, out int nextCloudType)
+        {
+            cloudType *= CloudTypes.Count - 1;
+            currentCloudType = (int)cloudType;
+            nextCloudType = Math.Min(currentCloudType + 1, CloudTypes.Count - 1);
+            return cloudType - currentCloudType;
         }
 
         // TODO: move to utils

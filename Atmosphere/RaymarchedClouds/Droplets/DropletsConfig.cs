@@ -18,6 +18,12 @@ namespace Atmosphere
         float maxCoverageThreshold = 0.6f;
 
         [ConfigItem]
+        float fadeOutStartSpeed = 190f;
+
+        [ConfigItem]
+        float fadeOutEndSpeed = 230f;
+
+        [ConfigItem]
         float refractionStrength = 0.2f;
 
         [ConfigItem]
@@ -105,6 +111,8 @@ namespace Atmosphere
 
         public float TopNoiseScale { get => topNoiseScale; }
         public float TopNoiseStrength { get => topNoiseStrength; }
+        public float FadeOutStartSpeed { get => fadeOutStartSpeed; }
+        public float FadeOutEndSpeed { get => fadeOutEndSpeed; }
 
         public void LoadConfigNode(ConfigNode node)
         {

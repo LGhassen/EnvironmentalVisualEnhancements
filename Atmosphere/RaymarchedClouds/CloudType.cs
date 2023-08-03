@@ -25,6 +25,9 @@ namespace Atmosphere
         float particleFieldDensity = 1f;
 
         [ConfigItem]
+        float dropletsDensity = 1f;
+
+        [ConfigItem]
         float lightningFrequency = 1f;
 
         [ConfigItem]
@@ -46,6 +49,8 @@ namespace Atmosphere
         public float Density { get => density; }
 
         public float ParticleFieldDensity { get => particleFieldDensity; }
+
+        public float DropletsDensity { get => dropletsDensity; }
 
         public float LightningFrequency { get => lightningFrequency; }
 
