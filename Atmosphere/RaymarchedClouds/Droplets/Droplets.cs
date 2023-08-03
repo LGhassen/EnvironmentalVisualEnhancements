@@ -34,8 +34,11 @@ namespace Atmosphere
 		float fadeLerpTime = 0f;
 		float fadeLerpDuration = 0f;
 
-		float accumulatedTimeOffset1 = 0f;
-		float accumulatedTimeOffset2 = 0f;
+		float sideDropletsTimeOffset1 = 0f;
+		float sideDropletsTimeOffset2 = 0f;
+
+		float topDropletsTimeOffset1 = 0f;
+		float topDropletsTimeOffset2 = 0f;
 
 		static Shader dropletsIvaShader = null;
 		static Shader DropletsIvaShader
@@ -120,7 +123,7 @@ namespace Atmosphere
                 {
                     directionFadeLerpInProgress = false;
                     currentShipRelativeDropletDirectionVector = nextShipRelativeDropletDirectionVector;
-					accumulatedTimeOffset1 = accumulatedTimeOffset2;
+					sideDropletsTimeOffset1 = sideDropletsTimeOffset2;
 				}
 
                 dropletsIvaMaterial.SetFloat("lerp12", fadeLerpTime / fadeLerpDuration);
@@ -153,7 +156,7 @@ namespace Atmosphere
 				}
 
 				dropletsIvaMaterial.SetFloat("lerp12", 0f);
-				accumulatedTimeOffset2 = 0f;
+				sideDropletsTimeOffset2 = 0f;
 			}
 
 			dropletsIvaMaterial.SetMatrix("rotationMatrix1", Matrix4x4.Rotate(Quaternion.FromToRotation(currentShipRelativeDropletDirectionVector, Vector3.up)));
@@ -164,16 +167,30 @@ namespace Atmosphere
         {
 			float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
 
-			accumulatedTimeOffset1 += deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
-            accumulatedTimeOffset2 += deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
+			float sideDropletTimeDelta = deltaTime * Mathf.Max(1f, dropletsConfigObject.SpeedIncreaseFactor * Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed));
 
-            if (accumulatedTimeOffset1 > 20000f) accumulatedTimeOffset1 = 0f;
-            if (accumulatedTimeOffset2 > 20000f) accumulatedTimeOffset2 = 0f;
+			sideDropletsTimeOffset1 += sideDropletTimeDelta;
+            sideDropletsTimeOffset2 += sideDropletTimeDelta;
 
-            dropletsIvaMaterial.SetFloat("accumulatedTimeOffset1", accumulatedTimeOffset1);
-            dropletsIvaMaterial.SetFloat("accumulatedTimeOffset2", accumulatedTimeOffset2);
+            if (sideDropletsTimeOffset1 > 20000f) sideDropletsTimeOffset1 = 0f;
+            if (sideDropletsTimeOffset2 > 20000f) sideDropletsTimeOffset2 = 0f;
 
-            float speedModulationLerp = Mathf.Clamp01(currentSpeed / dropletsConfigObject.MaxModulationSpeed);
+			dropletsIvaMaterial.SetFloat("sideDropletsTimeOffset1", sideDropletsTimeOffset1);
+			dropletsIvaMaterial.SetFloat("sideDropletsTimeOffset2", sideDropletsTimeOffset2);
+
+			// Note: using Log here
+			float topDropletTimeDelta = deltaTime * Mathf.Max(1f, 0.1f * Mathf.Log(Mathf.Min(currentSpeed, dropletsConfigObject.MaxModulationSpeed)));
+
+			topDropletsTimeOffset1 += topDropletTimeDelta;
+			topDropletsTimeOffset2 += topDropletTimeDelta;
+
+			if (topDropletsTimeOffset1 > 20000f) topDropletsTimeOffset1 = 0f;
+			if (topDropletsTimeOffset2 > 20000f) topDropletsTimeOffset2 = 0f;
+
+			dropletsIvaMaterial.SetFloat("topDropletsTimeOffset1", topDropletsTimeOffset1);
+			dropletsIvaMaterial.SetFloat("topDropletsTimeOffset2", topDropletsTimeOffset2);
+
+			float speedModulationLerp = Mathf.Clamp01(currentSpeed / dropletsConfigObject.MaxModulationSpeed);
             dropletsIvaMaterial.SetFloat("_StreaksRatio", Mathf.Lerp(dropletsConfigObject.LowSpeedStreakRatio, dropletsConfigObject.HighSpeedStreakRatio, speedModulationLerp));
 
             dropletsIvaMaterial.SetFloat("_SideDistorsionStrength", Mathf.Lerp(dropletsConfigObject.SideLowSpeedNoiseStrength, dropletsConfigObject.SideHighSpeedNoiseStrength, speedModulationLerp));
@@ -202,25 +219,46 @@ namespace Atmosphere
 
 			if (dropletsConfigObject.Noise != null) { dropletsConfigObject.Noise.ApplyTexture(dropletsIvaMaterial, "_DropletDistorsion"); }
 
-			float[] sideDropletLayerSize = new float[dropletsConfigObject.SideDropletLayers.Count];
-			float[] sideDropletLayerSpeed = new float[dropletsConfigObject.SideDropletLayers.Count];
-			float[] sideDropletLayerAspectRatio = new float[dropletsConfigObject.SideDropletLayers.Count];
-			float[] sideDropletLayerStreakPercentage = new float[dropletsConfigObject.SideDropletLayers.Count];
+			if (dropletsConfigObject.SideDropletLayers.Count > 0)
+			{
+				float[] sideDropletLayerSize = new float[dropletsConfigObject.SideDropletLayers.Count];
+				float[] sideDropletLayerSpeed = new float[dropletsConfigObject.SideDropletLayers.Count];
+				float[] sideDropletLayerAspectRatio = new float[dropletsConfigObject.SideDropletLayers.Count];
+				float[] sideDropletLayerStreakPercentage = new float[dropletsConfigObject.SideDropletLayers.Count];
 
-			for (int i=0; i < dropletsConfigObject.SideDropletLayers.Count; i++)
-            {
-				var sideLayerConfig = dropletsConfigObject.SideDropletLayers.ElementAt(i);
-				sideDropletLayerSize[i] = 1f/sideLayerConfig.Scale;
-				sideDropletLayerSpeed[i] = sideLayerConfig.FallSpeed;
-				sideDropletLayerAspectRatio[i] = sideLayerConfig.DropletToTrailAspectRatio;
-				sideDropletLayerStreakPercentage[i] = sideLayerConfig.StreakRatio;
+				for (int i=0; i < dropletsConfigObject.SideDropletLayers.Count; i++)
+				{
+					var sideLayerConfig = dropletsConfigObject.SideDropletLayers.ElementAt(i);
+					sideDropletLayerSize[i] = 1f/sideLayerConfig.Scale;
+					sideDropletLayerSpeed[i] = sideLayerConfig.FallSpeed;
+					sideDropletLayerAspectRatio[i] = sideLayerConfig.DropletToTrailAspectRatio;
+					sideDropletLayerStreakPercentage[i] = sideLayerConfig.StreakRatio;
+				}
+
+				dropletsIvaMaterial.SetFloatArray("sideDropletLayerSize", sideDropletLayerSize);
+				dropletsIvaMaterial.SetFloatArray("sideDropletLayerSpeed", sideDropletLayerSpeed);
+				dropletsIvaMaterial.SetFloatArray("sideDropletLayerAspectRatio", sideDropletLayerAspectRatio);
+				dropletsIvaMaterial.SetFloatArray("sideDropletLayerStreakPercentage", sideDropletLayerStreakPercentage);
 			}
 
 			dropletsIvaMaterial.SetInt("sideDropletLayerCount", dropletsConfigObject.SideDropletLayers.Count);
-			dropletsIvaMaterial.SetFloatArray("sideDropletLayerSize", sideDropletLayerSize);
-			dropletsIvaMaterial.SetFloatArray("sideDropletLayerSpeed", sideDropletLayerSpeed);
-			dropletsIvaMaterial.SetFloatArray("sideDropletLayerAspectRatio", sideDropletLayerAspectRatio);
-			dropletsIvaMaterial.SetFloatArray("sideDropletLayerStreakPercentage", sideDropletLayerStreakPercentage);
+
+			if (dropletsConfigObject.TopDropletLayers.Count > 0)
+			{ 
+				float[] topDropletLayerSize = new float[dropletsConfigObject.TopDropletLayers.Count];
+				float[] topDropletLayerSpeed = new float[dropletsConfigObject.TopDropletLayers.Count];
+
+				for (int i = 0; i < dropletsConfigObject.TopDropletLayers.Count; i++)
+				{
+					var topLayerConfig = dropletsConfigObject.TopDropletLayers.ElementAt(i);
+					topDropletLayerSize[i] = 1f / topLayerConfig.Scale;
+					topDropletLayerSpeed[i] = topLayerConfig.Speed;
+				}
+
+				dropletsIvaMaterial.SetInt("topDropletLayerCount", dropletsConfigObject.TopDropletLayers.Count);
+				dropletsIvaMaterial.SetFloatArray("topDropletLayerSize", topDropletLayerSize);
+				dropletsIvaMaterial.SetFloatArray("topDropletLayerSpeed", topDropletLayerSpeed);
+			}
 
 			dropletsIvaMaterial.SetFloat("lerp12", 0f);
 		}

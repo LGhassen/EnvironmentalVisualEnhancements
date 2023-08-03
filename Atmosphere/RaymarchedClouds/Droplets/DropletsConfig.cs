@@ -36,6 +36,9 @@ namespace Atmosphere
         float triplanarTransitionSharpness = 2f;
 
         [ConfigItem]
+        float dryingSpeed = 0.01f;
+
+        [ConfigItem]
         float speedIncreaseFactor = 0.1f;
 
         [ConfigItem]
@@ -156,6 +159,11 @@ namespace Atmosphere
         [ConfigItem]
         float scale = 1f;
 
+        [ConfigItem]
+        float speed = 1f;
+
         public float Scale { get => scale; }
+
+        public float Speed { get => speed; }
     }
 }
