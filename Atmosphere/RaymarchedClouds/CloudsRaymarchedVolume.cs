@@ -260,48 +260,19 @@ namespace Atmosphere
 
         public MeshRenderer volumeMeshrenderer;
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody)
+        Clouds2D layer2d = null;
+
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d)
         {
             planetRadius = parentRadius;
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
 
-            raymarchedCloudMaterial.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
-            raymarchedCloudMaterial.SetVector("stbnDimensions", new Vector3(ShaderLoader.ShaderLoaderClass.stbnDimensions.x, ShaderLoader.ShaderLoaderClass.stbnDimensions.y, ShaderLoader.ShaderLoaderClass.stbnDimensions.z));
-
-            if (useDetailTex && material.DetailTex != null)
-            {
-                detailTex = material.DetailTex;
-                detailScale = material.DetailScale;
-                material.DetailTex.ApplyTexture(raymarchedCloudMaterial, "_DetailTex");
-                raymarchedCloudMaterial.SetFloat("_DetailScale", material.DetailScale);
-                raymarchedCloudMaterial.EnableKeyword("DETAILTEX_ON"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_OFF");
-            }
-            else
-            {
-                raymarchedCloudMaterial.EnableKeyword("DETAILTEX_OFF"); raymarchedCloudMaterial.DisableKeyword("DETAILTEX_ON");
-            }
-
-            if (flowMap != null && flowMap.Texture != null)
-            {
-                raymarchedCloudMaterial.EnableKeyword("FLOWMAP_ON");
-                raymarchedCloudMaterial.DisableKeyword("FLOWMAP_OFF");
-                flowMap.Texture.ApplyTexture(raymarchedCloudMaterial, "_FlowMap", 999);
-                raymarchedCloudMaterial.SetFloat("_flowStrength", flowMap.Displacement);
-                raymarchedCloudMaterial.SetFloat("_flowSpeed", flowMap.Speed);
-            }
-            else
-            {
-                raymarchedCloudMaterial.EnableKeyword("FLOWMAP_OFF");
-                raymarchedCloudMaterial.DisableKeyword("FLOWMAP_ON");
-            }
-
-            ConfigureTextures();
-
+            RenderNoiseTextures();
             ProcessCloudTypes();
 
-            SetShaderParams(raymarchedCloudMaterial);
+            SetShaderParams(raymarchedCloudMaterial, material, celestialBody);
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
@@ -368,68 +339,108 @@ namespace Atmosphere
             }
 
             sunlight = Sun.Instance.GetComponent<Light>();
-
-            raymarchedCloudMaterial.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(celestialBody) ? 1f : 0f);
         }
 
-        public void ConfigureTextures()
+        public void RenderNoiseTextures()
         {
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None)
-            { 
+            {
                 baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
                 CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
-                raymarchedCloudMaterial.SetTexture("BaseNoiseTexture", baseNoiseRT);
-                raymarchedCloudMaterial.EnableKeyword("NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("NOISE_OFF");
 
                 if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None)
                 {
                     detailNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
                     CloudNoiseGen.RenderNoiseToTexture(detailNoiseRT, detailNoise);
-                    raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", detailNoiseRT);
                 }
-                else
-                {
-                    raymarchedCloudMaterial.SetTexture("DetailNoiseTexture", baseNoiseRT);
-                }
-            }
-            else
-            {
-                raymarchedCloudMaterial.EnableKeyword("NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("NOISE_ON");
             }
 
             if (curlNoise != null)
             {
                 curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
                 CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise.ToNoiseSettings());
-                raymarchedCloudMaterial.SetTexture("CurlNoiseTexture", curlNoiseRT);
-                raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_ON"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_OFF");
-                raymarchedCloudMaterial.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
+            }
+        }
+
+        public void SetShaderTextureParams(Material mat, CloudsMaterial material)
+        {
+            if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
+            { 
+                mat.SetTexture("BaseNoiseTexture", baseNoiseRT);
+                mat.EnableKeyword("NOISE_ON"); mat.DisableKeyword("NOISE_OFF");
+
+                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None && detailNoiseRT != null)
+                {
+                    mat.SetTexture("DetailNoiseTexture", detailNoiseRT);
+                }
+                else
+                {
+                    mat.SetTexture("DetailNoiseTexture", baseNoiseRT);
+                }
             }
             else
             {
-                raymarchedCloudMaterial.EnableKeyword("CURL_NOISE_OFF"); raymarchedCloudMaterial.DisableKeyword("CURL_NOISE_ON");
+                mat.EnableKeyword("NOISE_OFF"); mat.DisableKeyword("NOISE_ON");
+            }
+
+            if (curlNoise != null && curlNoiseRT!= null)
+            {
+                mat.SetTexture("CurlNoiseTexture", curlNoiseRT);
+                mat.EnableKeyword("CURL_NOISE_ON"); mat.DisableKeyword("CURL_NOISE_OFF");
+                mat.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
+            }
+            else
+            {
+                mat.EnableKeyword("CURL_NOISE_OFF"); mat.DisableKeyword("CURL_NOISE_ON");
             }
 
             if (coverageMap != null)
             {
-                coverageMap.ApplyTexture(raymarchedCloudMaterial, "CloudCoverage", 1);
+                coverageMap.ApplyTexture(mat, "CloudCoverage", 1);
             }
             else
             {
-                raymarchedCloudMaterial.SetTexture("CloudCoverage", Texture2D.whiteTexture);
-                raymarchedCloudMaterial.EnableKeyword("MAP_TYPE_1");
+                mat.SetTexture("CloudCoverage", Texture2D.whiteTexture);
+                mat.EnableKeyword("MAP_TYPE_1");
             }
 
-            ApplyCloudTexture(cloudTypeMap, "CloudType", raymarchedCloudMaterial, 2);
+            ApplyCloudTexture(cloudTypeMap, "CloudType", mat, 2);
 
             if (cloudColorMap!= null)
             {
-                raymarchedCloudMaterial.EnableKeyword("COLORMAP_ON"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_OFF");
-                ApplyCloudTexture(cloudColorMap, "CloudColorMap", raymarchedCloudMaterial, 4);
+                mat.EnableKeyword("COLORMAP_ON"); mat.DisableKeyword("COLORMAP_OFF");
+                ApplyCloudTexture(cloudColorMap, "CloudColorMap", mat, 4);
             }
             else
             { 
-                raymarchedCloudMaterial.EnableKeyword("COLORMAP_OFF"); raymarchedCloudMaterial.DisableKeyword("COLORMAP_ON");
+                mat.EnableKeyword("COLORMAP_OFF"); mat.DisableKeyword("COLORMAP_ON");
+            }
+
+            if (useDetailTex && material.DetailTex != null)
+            {
+                detailTex = material.DetailTex;
+                detailScale = material.DetailScale;
+                material.DetailTex.ApplyTexture(mat, "_DetailTex");
+                mat.SetFloat("_DetailScale", material.DetailScale);
+                mat.EnableKeyword("DETAILTEX_ON"); mat.DisableKeyword("DETAILTEX_OFF");
+            }
+            else
+            {
+                mat.EnableKeyword("DETAILTEX_OFF"); mat.DisableKeyword("DETAILTEX_ON");
+            }
+
+            if (flowMap != null && flowMap.Texture != null)
+            {
+                mat.EnableKeyword("FLOWMAP_ON");
+                mat.DisableKeyword("FLOWMAP_OFF");
+                flowMap.Texture.ApplyTexture(mat, "_FlowMap", 999);
+                mat.SetFloat("_flowStrength", flowMap.Displacement);
+                mat.SetFloat("_flowSpeed", flowMap.Speed);
+            }
+            else
+            {
+                mat.EnableKeyword("FLOWMAP_OFF");
+                mat.DisableKeyword("FLOWMAP_ON");
             }
         }
 
@@ -451,8 +462,16 @@ namespace Atmosphere
             }
         }
 
-        public void SetShaderParams(Material mat)
+        public void SetShaderParams(Material mat, CloudsMaterial material, CelestialBody celestialBody)
         {
+            SetShaderTextureParams(mat, material);
+            SetCloudTypesShaderParams(mat);
+
+            mat.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(celestialBody) ? 1f : 0f);
+
+            mat.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
+            mat.SetVector("stbnDimensions", new Vector3(ShaderLoader.ShaderLoaderClass.stbnDimensions.x, ShaderLoader.ShaderLoaderClass.stbnDimensions.y, ShaderLoader.ShaderLoaderClass.stbnDimensions.z));
+
             mat.SetColor("cloudColor", Tools.IsColorRGB(color) ? color / 255f : color);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
@@ -494,9 +513,9 @@ namespace Atmosphere
                 mat.EnableKeyword("NOISE_UNTILING_OFF"); mat.DisableKeyword("NOISE_UNTILING_ON");
             }
 
-            raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
-            raymarchedCloudMaterial.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
-            raymarchedCloudMaterial.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
+            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
+            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
+            mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
         }
 
         private void ProcessCloudTypes()
@@ -513,11 +532,15 @@ namespace Atmosphere
             innerSphereRadius = planetRadius + cloudMinAltitude;
             outerSphereRadius = planetRadius + cloudMaxAltitude;
 
-            raymarchedCloudMaterial.SetFloat("innerSphereRadius", innerSphereRadius);
-            raymarchedCloudMaterial.SetFloat("outerSphereRadius", outerSphereRadius);
-
             coverageCurvesTexture = BakeCoverageCurvesTexture();
-            raymarchedCloudMaterial.SetTexture("DensityCurve", coverageCurvesTexture);
+        }
+
+        private void SetCloudTypesShaderParams(Material mat)
+        {
+            mat.SetFloat("innerSphereRadius", innerSphereRadius);
+            mat.SetFloat("outerSphereRadius", outerSphereRadius);
+
+            mat.SetTexture("DensityCurve", coverageCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
 
@@ -529,11 +552,11 @@ namespace Atmosphere
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
-            raymarchedCloudMaterial.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
-            raymarchedCloudMaterial.SetInt("numberOfCloudTypes", cloudTypes.Count);
-            raymarchedCloudMaterial.SetFloat("planetRadius", planetRadius);
+            mat.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
+            mat.SetInt("numberOfCloudTypes", cloudTypes.Count);
+            mat.SetFloat("planetRadius", planetRadius);
 
-            raymarchedCloudMaterial.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
+            mat.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
         private Texture2D BakeCoverageCurvesTexture()
