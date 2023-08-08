@@ -178,6 +178,7 @@ namespace Atmosphere
         public CloudsMaterial CloudsMat { get => cloudsMat; }
         public Material CloudRenderingMaterial { get => CloudMaterial; }
         public Matrix4x4 MainRotationMatrix { get => mainRotationMatrix; }
+        public ScreenSpaceShadow ScreenSpaceShadow { get => screenSpaceShadow; }
 
         public void setCloudMeshEnabled(bool value)
         {

@@ -400,7 +400,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume != null)
                 {
                     // TODO pass timeSettings fadeMode
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody);
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D);
                 }
 
                 if (!pqs.isActive || HighLogic.LoadedScene == GameScenes.TRACKSTATION)

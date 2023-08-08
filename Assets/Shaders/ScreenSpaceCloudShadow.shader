@@ -41,8 +41,23 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
 			#endif
 
-#include "alphaMap.cginc"
-#include "cubeMap.cginc"
+			#pragma multi_compile VOLUMETRIC_CLOUD_SHADOW_OFF VOLUMETRIC_CLOUD_SHADOW_ON
+
+			#if defined(VOLUMETRIC_CLOUD_SHADOW_ON)
+				#define CLOUD_SHADOW_CASTER_OFF
+				#define NOISE_MIPS_ON
+				#pragma multi_compile NOISE_ON NOISE_OFF
+				#pragma multi_compile NOISE_UNTILING_ON NOISE_UNTILING_OFF
+				#pragma multi_compile CURL_NOISE_OFF CURL_NOISE_ON
+				#pragma multi_compile FLOWMAP_OFF FLOWMAP_ON
+			#endif
+
+
+			#include "alphaMap.cginc"
+			#include "cubeMap.cginc"
+			#include "RaymarchedClouds/RaymarchedCloudUtils.cginc"
+			#include "RaymarchedClouds/RaymarchedCloudShading.cginc"
+			#include "RaymarchedClouds/RaymarchedCloudCore.cginc"
 
 			CUBEMAP_DEF_1(_MainTex)
 
@@ -91,12 +106,6 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				return o;
 			}
 
-			float RemapClamped (float value, float original_min, float original_max, float new_min, float new_max)
-			{
-				value = clamp(value, original_min, original_max);
-				return new_min + (((value - original_min) / (original_max - original_min)) * (new_max - new_min));
-			}
-
 			fixed4 frag(v2f IN) : COLOR
 			{
 				float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
@@ -129,6 +138,9 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 					lerp(tlc - td, tc + tlc, step(0.0, tc)), step(originDist, sphereRadius));
 				
 				float4 planetPos = vertexPos + (-_SunDir*sphereDist);
+
+				float3 cloudPos = planetPos.xyz;
+
 				planetPos = (mul(_MainRotation, planetPos));
 				float3 mainPos = planetPos.xyz;
 				float3 detailPos = (mul(_DetailRotation, planetPos)).xyz;
@@ -148,6 +160,18 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
 
 				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
+				
+
+#if defined(VOLUMETRIC_CLOUD_SHADOW_ON)
+				float3 unused;
+				float3 localColor;
+				float cloudDensity = SampleCloudDensity(cloudPos.xyz, 1.0.xxxx, 0.0, localColor, unused);
+
+				cloudDensity = saturate(cloudDensity * 4.0) * 0.7;
+
+				color.rgb = saturate(localColor.rgb * (1.0 - cloudDensity));
+				color.rgb = lerp(1, color.rgb, _ShadowFactor * cloudDensity);
+#endif
 
 				return lerp(1, color, shadowCheck*fadeout*cloudTimeFadeDensity);
 			}

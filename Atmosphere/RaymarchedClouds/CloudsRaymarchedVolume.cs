@@ -260,7 +260,7 @@ namespace Atmosphere
 
         public MeshRenderer volumeMeshrenderer;
 
-        Clouds2D layer2d = null;
+        Material screenspaceShadowMaterial = null;
 
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d)
         {
@@ -268,11 +268,19 @@ namespace Atmosphere
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
+            screenspaceShadowMaterial = layer2d?.ScreenSpaceShadow?.material;
 
             RenderNoiseTextures();
             ProcessCloudTypes();
 
             SetShaderParams(raymarchedCloudMaterial, material, celestialBody);
+            if (screenspaceShadowMaterial != null)
+            {
+                SetShaderParams(screenspaceShadowMaterial, material, celestialBody);
+                screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
+                screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
+                screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
+            }
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
@@ -642,6 +650,8 @@ namespace Atmosphere
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
+
+                if (screenspaceShadowMaterial != null) screenspaceShadowMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
             }
 
             if (sunlight!=null)
@@ -678,10 +688,19 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
             raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
 
+            if (screenspaceShadowMaterial != null)
+            {
+                screenspaceShadowMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
+                screenspaceShadowMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
+                screenspaceShadowMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
+                screenspaceShadowMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
+            }
+
             if (curlNoise != null)
             {
                 GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
                 raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
+                if (screenspaceShadowMaterial != null) screenspaceShadowMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
             }
         }
 
@@ -768,6 +787,11 @@ namespace Atmosphere
                 // raymarchedCloudMaterial.SetMatrix("invCloudRotation", rotationMatrix.inverse); // for flowmaps reprojection but it's not really working
 
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);
+
+                if (screenspaceShadowMaterial != null)
+                {
+                    screenspaceShadowMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
+                }
 
                 cloudRotationMatrix = rotationMatrix;
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
