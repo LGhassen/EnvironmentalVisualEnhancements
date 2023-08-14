@@ -262,8 +262,12 @@ namespace Atmosphere
 
         Material screenspaceShadowMaterial = null;
 
+        public CelestialBody parentCelestialBody;
+
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d)
         {
+            parentCelestialBody = celestialBody;
+
             planetRadius = parentRadius;
             parentTransform = parent;
 

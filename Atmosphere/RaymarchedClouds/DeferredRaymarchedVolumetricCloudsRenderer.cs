@@ -95,7 +95,7 @@ namespace Atmosphere
         // indexed by [isRightEye]
         private FlipFlop<Matrix4x4> previousV;
         private FlipFlop<Matrix4x4> previousP;
-        Vector3d previousFloatingOriginOffset = Vector3d.zero;
+        Vector3d previousParentPosition = Vector3d.zero;
 
         int reprojectionXfactor = 4;
         int reprojectionYfactor = 2;
@@ -319,21 +319,16 @@ namespace Atmosphere
                 var currentP = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                 var currentV = VRUtils.GetViewMatrixForCamera(targetCamera);
 
-                //handle floatingOrigin changes
-                Vector3d currentOffset = Vector3d.zero;
-
-                if (FloatingOrigin.OffsetNonKrakensbane != previousFloatingOriginOffset)
-                    currentOffset = FloatingOrigin.OffsetNonKrakensbane;    // this is the frame-to-frame difference in offset, but it's not updated if there is no change
-                                                                            // this isn't the best way to check for it, as if we're moving at constant speed and it changes every frame then there's no way to detect it
-                                                                            // but it seems to work ok
-
-                previousFloatingOriginOffset = FloatingOrigin.OffsetNonKrakensbane;
+                // add the frame to frame offset of the parent body, this contains both the movement of the body and the floating origin
+                Vector3d currentOffset = volumesAdded.ElementAt(0).parentCelestialBody.position - previousParentPosition;
+                previousParentPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
 
                 //transform to camera space
-                Vector3 floatOffset = currentV.MultiplyVector(currentOffset);
+                Vector3 floatOffset = currentV.MultiplyVector(-currentOffset);
 
                 //inject in the previous view matrix
                 var prevV = previousV[isRightEye];
+                
                 prevV.m03 += floatOffset.x;
                 prevV.m13 += floatOffset.y;
                 prevV.m23 += floatOffset.z;
