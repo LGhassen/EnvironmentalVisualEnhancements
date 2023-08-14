@@ -293,8 +293,8 @@ namespace Atmosphere
                     cloudFade = Mathf.Min(cloudFade, elt.VolumetricLayerScaledFade);
                 }
 
-                // if the camera is higher than the highest layer by as high as it is from the ground, enable orbitMode
-                bool orbitMode = camDistanceToPlanetOrigin - outerRepojectionRadius > outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius;
+                // if the camera is higher than the highest layer by 2x as high as it is from the ground, enable orbitMode
+                bool orbitMode = camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
 
