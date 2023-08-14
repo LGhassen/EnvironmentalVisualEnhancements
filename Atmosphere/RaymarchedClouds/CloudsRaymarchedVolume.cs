@@ -498,6 +498,7 @@ namespace Atmosphere
 
             mat.SetFloat("lightMarchDistance", raymarchingSettings.LightMarchDistance);
             mat.SetInt("lightMarchSteps", (int)raymarchingSettings.LightMarchSteps);
+            mat.SetFloat("stepSizeLight", raymarchingSettings.LightMarchDistance / (int)raymarchingSettings.LightMarchSteps);
 
             Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false); //TODO: remove/replace with lower res texture?
             mat.SetTexture("BlueNoise", tex);
