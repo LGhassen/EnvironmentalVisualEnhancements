@@ -659,6 +659,11 @@ namespace Atmosphere
             {
                 raymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
             }
+
+            if (screenspaceShadowMaterial != null && coverageMap != null)
+            {
+                coverageMap.SetAlphaMask(screenspaceShadowMaterial, 1); // this gets overwritten on scaled/local changes, TODO: change the calls in here to use properties
+            }
         }
 
         private void UpdateNoiseOffsets()
