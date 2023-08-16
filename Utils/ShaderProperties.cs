@@ -168,6 +168,9 @@ namespace Utils
         public static int outerSphereRadius_PROPERTY { get { return outerSphereRadius; } }
         private static int outerSphereRadius;
 
+        public static int outerLayerRadius_PROPERTY { get { return outerLayerRadius; } }
+        private static int outerLayerRadius;
+
         public static int planetRadius_PROPERTY { get { return planetRadius; } }
         private static int planetRadius;
 
@@ -326,6 +329,7 @@ namespace Utils
             newRaysSecondaryBufferBilinear = Shader.PropertyToID("newRaysSecondaryBufferBilinear");
             innerSphereRadius = Shader.PropertyToID("innerSphereRadius");
             outerSphereRadius = Shader.PropertyToID("outerSphereRadius");
+            outerLayerRadius = Shader.PropertyToID("outerLayerRadius");
             planetRadius = Shader.PropertyToID("planetRadius");
             sphereCenter = Shader.PropertyToID("sphereCenter");
             colorBuffer = Shader.PropertyToID("colorBuffer");

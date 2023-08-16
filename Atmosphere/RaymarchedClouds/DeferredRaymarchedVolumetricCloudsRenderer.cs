@@ -140,17 +140,7 @@ namespace Atmosphere
             SetReprojectionFactors();
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
-
-            if (useCombinedOpenGLDistanceBuffer)
-            {
-                reconstructCloudsMaterial.EnableKeyword("OPENGL_COMBINEDBUFFER_ON");
-                reconstructCloudsMaterial.DisableKeyword("OPENGL_COMBINEDBUFFER_OFF");
-            }
-            else
-            {
-                reconstructCloudsMaterial.DisableKeyword("OPENGL_COMBINEDBUFFER_ON");
-                reconstructCloudsMaterial.EnableKeyword("OPENGL_COMBINEDBUFFER_OFF");
-            }
+            SetCombinedOpenGLDepthBufferKeywords(reconstructCloudsMaterial);
 
             bool supportVR = VRUtils.VREnabled();
 
@@ -178,6 +168,20 @@ namespace Atmosphere
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
             isInitialized = true;
+        }
+
+        private void SetCombinedOpenGLDepthBufferKeywords(Material material)
+        {
+            if (useCombinedOpenGLDistanceBuffer)
+            {
+                material.EnableKeyword("OPENGL_COMBINEDBUFFER_ON");
+                material.DisableKeyword("OPENGL_COMBINEDBUFFER_OFF");
+            }
+            else
+            {
+                material.DisableKeyword("OPENGL_COMBINEDBUFFER_ON");
+                material.EnableKeyword("OPENGL_COMBINEDBUFFER_OFF");
+            }
         }
 
         private void InitRenderTextures()
@@ -297,6 +301,13 @@ namespace Atmosphere
                 bool orbitMode = camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
+                var DeferredRaymarchedRendererToScreenMaterial = DeferredRaymarchedRendererToScreen.material;
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
+                DeferredRaymarchedRendererToScreenMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerReprojectionRadius);
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerRepojectionRadius);
+                DeferredRaymarchedRendererToScreenMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector("sphereCenter")); //TODO: cleaner way to handle it
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
                 // now sort our intersections front to back
                 intersections = intersections.OrderBy(x => x.distance).ToList();
@@ -356,6 +367,7 @@ namespace Atmosphere
                     cloudMaterial.SetFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
 
                     cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
+                    cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerRepojectionRadius);
 
                     cloudMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
