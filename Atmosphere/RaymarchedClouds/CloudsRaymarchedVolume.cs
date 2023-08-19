@@ -168,6 +168,20 @@ namespace Atmosphere
                 {
                     droplets.SetDropletsEnabled(value);
                 }
+
+                if (screenspaceShadowMaterial != null)
+                {
+                    if (_enabled)
+                    {
+                        screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
+                        screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
+                    }
+                    else
+                    {
+                        screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
+                        screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
+                    }
+                }
             }
         }
 
