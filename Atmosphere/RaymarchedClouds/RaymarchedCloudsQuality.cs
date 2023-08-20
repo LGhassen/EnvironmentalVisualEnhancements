@@ -24,8 +24,13 @@ namespace Atmosphere
         [ConfigItem]
         bool nonTiling3DNoise = true;
 
+        [ConfigItem]
+        bool useOrbitMode = true;
+
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
+
+        internal bool UseOrbitMode { get => useOrbitMode; }
 
         public void LoadConfigNode(ConfigNode node)
         {

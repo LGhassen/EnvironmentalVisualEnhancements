@@ -14,12 +14,16 @@ namespace Atmosphere
 
         static bool nonTiling3DNoise = true;
 
+        static bool useOrbitMode = true;
+
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
 
         internal static TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
 
         internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
+
+        internal static bool UseOrbitMode { get => useOrbitMode; }
 
         internal static Tuple<int, int> GetReprojectionFactors()
         {
@@ -52,6 +56,8 @@ namespace Atmosphere
                 temporalUpscaling = ObjectList[0].TemporalUpscaling;
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
+
+                useOrbitMode = ObjectList[0].UseOrbitMode;
 
                 DeferredRaymarchedVolumetricCloudsRenderer.ReinitAll();
 
