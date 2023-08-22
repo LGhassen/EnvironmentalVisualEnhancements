@@ -298,7 +298,7 @@ namespace Atmosphere
                 }
 
                 // if the camera is higher than the highest layer by 2x as high as it is from the ground, enable orbitMode
-                bool orbitMode = RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
+                bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
                 var DeferredRaymarchedRendererToScreenMaterial = DeferredRaymarchedRendererToScreen.material;
