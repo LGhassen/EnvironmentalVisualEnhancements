@@ -131,6 +131,7 @@ namespace Atmosphere
         bool isLoaded;
         bool hasRaymarchedVolumetrics;
         double loadDistance, unloadDistance;
+        bool inMainMenu = false;
 
         static Camera mainMenuCamera = null;
 
@@ -193,7 +194,7 @@ namespace Atmosphere
                     mainMenuCamera = Camera.allCameras.SingleOrDefault(_cam => _cam.name == "Landscape Camera");
                 }
 
-                if (mainMenuGO == null)
+                if (mainMenuGO == null && !inMainMenu)
                 {
                     mainMenuGO = Tools.GetMainMenuObject(celestialBody.name);
                 }
@@ -212,7 +213,11 @@ namespace Atmosphere
                         minDistance = double.PositiveInfinity;
                     }
                 }
+
+                inMainMenu = true;
             }
+            else
+                inMainMenu = false;
 
             return minDistance;
         }
