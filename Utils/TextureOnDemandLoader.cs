@@ -67,13 +67,17 @@ namespace Utils
 
             if (!exists) exists = textureOnDemandDictionary.ContainsKey(textureName);
 
-            var pngPath = System.IO.Path.Combine("GameData", textureName + ".png");
-            var truecolorPath = System.IO.Path.Combine("GameData", textureName + ".truecolor");
-            var ddsPath = System.IO.Path.Combine("GameData", textureName + ".dds");
+            var gameDataPath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData");
+
+            var pngPath = System.IO.Path.Combine(gameDataPath, textureName + ".png");
+            var truecolorPath = System.IO.Path.Combine(gameDataPath, textureName + ".truecolor");
+            var ddsPath = System.IO.Path.Combine(gameDataPath, textureName + ".dds");
 
             if (!exists) exists = System.IO.File.Exists(pngPath);
             if (!exists) exists = System.IO.File.Exists(truecolorPath);
             if (!exists) exists = System.IO.File.Exists(ddsPath);
+
+            if (!exists) Debug.LogError("[EVE OnDemand] " + textureName + " not found.");
 
             return exists;
         }
@@ -105,9 +109,11 @@ namespace Utils
 
         public static TextureOnDemand Load(string textureName)
         {
-            var pngPath = System.IO.Path.Combine("GameData", textureName + ".png");
-            var truecolorPath = System.IO.Path.Combine("GameData", textureName + ".truecolor");
-            var ddsPath = System.IO.Path.Combine("GameData", textureName + ".dds");
+            var gameDataPath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData");
+
+            var pngPath = System.IO.Path.Combine(gameDataPath, textureName + ".png");
+            var truecolorPath = System.IO.Path.Combine(gameDataPath, textureName + ".truecolor");
+            var ddsPath = System.IO.Path.Combine(gameDataPath, textureName + ".dds");
 
             var texture = new Texture2D(1, 1);
 
