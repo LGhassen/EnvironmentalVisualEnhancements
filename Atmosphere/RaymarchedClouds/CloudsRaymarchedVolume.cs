@@ -501,7 +501,6 @@ namespace Atmosphere
             mat.SetColor("cloudColor", Tools.IsColorRGB(color) ? color / 255f : color);
 
             mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
-            mat.SetFloat("absorptionMultiplier", 1.0f);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
             if (curlNoise != null)
