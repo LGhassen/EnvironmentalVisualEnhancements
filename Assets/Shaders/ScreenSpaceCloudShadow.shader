@@ -80,6 +80,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 			float3 _PlanetOrigin;
 
+			uniform sampler2D scattererReconstructedCloud;
 			uniform sampler2D _CameraDepthTexture;
 			float4x4 CameraToWorld;
 
@@ -108,6 +109,14 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 			fixed4 frag(v2f IN) : COLOR
 			{
+				#if defined(VOLUMETRIC_CLOUD_SHADOW_ON)
+					// sample reconstructed image bilinearly, check transmittance
+					float cloudTransmittance = tex2Dlod(scattererReconstructedCloud, float4(IN.uv, 0.0, 0.0)).a;
+
+					// if transmittance is zero exit early
+					if (cloudTransmittance == 0.0) return 1.0.xxxx;
+				#endif
+
 				float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
 
 			#if SHADER_API_D3D11
@@ -141,6 +150,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				float3 cloudPos = planetPos.xyz;
 
+#if !defined(VOLUMETRIC_CLOUD_SHADOW_ON)
 				planetPos = (mul(_MainRotation, planetPos));
 				float3 mainPos = planetPos.xyz;
 				float3 detailPos = (mul(_DetailRotation, planetPos)).xyz;
@@ -158,6 +168,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
+#endif
 
 				float fadeout = clamp(0.01 * (sphereRadius - originDist), 0.0, 1.0);
 				
@@ -167,10 +178,12 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				float3 localColor;
 				float cloudDensity = SampleCloudDensity(cloudPos.xyz, 1.0.xxxx, 0.0, localColor, unused);
 
-				cloudDensity = saturate(cloudDensity * 4.0) * 0.7;
+				cloudDensity = saturate(cloudDensity * 4.0) * 0.65;
 
-				color.rgb = saturate(localColor.rgb * (1.0 - cloudDensity));
-				color.rgb = lerp(1, color.rgb, _ShadowFactor * cloudDensity);
+				float4 color = 1.0.xxxx;
+
+				color.rgb = saturate(localColor.rgb * _Color.rgb * (1.0 - cloudDensity));
+				color.rgb = lerp(1, color.rgb, cloudDensity * _ShadowFactor * _Color.a);
 #endif
 
 				return lerp(1, color, shadowCheck*fadeout*cloudTimeFadeDensity);
