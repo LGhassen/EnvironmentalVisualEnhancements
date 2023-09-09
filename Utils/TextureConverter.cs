@@ -824,8 +824,29 @@ namespace Utils
             return false;
         }
 
+        // This assumes no mipmaps on input
+        public static Texture2D ExtractBC4TextureFromBC3Alpha(Texture2D input)
+        {
+            Texture2D textureBC4 = new Texture2D(input.width, input.height, TextureFormat.BC4, false);
+            textureBC4.filterMode = input.filterMode;
+            textureBC4.wrapMode = input.wrapMode;
 
+            byte[] allChannelArray = input.GetRawTextureData();
+            byte[] alphaChannelArray = textureBC4.GetRawTextureData();
 
+            for (int i = 0; i < alphaChannelArray.Length / 8; i++) //number of blocks
+            {
+                for (int j = 0; j < 8; j++) //bytes within a block
+                {
+                    alphaChannelArray[i * 8 + j] = allChannelArray[i * 16 + j]; //take only the first 8 bytes of every 16 bytes for the alpha/BC4 channel
+                }
+            }
+
+            textureBC4.LoadRawTextureData(alphaChannelArray);
+            textureBC4.Apply();
+
+            return textureBC4;
+        }
 
     }
 }

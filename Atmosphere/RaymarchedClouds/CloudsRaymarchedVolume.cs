@@ -592,10 +592,10 @@ namespace Atmosphere
             if (cloudTypes.Count == 0)
                 return Texture2D.whiteTexture;
 
-            Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.R8, false);
+            Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
 
             tex.filterMode = FilterMode.Bilinear;
-            tex.wrapMode = TextureWrapMode.Clamp; //will need to pass this to the compressor script after
+            tex.wrapMode = TextureWrapMode.Clamp;
 
             Color[] colors = new Color[resolution * resolution];
 
@@ -614,9 +614,13 @@ namespace Atmosphere
                 for (int y = 0; y < resolution; y++)
                 {
                     float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / (float)(resolution-1));
-                    colors[x + y * resolution].r = Mathf.Lerp(EvaluateCloudValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
-                                        EvaluateCloudValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
-                                        cloudFrac);
+                    float result = Mathf.Lerp(EvaluateCloudValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                EvaluateCloudValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                cloudFrac);
+                    
+                    // We want to compress to BC4 which doesn't work unless we compress to BC3 and extract the alpha channel, and that also doesn't work unless you set both alpha and another channel
+                    colors[x + y * resolution].r = result;
+                    colors[x + y * resolution].a = result;
                 }
 
             }
@@ -624,7 +628,13 @@ namespace Atmosphere
             tex.SetPixels(colors);
             tex.Apply(false);
 
-            return tex;
+            tex.Compress(true); // this compresses a color image to BC3, compressing R8 directly to BC4 doesn't work
+
+            var texBC4 = TextureConverter.ExtractBC4TextureFromBC3Alpha(tex);
+
+            GameObject.Destroy(tex);
+
+            return texBC4;
         }
 
         private float EvaluateCloudValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
