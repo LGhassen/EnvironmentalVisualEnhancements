@@ -37,7 +37,7 @@ Shader "EVE/CloudShadow" {
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile WORLD_SPACE_OFF WORLD_SPACE_ON
-			#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 //MAP_TYPE_CUBE_1
+			#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
 			#ifndef MAP_TYPE_CUBE2_1
 				#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
 			#endif

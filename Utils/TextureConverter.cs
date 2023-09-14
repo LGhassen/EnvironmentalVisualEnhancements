@@ -2,6 +2,7 @@
 using System.IO;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using System.Collections.Generic;
 
 namespace Utils
 { 
@@ -846,6 +847,76 @@ namespace Utils
             textureBC4.Apply();
 
             return textureBC4;
+        }
+
+        // This was generated from unity docs, I didn't double check everything
+        private static Dictionary<TextureFormat, int> bitsPerTextureFormatPixel = new Dictionary<TextureFormat, int>()
+        {
+            {TextureFormat.Alpha8, 8},
+            {TextureFormat.ARGB4444, 16},
+            {TextureFormat.RGB24, 24},
+            {TextureFormat.RGBA32, 32},
+            {TextureFormat.ARGB32, 32},
+            {TextureFormat.RGB565, 16},
+            {TextureFormat.R16, 16},
+            {TextureFormat.DXT1, 4},
+            {TextureFormat.DXT5, 8},
+            {TextureFormat.RGBA4444, 16},
+            {TextureFormat.BGRA32, 32},
+            {TextureFormat.RHalf, 16},
+            {TextureFormat.RGHalf, 32},
+            {TextureFormat.RGBAHalf, 64},
+            {TextureFormat.RFloat, 32},
+            {TextureFormat.RGFloat, 64},
+            {TextureFormat.RGBAFloat, 128},
+            {TextureFormat.YUY2, 16},
+            {TextureFormat.RGB9e5Float, 32},
+            {TextureFormat.BC4, 4},
+            {TextureFormat.BC5, 8},
+            {TextureFormat.BC6H, 8},
+            {TextureFormat.BC7, 8},
+            {TextureFormat.DXT1Crunched, 4},
+            {TextureFormat.DXT5Crunched, 8},
+            {TextureFormat.PVRTC_RGB2, 2},
+            {TextureFormat.PVRTC_RGBA2, 2},
+            {TextureFormat.PVRTC_RGB4, 4},
+            {TextureFormat.PVRTC_RGBA4, 4},
+            {TextureFormat.ETC_RGB4, 4},
+            {TextureFormat.EAC_R, 4},
+            {TextureFormat.EAC_R_SIGNED, 4},
+            {TextureFormat.EAC_RG, 8},
+            {TextureFormat.EAC_RG_SIGNED, 8},
+            {TextureFormat.ETC2_RGB, 4},
+            {TextureFormat.ETC2_RGBA1, 4},
+            {TextureFormat.ETC2_RGBA8, 8},
+            {TextureFormat.ASTC_4x4, 8},
+            {TextureFormat.ASTC_5x5, 16},
+            {TextureFormat.ASTC_6x6, 24},
+            {TextureFormat.ASTC_8x8, 32},
+            {TextureFormat.ASTC_10x10, 64},
+            {TextureFormat.ASTC_12x12, 96},
+            {TextureFormat.RG16, 16},
+            {TextureFormat.R8, 8},
+            {TextureFormat.ETC_RGB4Crunched, 4},
+            {TextureFormat.ETC2_RGBA8Crunched, 8},
+            {TextureFormat.ASTC_HDR_4x4, 8},
+            {TextureFormat.ASTC_HDR_5x5, 16},
+            {TextureFormat.ASTC_HDR_6x6, 24},
+            {TextureFormat.ASTC_HDR_8x8, 32},
+            {TextureFormat.ASTC_HDR_10x10, 64},
+            {TextureFormat.ASTC_HDR_12x12, 96}
+        };
+
+        public static int GetBitsPerPixel(TextureFormat format)
+        {
+            if (bitsPerTextureFormatPixel.ContainsKey(format))
+            {
+                return bitsPerTextureFormatPixel[format];
+            }
+            else
+            {
+                throw new ArgumentException("Invalid texture format");
+            }
         }
 
     }

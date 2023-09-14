@@ -118,8 +118,7 @@ namespace Utils
         Texture2D texPositive;
         Texture2D texNegative;
         Texture2D[] texList;
-
-        bool texturesLoaded = false;
+        Cubemap cubemap;
 
         public static CubemapWrapper Create(string name)
         {
@@ -149,34 +148,123 @@ namespace Utils
             }
             else
             {
-                texList = new Texture2D[6];
+                LoadSixFaceCubemap(config);
+            }
+        }
+
+        private void LoadSixFaceCubemap(CubemapWrapperConfig config)
+        {
+            texList = new Texture2D[6];
+            bool canBeLoadedAsNativeCubemap = true;
+
+            for (int i = 0; i < 6; i++)
+            {
+                texList[i] = TextureOnDemandLoader.GetTexture(cubemapWrapperConfig.TexList[i]);
+
+                if (texList[i] == null)
+                {
+                    Debug.LogError("[EVE] Texture " + cubemapWrapperConfig.TexList[i] + " could not be found");
+                    canBeLoadedAsNativeCubemap = false;
+                }
+
+                texList[i].wrapMode = TextureWrapMode.Clamp;
+
+                canBeLoadedAsNativeCubemap = CheckNativeCubemapConditions(canBeLoadedAsNativeCubemap, i);
+            }
+
+            if (canBeLoadedAsNativeCubemap)
+            {
+                LoadAsNativeCubemap(config);
+            }
+            else
+            {
+                Debug.LogWarning("[EVE] Cubemap " + config.Name + " cannot be loaded as native cubemap. Consider using the same format, dimensions, mip count and equal width and height on all cubemap faces to get a performance boost.");
+            }
+        }
+
+        private void LoadAsNativeCubemap(CubemapWrapperConfig config)
+        {
+            bool cubemapLoadSuccessful = true;
+            cubemap = new Cubemap(texList[0].width, texList[0].format, texList[0].mipmapCount);
+
+            try
+            {
+                int topMipLevelSizeInBytes = (texList[0].width * texList[0].height * TextureConverter.GetBitsPerPixel(texList[0].format)) / 8;
+
+                for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
+                {
+                    var textureData = texList[cubemapFace].GetRawTextureData();
+                    int currentIndex = 0;
+
+                    for (int mipLevel = 0; mipLevel < texList[0].mipmapCount; mipLevel++)
+                    {
+                        cubemap.SetPixelData(textureData, mipLevel, (CubemapFace)cubemapFace, currentIndex);
+
+                        int currentMipLevelSize = Mathf.CeilToInt((float)topMipLevelSizeInBytes / Mathf.Pow(4, mipLevel)); // the last mip level can be 1 byte while the one before it can be 2 bytes, breaking the divide by 4 rule
+                        currentIndex += currentMipLevelSize;
+                    }
+                }
+
+                cubemap.Apply();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[EVE] Creation of native cubemap failed for " + config.Name + " with exception " + e.Message + " " + e.ToString());
+                cubemapLoadSuccessful = false;
+                GameObject.Destroy(cubemap);
+            }
+
+            if (cubemapLoadSuccessful)
+            {
+                // unload the regular textures
                 for (int i = 0; i < 6; i++)
                 {
-                    texList[i] = TextureOnDemandLoader.GetTexture(cubemapWrapperConfig.TexList[i]);
-                    if (texList[i] == null) Debug.LogError("[EVE] Texture " + cubemapWrapperConfig.TexList[i] + " could not be found");
-                    texList[i].wrapMode = TextureWrapMode.Clamp;
+                    TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexList[i]);
+                    texList[i] = null;
                 }
+                texList = null;
             }
+        }
+
+        private bool CheckNativeCubemapConditions(bool canBeLoadedAsNativeCubemap, int i)
+        {
+            if (canBeLoadedAsNativeCubemap && i > 0 &&
+                (texList[i].format != texList[0].format || texList[i].height != texList[0].height || texList[i].width != texList[0].width ||
+                 texList[i].height != texList[0].width || texList[i].mipmapCount != texList[0].mipmapCount))
+            {
+                canBeLoadedAsNativeCubemap = false;
+            }
+
+            return canBeLoadedAsNativeCubemap;
         }
 
         internal void ApplyCubeMap(Material mat, string name, int index)
         {
-            if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
+            if (cubemap != null)
             {
-                mat.SetTexture("cube" + name + "POS", texPositive);
-                mat.SetTexture("cube" + name + "NEG", texNegative);
-                mat.EnableKeyword("MAP_TYPE_CUBE2_" + index.ToString());
-                KSPLog.print("[EVE] Applying " + name + " Cubemap");
+                mat.SetTexture("cube" + name, cubemap);
+                mat.EnableKeyword("MAP_TYPE_CUBE_" + index.ToString());
             }
             else
-            {
-                mat.SetTexture("cube" + name + "xn", texList[(int)CubemapFace.NegativeX]);
-                mat.SetTexture("cube" + name + "yn", texList[(int)CubemapFace.NegativeY]);
-                mat.SetTexture("cube" + name + "zn", texList[(int)CubemapFace.NegativeZ]);
-                mat.SetTexture("cube" + name + "xp", texList[(int)CubemapFace.PositiveX]);
-                mat.SetTexture("cube" + name + "yp", texList[(int)CubemapFace.PositiveY]);
-                mat.SetTexture("cube" + name + "zp", texList[(int)CubemapFace.PositiveZ]);
-                mat.EnableKeyword("MAP_TYPE_CUBE6_" + index.ToString());
+            { 
+                if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
+                {
+                    mat.SetTexture("cube" + name + "POS", texPositive);
+                    mat.SetTexture("cube" + name + "NEG", texNegative);
+                    mat.EnableKeyword("MAP_TYPE_CUBE2_" + index.ToString());
+                    KSPLog.print("[EVE] Applying " + name + " Cubemap");
+                }
+                else
+                {
+                    mat.SetTexture("cube" + name + "xn", texList[(int)CubemapFace.NegativeX]);
+                    mat.SetTexture("cube" + name + "yn", texList[(int)CubemapFace.NegativeY]);
+                    mat.SetTexture("cube" + name + "zn", texList[(int)CubemapFace.NegativeZ]);
+                    mat.SetTexture("cube" + name + "xp", texList[(int)CubemapFace.PositiveX]);
+                    mat.SetTexture("cube" + name + "yp", texList[(int)CubemapFace.PositiveY]);
+                    mat.SetTexture("cube" + name + "zp", texList[(int)CubemapFace.PositiveZ]);
+                    mat.EnableKeyword("MAP_TYPE_CUBE6_" + index.ToString());
+                    KSPLog.print("[EVE] Applying " + name + " Native Cubemap");
+                }
             }
         }
 
