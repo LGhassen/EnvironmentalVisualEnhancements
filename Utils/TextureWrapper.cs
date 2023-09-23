@@ -289,7 +289,15 @@ namespace Utils
             if (cubemapWrapperConfig.Type != TextureTypeEnum.RGB2_CubeMap)
             {
                 var uv = GetCubeMapUVAndFaceTosample(normalizedSphereVector, out CubemapFace faceToSample);
-                return texList[(int)faceToSample].GetPixelBilinear(uv.x, uv.y, 0);
+
+                if (cubemap != null)
+                {
+                    return SampleNativeCubemapBilinear(cubemap, faceToSample, uv);
+                }
+                else
+                { 
+                    return texList[(int)faceToSample].GetPixelBilinear(uv.x, uv.y, 0);
+                }
             }
 
             return Color.white;
@@ -328,6 +336,33 @@ namespace Utils
 
             return uv;
         }
+
+        // this is so stupid unity, give me a get pixel bilinear method for native cubemaps
+        private Color SampleNativeCubemapBilinear(Cubemap cubemap, CubemapFace faceToSample, Vector2 uv)
+        {
+            int dimension = cubemap.width - 1;
+
+            float x = uv.x * dimension;
+            float y = uv.y * dimension;
+
+            int x0 = (int)x;
+            int y0 = (int)y;
+
+            int x1 = Math.Min(x0 + 1, dimension);
+            int y1 = Math.Min(y0 + 1, dimension);
+
+            float fracX = x - x0;
+            float fracY = y - y0;
+
+            Color texel0 = cubemap.GetPixel(faceToSample, x0, y0);
+            Color texel1 = cubemap.GetPixel(faceToSample, x1, y0);
+
+            Color texel2 = cubemap.GetPixel(faceToSample, x0, y1);
+            Color texel3 = cubemap.GetPixel(faceToSample, x1, y1);
+
+            return Color.Lerp(Color.Lerp(texel0, texel1, fracX), Color.Lerp(texel2, texel3, fracX), fracY);
+        }
+
 
         private float step(float a, float x)
         {
