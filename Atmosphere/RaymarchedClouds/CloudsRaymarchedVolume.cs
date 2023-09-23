@@ -278,9 +278,12 @@ namespace Atmosphere
 
         public CelestialBody parentCelestialBody;
 
+        private CloudsMaterial CloudsPQSMaterial;
+
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d)
         {
             parentCelestialBody = celestialBody;
+            CloudsPQSMaterial = material;
 
             planetRadius = parentRadius;
             parentTransform = parent;
@@ -291,14 +294,7 @@ namespace Atmosphere
             RenderNoiseTextures();
             ProcessCloudTypes();
 
-            SetShaderParams(raymarchedCloudMaterial, material, celestialBody);
-            if (screenspaceShadowMaterial != null)
-            {
-                SetShaderParams(screenspaceShadowMaterial, material, celestialBody);
-                screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
-                screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
-                screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
-            }
+            ApplyShaderParams();
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
@@ -314,7 +310,7 @@ namespace Atmosphere
 
             volumeMeshrenderer = volumeHolder.GetComponent<MeshRenderer>();
             volumeMeshrenderer.material = new Material(InvisibleShader);
-            
+
             raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO eclipses
 
             volumeMeshrenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -334,7 +330,7 @@ namespace Atmosphere
 
             if (particleField != null)
             {
-                if(!particleField.Apply(parent, celestialBody, this))
+                if (!particleField.Apply(parent, celestialBody, this))
                 {
                     particleField.Remove();
                     particleField = null;
@@ -367,6 +363,18 @@ namespace Atmosphere
             sunlight = Sun.Instance.GetComponent<Light>();
         }
 
+        public void ApplyShaderParams()
+        {
+            SetShaderParams(raymarchedCloudMaterial);
+            if (screenspaceShadowMaterial != null)
+            {
+                SetShaderParams(screenspaceShadowMaterial);
+                screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
+                screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
+                screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
+            }
+        }
+
         public void RenderNoiseTextures()
         {
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None)
@@ -388,7 +396,7 @@ namespace Atmosphere
             }
         }
 
-        public void SetShaderTextureParams(Material mat, CloudsMaterial material)
+        public void SetShaderTextureParams(Material mat)
         {
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
             { 
@@ -442,12 +450,12 @@ namespace Atmosphere
                 mat.EnableKeyword("COLORMAP_OFF"); mat.DisableKeyword("COLORMAP_ON");
             }
 
-            if (useDetailTex && material.DetailTex != null)
+            if (useDetailTex && CloudsPQSMaterial.DetailTex != null)
             {
-                detailTex = material.DetailTex;
-                detailScale = material.DetailScale;
-                material.DetailTex.ApplyTexture(mat, "_DetailTex");
-                mat.SetFloat("_DetailScale", material.DetailScale);
+                detailTex = CloudsPQSMaterial.DetailTex;
+                detailScale = CloudsPQSMaterial.DetailScale;
+                CloudsPQSMaterial.DetailTex.ApplyTexture(mat, "_DetailTex");
+                mat.SetFloat("_DetailScale", CloudsPQSMaterial.DetailScale);
                 mat.EnableKeyword("DETAILTEX_ON"); mat.DisableKeyword("DETAILTEX_OFF");
             }
             else
@@ -488,12 +496,12 @@ namespace Atmosphere
             }
         }
 
-        public void SetShaderParams(Material mat, CloudsMaterial material, CelestialBody celestialBody)
+        public void SetShaderParams(Material mat)
         {
-            SetShaderTextureParams(mat, material);
+            SetShaderTextureParams(mat);
             SetCloudTypesShaderParams(mat);
 
-            mat.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(celestialBody) ? 1f : 0f);
+            mat.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(parentCelestialBody) ? 1f : 0f);
 
             mat.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
             mat.SetVector("stbnDimensions", new Vector3(ShaderLoader.ShaderLoaderClass.stbnDimensions.x, ShaderLoader.ShaderLoaderClass.stbnDimensions.y, ShaderLoader.ShaderLoaderClass.stbnDimensions.z));

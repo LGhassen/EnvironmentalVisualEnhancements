@@ -73,6 +73,15 @@ namespace Atmosphere
                     painter.DrawGUI(placementBase, ref placement);
                     if (!GlobalEVEManager.MouseIsOverWindow)
                         painter.Paint();
+
+                    placement.height = 1;
+                    Rect buttonRect = GUIHelper.GetRect(placementBase, ref placement);
+
+                    if (GUI.Button(buttonRect, "Unload painter"))
+                    {
+                        paintersDictionary[key].Unload();
+                        paintersDictionary.Remove(key);
+                    }
                 }
                 else
                 {

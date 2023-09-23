@@ -105,6 +105,48 @@ namespace Atmosphere
             InitTextures();
         }
 
+        public void Unload()
+        {
+            if (cloudCoverage != null) cloudCoverage.Release();
+            if (cloudType != null) cloudType.Release();
+            if (cloudColorMap != null) cloudColorMap.Release();
+            if (cloudFlowMap != null) cloudFlowMap.Release();
+
+            if (cloudScaledFlowMap != null) cloudScaledFlowMap.Release();
+
+            if (paintCursor != null)
+            {
+                paintCursor.Cleanup();
+                paintCursor = null;
+            }
+
+            // Set back original textures on 2d and layerRaymarchedVolume
+            if (layerRaymarchedVolume != null)
+            {
+                layerRaymarchedVolume.ApplyShaderParams();
+                layerRaymarchedVolume.SetShadowCasterTextureParams();
+
+                // find other layers which use this layer for shadows and apply it to them
+                var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
+
+                foreach (var layer in layers)
+                {
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
+                }
+            }
+
+            if (layer2D != null)
+            {
+                scaledCloudMaterial = layer2D.CloudRenderingMaterial;
+
+                if (scaledCloudMaterial != null)
+                {
+                    layer2D.CloudsMat.ApplyMaterialProperties(scaledCloudMaterial);
+                }
+            }
+            
+        }
+
         private void InitTextures()
         {
             // only for equirectangular textures for now

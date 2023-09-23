@@ -84,5 +84,11 @@ namespace Atmosphere
                 opaqueCursorAutoDisable.framesSinceEnabled = 0;
             }
         }
+
+        public void Cleanup()
+        {
+            if (opaqueCursorGameObject != null) GameObject.DestroyImmediate(opaqueCursorGameObject);
+            if (dottedCursorAutoDisable != null) GameObject.DestroyImmediate(dottedCursorAutoDisable);
+        }
     }
 }
