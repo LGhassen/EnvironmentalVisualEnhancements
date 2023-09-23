@@ -566,6 +566,9 @@ namespace Atmosphere
             mat.SetFloat("innerSphereRadius", innerSphereRadius);
             mat.SetFloat("outerSphereRadius", outerSphereRadius);
 
+            mat.SetFloat("layerHeight", outerSphereRadius - innerSphereRadius);
+            mat.SetFloat("invLayerHeight", 1f / (outerSphereRadius - innerSphereRadius));
+
             mat.SetTexture("DensityCurve", coverageCurvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
@@ -578,6 +581,12 @@ namespace Atmosphere
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
+
+            if (curlNoise != null)
+            {
+                minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / curlNoise.Tiling), Mathf.Max(minMaxNoiseTilings.y, 1f / curlNoise.Tiling));
+            }
+
             mat.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
             mat.SetInt("numberOfCloudTypes", cloudTypes.Count);
             mat.SetFloat("planetRadius", planetRadius);
