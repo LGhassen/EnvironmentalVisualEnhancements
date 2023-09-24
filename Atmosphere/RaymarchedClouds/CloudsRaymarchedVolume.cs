@@ -377,35 +377,7 @@ namespace Atmosphere
 
         public void SetShaderTextureParams(Material mat)
         {
-            if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
-            { 
-                mat.SetTexture("BaseNoiseTexture", baseNoiseRT);
-                mat.EnableKeyword("NOISE_ON"); mat.DisableKeyword("NOISE_OFF");
-
-                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None && detailNoiseRT != null)
-                {
-                    mat.SetTexture("DetailNoiseTexture", detailNoiseRT);
-                }
-                else
-                {
-                    mat.SetTexture("DetailNoiseTexture", baseNoiseRT);
-                }
-            }
-            else
-            {
-                mat.EnableKeyword("NOISE_OFF"); mat.DisableKeyword("NOISE_ON");
-            }
-
-            if (curlNoise != null && curlNoiseRT!= null)
-            {
-                mat.SetTexture("CurlNoiseTexture", curlNoiseRT);
-                mat.EnableKeyword("CURL_NOISE_ON"); mat.DisableKeyword("CURL_NOISE_OFF");
-                mat.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
-            }
-            else
-            {
-                mat.EnableKeyword("CURL_NOISE_OFF"); mat.DisableKeyword("CURL_NOISE_ON");
-            }
+            SetNoisetextureParams(mat);
 
             if (coverageMap != null)
             {
@@ -419,28 +391,70 @@ namespace Atmosphere
 
             ApplyCloudTexture(cloudTypeMap, "CloudType", mat, 2);
 
-            if (cloudColorMap!= null)
+            if (cloudColorMap != null)
             {
                 mat.EnableKeyword("COLORMAP_ON"); mat.DisableKeyword("COLORMAP_OFF");
                 ApplyCloudTexture(cloudColorMap, "CloudColorMap", mat, 4);
             }
             else
-            { 
+            {
                 mat.EnableKeyword("COLORMAP_OFF"); mat.DisableKeyword("COLORMAP_ON");
             }
+        }
+
+        private void SetNoisetextureParams(Material mat)
+        {
+            bool noiseKeywordOn = false;
+            bool curlNoiseKeywordOn = false;
+            bool flowmapKeywordOn = false;
+            bool noiseUntilingKeywordOn = false;
+
+            if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
+            {
+                noiseKeywordOn = true;
+                mat.SetTexture("BaseNoiseTexture", baseNoiseRT);
+
+                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None && detailNoiseRT != null)
+                {
+                    mat.SetTexture("DetailNoiseTexture", detailNoiseRT);
+                }
+                else
+                {
+                    mat.SetTexture("DetailNoiseTexture", baseNoiseRT);
+                }
+            }
+
+            if (curlNoise != null && curlNoiseRT != null)
+            {
+                curlNoiseKeywordOn = true;
+                mat.SetTexture("CurlNoiseTexture", curlNoiseRT);
+                mat.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
+            }
+
+            if (RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas))
+                noiseUntilingKeywordOn = true;
 
             if (flowMap != null && flowMap.Texture != null)
             {
-                mat.EnableKeyword("FLOWMAP_ON");
-                mat.DisableKeyword("FLOWMAP_OFF");
+                flowmapKeywordOn = true;
                 flowMap.Texture.ApplyTexture(mat, "_FlowMap", 999);
                 mat.SetFloat("_flowStrength", flowMap.Displacement);
                 mat.SetFloat("_flowSpeed", flowMap.Speed);
             }
+
+            SetNoiseKeywords(mat, noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
+        }
+
+        // Manually combined keywords to cut down shader permutations
+        private static void SetNoiseKeywords(Material mat, bool noiseKeywordOn, bool curlNoiseKeywordOn, bool flowmapKeywordOn, bool noiseUntilingKeywordOn)
+        {
+            if (!noiseKeywordOn)
+            {
+                mat.EnableKeyword("NOISE_OFF"); mat.DisableKeyword("NOISE_ON");
+            }
             else
             {
-                mat.EnableKeyword("FLOWMAP_OFF");
-                mat.DisableKeyword("FLOWMAP_ON");
+                mat.EnableKeyword($"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}");
             }
         }
 
@@ -503,15 +517,6 @@ namespace Atmosphere
 
             mat.SetFloat("timeFadeDensity", 1f);
             mat.SetFloat("timeFadeCoverage", 1f);
-
-            if (RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas))
-            {
-                mat.EnableKeyword("NOISE_UNTILING_ON");mat.DisableKeyword("NOISE_UNTILING_OFF");
-            }
-            else
-            {
-                mat.EnableKeyword("NOISE_UNTILING_OFF"); mat.DisableKeyword("NOISE_UNTILING_ON");
-            }
 
             mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
