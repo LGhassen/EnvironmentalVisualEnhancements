@@ -16,10 +16,14 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 3.0
+
+			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudShading.cginc"
 			#include "PaintUtils.cginc"
+
 
 			float brushSize;
 			float hardness;
@@ -81,6 +85,9 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 3.0
+
+			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudShading.cginc"
@@ -170,6 +177,9 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 3.0
+
+			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudShading.cginc"

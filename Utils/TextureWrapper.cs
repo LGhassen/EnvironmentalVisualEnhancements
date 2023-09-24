@@ -120,6 +120,8 @@ namespace Utils
         Texture2D[] texList;
         Cubemap cubemap;
 
+        public Cubemap Cubemap { get => cubemap; }
+
         public static CubemapWrapper Create(string name)
         {
             var cubemapWrapperConfig = CubemapWrapperConfig.FetchCubemapConfig(name);
@@ -477,11 +479,11 @@ namespace Utils
             }
         }
 
-        public Texture2D GetTexture()
+        public Texture GetTexture()
         {
             if ((type & TextureTypeEnum.CubeMapMask) > 0)
             {
-                return null;
+                return cubemapWrapper?.Cubemap;
             }
             else
             {
