@@ -862,6 +862,7 @@ namespace Atmosphere
 
             System.IO.File.WriteAllBytes(path, bytes);
             Debug.Log("Saved to " + path);
+            ScreenMessages.PostScreenMessage("Saved to " + path);
         }
     }
 
