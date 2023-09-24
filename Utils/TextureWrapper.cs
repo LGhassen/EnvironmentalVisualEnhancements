@@ -451,6 +451,8 @@ namespace Utils
 
                 if (textureValue != null)
                     mat.SetTexture(name, textureValue);
+
+                mat.EnableKeyword("MAP_TYPE_" + indexToUse.ToString());
             }
             SetAlphaMask(mat, indexToUse);
         }

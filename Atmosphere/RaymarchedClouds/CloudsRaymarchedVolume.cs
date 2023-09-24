@@ -199,7 +199,6 @@ namespace Atmosphere
 
         private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture, bool editorAlphamask)
         {
-            // this will break if using different map types, TODO: fix it
             shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(mat, "ShadowCasterCloudCoverage", 3);
 
             if (editorTexture != null)
@@ -217,7 +216,6 @@ namespace Atmosphere
             mat.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
 
             mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
-            mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
         }
 
         float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
@@ -513,13 +511,9 @@ namespace Atmosphere
             mat.SetFloat("shadowCasterDensity", receivedShadowsDensity);
 
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
-            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
 
             mat.SetFloat("timeFadeDensity", 1f);
             mat.SetFloat("timeFadeCoverage", 1f);
-
-            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
-            mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
         }
 
         private void ProcessCloudTypes()
