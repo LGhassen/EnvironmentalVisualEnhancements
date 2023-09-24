@@ -49,12 +49,7 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
 
-        TextureWrapper detailTex;
-        float detailScale = 0f;
-
         public TextureWrapper CoverageMap { get => coverageMap; }
-
-        public TextureWrapper DetailTex { get => detailTex; }
 
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
@@ -109,9 +104,6 @@ namespace Atmosphere
 
         [ConfigItem]
         float scaledFadeEndAltitude = 55000.0f;
-
-        [ConfigItem]
-        bool useDetailTex = false;
 
         float volumetricLayerScaledFade = 1.0f;
 
@@ -224,20 +216,8 @@ namespace Atmosphere
 
             mat.SetFloat("shadowCasterSphereRadius", shadowCasterLayerRaymarchedVolume.InnerSphereRadius);
 
-            if (shadowCasterLayerRaymarchedVolume.useDetailTex && shadowCasterLayerRaymarchedVolume.detailTex != null)
-            {
-                shadowCasterLayerRaymarchedVolume.detailTex.ApplyTexture(mat, "_ShadowDetailTex");
-                mat.SetFloat("_ShadowDetailScale", shadowCasterLayerRaymarchedVolume.DetailScale);
-                mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
-                mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
-                mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
-            }
-            else
-            {
-                mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
-                mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
-                mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
-            }
+            mat.DisableKeyword("CLOUD_SHADOW_CASTER_OFF");
+            mat.EnableKeyword("CLOUD_SHADOW_CASTER_ON");
         }
 
         float planetRadius, innerSphereRadius, outerSphereRadius, cloudMinAltitude, cloudMaxAltitude;
@@ -270,7 +250,6 @@ namespace Atmosphere
         public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
         public float CurrentTimeFadeDensity { get => currentTimeFadeDensity; }
         public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
-        public float DetailScale { get => detailScale; }
 
         public MeshRenderer volumeMeshrenderer;
 
@@ -450,19 +429,6 @@ namespace Atmosphere
                 mat.EnableKeyword("COLORMAP_OFF"); mat.DisableKeyword("COLORMAP_ON");
             }
 
-            if (useDetailTex && CloudsPQSMaterial.DetailTex != null)
-            {
-                detailTex = CloudsPQSMaterial.DetailTex;
-                detailScale = CloudsPQSMaterial.DetailScale;
-                CloudsPQSMaterial.DetailTex.ApplyTexture(mat, "_DetailTex");
-                mat.SetFloat("_DetailScale", CloudsPQSMaterial.DetailScale);
-                mat.EnableKeyword("DETAILTEX_ON"); mat.DisableKeyword("DETAILTEX_OFF");
-            }
-            else
-            {
-                mat.EnableKeyword("DETAILTEX_OFF"); mat.DisableKeyword("DETAILTEX_ON");
-            }
-
             if (flowMap != null && flowMap.Texture != null)
             {
                 mat.EnableKeyword("FLOWMAP_ON");
@@ -547,7 +513,6 @@ namespace Atmosphere
                 mat.EnableKeyword("NOISE_UNTILING_OFF"); mat.DisableKeyword("NOISE_UNTILING_ON");
             }
 
-            mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON_DETAILTEX_ON");
             mat.DisableKeyword("CLOUD_SHADOW_CASTER_ON");
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
         }
