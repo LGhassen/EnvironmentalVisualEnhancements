@@ -400,9 +400,7 @@ namespace Atmosphere
                 partsCamera = partsCameraGO.AddComponent<Camera>();
                 partsCamera.enabled = false;
 
-				// partsCamera.stereoTargetEye = StereoTargetEyeMask.None;
-
-                partsCamera.transform.SetParent(FlightCamera.fetch.transform.parent, false);
+				partsCamera.transform.SetParent(FlightCamera.fetch.transform, false);
 
                 partsCamera.targetTexture = depthRT;
                 partsCamera.clearFlags = CameraClearFlags.SolidColor;
@@ -434,6 +432,15 @@ namespace Atmosphere
 					partsCamera.farClipPlane  = 30f;
 
 					partsCamera.targetTexture = depthRT;
+
+					if (Camera.current.stereoActiveEye != Camera.MonoOrStereoscopicEye.Mono)
+					{
+						Camera.StereoscopicEye currentEye = Camera.current.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right ? Camera.StereoscopicEye.Right : Camera.StereoscopicEye.Left;
+
+						partsCamera.projectionMatrix = InternalCamera.Instance.GetComponent<Camera>().GetStereoProjectionMatrix(currentEye);
+						partsCamera.transform.position = targetCamera.transform.position + (currentEye == Camera.StereoscopicEye.Right ? 0.5f : -0.5f) * targetCamera.stereoSeparation * partsCamera.transform.right;
+					}
+
 					partsCamera.RenderWithShader(PartDepthShader, ""); // TODO: replacement tag for transparencies as well so we render less fluff?
 
 					Shader.SetGlobalTexture("PartsDepthTexture", depthRT);
