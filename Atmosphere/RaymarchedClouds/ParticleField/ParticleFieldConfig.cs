@@ -49,7 +49,7 @@ namespace Atmosphere
 		//[ConfigItem, Optional]
 		TextureWrapper particleDistorsionTexture = null;
 
-		[ConfigItem]
+		//[ConfigItem]
 		float distorsionStrength = 1f;
 
 		[ConfigItem, Optional]
