@@ -105,6 +105,37 @@ namespace Atmosphere
 			}
 		}
 
+		public void UpdateMaterialProperties(Camera cam)
+		{
+			float stereoOffsetScale;
+			switch (cam.stereoActiveEye)
+			{
+				case Camera.MonoOrStereoscopicEye.Left: stereoOffsetScale = -0.5f; break;
+				case Camera.MonoOrStereoscopicEye.Right: stereoOffsetScale = 0.5f; break;
+				default: stereoOffsetScale = 0.0f; break;
+			}
+
+			Vector3d stereoOffset = stereoOffsetScale * cam.stereoSeparation * cam.transform.right;
+			Vector3d baseOffset = parentCelestialBody.position - (Vector3d)cam.transform.position - stereoOffset;
+
+			var offset = baseOffset + accumulatedTimeOffset;
+			offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+			offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+			offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
+
+			particleFieldMaterial.SetVector(ShaderProperties.offset_PROPERTY, (Vector3)offset);
+
+			if (particleFieldSplashesMaterial != null)
+			{
+				offset = baseOffset + accumulatedSplashesTimeOffset;
+				offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+				offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+				offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
+
+				particleFieldSplashesMaterial.SetVector(ShaderProperties.offset_PROPERTY, (Vector3)offset);
+			}
+		}
+
 		public void UpdateForCamera(Camera cam)
         {
 			Vector3 gravityVector = (parentTransform.position - cam.transform.position).normalized;
@@ -116,18 +147,12 @@ namespace Atmosphere
 			worldToCameraMatrix.m03 = 0f;
 			worldToCameraMatrix.m13 = 0f;
 			worldToCameraMatrix.m23 = 0f;
-
-			var offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedTimeOffset;
-			offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
-			offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
-			offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 			
 			// precision issues when away from floating origin so fade out
 			float fade = 1f - Mathf.Clamp01((cam.transform.position.magnitude - 3000f) / 1000f);
 
 			particleFieldMaterial.SetVector(ShaderProperties.gravityVector_PROPERTY, rainVelocityVector);
 			particleFieldMaterial.SetMatrix(ShaderProperties.rotationMatrix_PROPERTY, worldToCameraMatrix);
-			particleFieldMaterial.SetVector(ShaderProperties.offset_PROPERTY, new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 			particleFieldMaterial.SetFloat(ShaderProperties.fade_PROPERTY, fade);
 			particleFieldMaterial.SetFloat(ShaderProperties.coverage_PROPERTY, currentCoverage);
 			particleFieldMaterial.SetMatrix(ShaderProperties.cameraToWorldMatrix_PROPERTY, cam.cameraToWorldMatrix);
@@ -137,13 +162,6 @@ namespace Atmosphere
             {
 				particleFieldSplashesMaterial.SetVector(ShaderProperties.gravityVector_PROPERTY, gravityVector);
 				particleFieldSplashesMaterial.SetMatrix(ShaderProperties.rotationMatrix_PROPERTY, worldToCameraMatrix);
-
-				offset = parentCelestialBody.position - new Vector3d(cam.transform.position.x, cam.transform.position.y, cam.transform.position.z) + accumulatedSplashesTimeOffset;
-				offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
-				offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
-				offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
-
-				particleFieldSplashesMaterial.SetVector(ShaderProperties.offset_PROPERTY, new Vector3((float)offset.x, (float)offset.y, (float)offset.z));
 				particleFieldSplashesMaterial.SetFloat(ShaderProperties.fade_PROPERTY, fade);
 				particleFieldSplashesMaterial.SetFloat(ShaderProperties.coverage_PROPERTY, currentCoverage);
 				particleFieldSplashesMaterial.SetMatrix(ShaderProperties.cameraToWorldMatrix_PROPERTY, cam.cameraToWorldMatrix);
@@ -152,9 +170,9 @@ namespace Atmosphere
 
 			if (currentCoverage > 0f)
 			{
-				ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldMaterial);
+				ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldMaterial, this);
 				if (particleFieldSplashesMaterial != null)
-					ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldSplashesMaterial);
+					ParticleFieldRenderer.EnableForThisFrame(cam, fieldMeshRenderer, particleFieldSplashesMaterial, this);
 			}
 		}
 
@@ -432,13 +450,13 @@ namespace Atmosphere
 		{
 			private static Dictionary<Camera, ParticleFieldRenderer> CameraToParticleFieldRendererRenderer = new Dictionary<Camera, ParticleFieldRenderer>();
 
-			public static void EnableForThisFrame(Camera cam, MeshRenderer mr, Material mat)
+			public static void EnableForThisFrame(Camera cam, MeshRenderer mr, Material mat, ParticleField particleField)
 			{
 				if (CameraToParticleFieldRendererRenderer.ContainsKey(cam))
 				{
 					var renderer = CameraToParticleFieldRendererRenderer[cam];
 					if (renderer != null)
-						renderer.AddRenderer(mr, mat);
+						renderer.AddRenderer(mr, mat, particleField);
 				}
 				else
 				{
@@ -456,6 +474,7 @@ namespace Atmosphere
 
 			private Camera targetCamera;
 			private List<CommandBuffer> commandBuffersAdded = new List<CommandBuffer>();
+			private HashSet<ParticleField> particleFields = new HashSet<ParticleField>();
 
 			public ParticleFieldRenderer()
 			{
@@ -466,7 +485,7 @@ namespace Atmosphere
 				targetCamera = GetComponent<Camera>();
 			}
 
-			public void AddRenderer(MeshRenderer mr, Material mat)
+			public void AddRenderer(MeshRenderer mr, Material mat, ParticleField particleField)
 			{
 				if (targetCamera != null)
 				{
@@ -485,6 +504,8 @@ namespace Atmosphere
 					commandBuffersAdded.Add(cb);
 
 					renderingEnabled = true;
+
+					particleFields.Add(particleField);
 				}
 			}
 
@@ -492,6 +513,11 @@ namespace Atmosphere
             {
 				if (renderingEnabled)
                 {
+					foreach (var particleField in particleFields)
+					{
+						particleField.UpdateMaterialProperties(targetCamera);
+					}
+
 					foreach (var cb in commandBuffersAdded)
 					{
 						targetCamera.AddCommandBuffer(CameraEvent.AfterForwardAlpha, cb);
