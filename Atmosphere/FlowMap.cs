@@ -4,7 +4,7 @@ namespace Atmosphere
 {
     public class FlowMap
     {
-        [ConfigItem, Index(999)]
+        [ConfigItem, Index(999), ValueFilter("isClamped|format|type")]
         TextureWrapper texture;
         [ConfigItem]
         float speed = 1f;

@@ -32,7 +32,7 @@ namespace Utils
         {
             if (material != null)
             {
-                material.SetMatrix("CameraToWorld", Camera.current.cameraToWorldMatrix);
+                material.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, Camera.current.cameraToWorldMatrix);
             }
         }
     }

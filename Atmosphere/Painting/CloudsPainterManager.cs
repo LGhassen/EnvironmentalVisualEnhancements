@@ -73,6 +73,17 @@ namespace Atmosphere
                     painter.DrawGUI(placementBase, ref placement);
                     if (!GlobalEVEManager.MouseIsOverWindow)
                         painter.Paint();
+
+                    placement.y += placement.height + 1 + 2.0f * GUIHelper.spacingOffset;
+
+                    placement.height = 1;
+                    Rect buttonRect = GUIHelper.GetRect(placementBase, ref placement);
+
+                    if (GUI.Button(buttonRect, "Unload painter"))
+                    {
+                        paintersDictionary[key].Unload();
+                        paintersDictionary.Remove(key);
+                    }
                 }
                 else
                 {
@@ -82,9 +93,22 @@ namespace Atmosphere
                     if (GUI.Button(buttonRect, "Paint selected layer"))
                     {
                         var cloudsPainter = new CloudsPainter();
-                        cloudsPainter.Init(body, layerList[selectedObjIndex]);
+                        var success = cloudsPainter.Init(body, layerList[selectedObjIndex]);
 
-                        paintersDictionary[key] = cloudsPainter;
+                        if (success)
+                        { 
+                            paintersDictionary[key] = cloudsPainter;
+                        }
+                        else
+                        {
+                            cloudsPainter.Unload();
+
+                            var errorMessage = "Unable to paint layer: Make sure texture maps are assigned, and maps are equirectangular or cubemaps." +
+                                "Make sure cubemap faces have the same dimensions and format, and equal height and width.";
+
+                            ScreenMessages.PostScreenMessage(errorMessage, 12f);
+                            Debug.LogWarning(errorMessage);
+                        }
                     }
 
                 }

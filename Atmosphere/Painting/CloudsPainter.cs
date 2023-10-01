@@ -91,7 +91,7 @@ namespace Atmosphere
             }
         }
 
-        public void Init(string body, CloudsObject cloudsObject)
+        public bool Init(string body, CloudsObject cloudsObject)
         {
             this.cloudsObject = cloudsObject;
             this.body = body;
@@ -102,12 +102,54 @@ namespace Atmosphere
 
             paintCursor = new PaintCursor();
 
-            InitTextures();
+            return InitTextures();
         }
 
-        private void InitTextures()
+        public void Unload()
         {
-            // only for equirectangular textures for now
+            if (cloudCoverage != null) cloudCoverage.Release();
+            if (cloudType != null) cloudType.Release();
+            if (cloudColorMap != null) cloudColorMap.Release();
+            if (cloudFlowMap != null) cloudFlowMap.Release();
+
+            if (cloudScaledFlowMap != null) cloudScaledFlowMap.Release();
+
+            if (paintCursor != null)
+            {
+                paintCursor.Cleanup();
+                paintCursor = null;
+            }
+
+            // Set back original textures on 2d and layerRaymarchedVolume
+            if (layerRaymarchedVolume != null)
+            {
+                layerRaymarchedVolume.ApplyShaderParams();
+                layerRaymarchedVolume.SetShadowCasterTextureParams();
+
+                // find other layers which use this layer for shadows and apply it to them
+                var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
+
+                foreach (var layer in layers)
+                {
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
+                }
+            }
+
+            if (layer2D != null)
+            {
+                scaledCloudMaterial = layer2D.CloudRenderingMaterial;
+
+                if (scaledCloudMaterial != null)
+                {
+                    layer2D.CloudsMat.ApplyMaterialProperties(scaledCloudMaterial);
+                }
+            }
+            
+        }
+
+        private bool InitTextures()
+        {
+            // only for equirectangular textures and native cubemaps
             if (cloudsObject.LayerRaymarchedVolume != null)
             {
                 layerRaymarchedVolume = cloudsObject.LayerRaymarchedVolume;
@@ -115,7 +157,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume.CoverageMap != null)   InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
                 if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
-                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null)       InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null) InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
 
                 layer2D = cloudsObject.Layer2D;
 
@@ -125,6 +167,10 @@ namespace Atmosphere
 
                 initialized = true;
             }
+
+            if (editingModes == null || editingModes.Count == 0) return false;
+
+            return true;
         }
 
         private void SetTextureProperties()
@@ -136,7 +182,7 @@ namespace Atmosphere
                 cloudMaterial.EnableKeyword("ALPHAMAP_1");
                 cloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask1", 1f);
-                cloudMaterial.SetTexture("CloudCoverage", cloudCoverage);
+                SetMaterialTexture(cloudMaterial, "CloudCoverage", cloudCoverage);
 
                 // find other layers which use this for shadows and apply it to them
                 var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
@@ -152,17 +198,17 @@ namespace Atmosphere
                 cloudMaterial.EnableKeyword("ALPHAMAP_2");
                 cloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask2", 1f);
-                cloudMaterial.SetTexture("CloudType", cloudType);
+                SetMaterialTexture(cloudMaterial, "CloudType", cloudType);
             }
-            if (cloudColorMap != null) cloudMaterial.SetTexture("CloudColorMap", cloudColorMap);
+            if (cloudColorMap != null) SetMaterialTexture(cloudMaterial, "CloudColorMap", cloudColorMap);
 
-            if (cloudFlowMap != null) cloudMaterial.SetTexture("_FlowMap", cloudFlowMap);
+            if (cloudFlowMap != null) SetMaterialTexture(cloudMaterial, "_FlowMap", cloudFlowMap);
 
             scaledCloudMaterial = layer2D?.CloudRenderingMaterial;
 
             if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
             {
-                scaledCloudMaterial.SetTexture("_FlowMap", cloudScaledFlowMap);
+                SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap);
             }
 
             editingModes = new List<EditingMode>();
@@ -203,9 +249,14 @@ namespace Atmosphere
                 if (targetRT != null)
                     targetRT.Release();
 
-                targetRT = new RenderTexture(targetTexture.width, targetTexture.height, 0, format);
+                targetRT = new RenderTexture(targetTexture.width, targetTexture.height, 0, format, 0);
                 targetRT.filterMode = FilterMode.Bilinear;
                 targetRT.wrapMode = TextureWrapMode.Repeat;
+                targetRT.useMipMap = false;
+                
+                if (targetTexture.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+                    targetRT.dimension = UnityEngine.Rendering.TextureDimension.Cube;
+
                 targetRT.Create();
 
                 var active = RenderTexture.active;
@@ -213,11 +264,66 @@ namespace Atmosphere
                 var copyMapMaterial = new Material(CopyMapShader);
 
                 targetWrapper.SetAlphaMask(copyMapMaterial, 1);
-                copyMapMaterial.SetTexture("textureToCopy", targetTexture);
-                Graphics.Blit(null, targetRT, copyMapMaterial);
+
+                if (targetRT.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+                {
+                    CopyCubemapToRT(targetTexture, targetRT, copyMapMaterial);
+                }
+                else
+                {
+                    copyMapMaterial.SetTexture("textureToCopy", targetTexture);
+                    Graphics.Blit(null, targetRT, copyMapMaterial);
+                }
 
                 RenderTexture.active = active;
             }
+        }
+
+        // There's no built in unity blit method to blit into a RT cubemap, or from a cubemap face, so implement my own
+        private void CopyCubemapToRT(Texture sourceTexture, RenderTexture targetRT, Material copyMapMaterial)
+        {
+            // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, we have to use Graphics.CopyTexture on a temporary RT and later copy manually to R8 or color texture with the custom material
+            RenderTexture cubemapFaceRT = new RenderTexture(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.ARGB32, 0);
+            cubemapFaceRT.filterMode = FilterMode.Bilinear;
+            cubemapFaceRT.wrapMode = TextureWrapMode.Clamp;
+            cubemapFaceRT.useMipMap = false;
+            cubemapFaceRT.Create();
+
+            for (int i = 0; i < 6; i++)
+            {
+                Graphics.CopyTexture(sourceTexture, i, 0, cubemapFaceRT, 0, 0);
+
+                // Blit from RT face to full cubemap RT face, using our material, there's no blit method for this, use custom blit
+                copyMapMaterial.SetTexture("textureToCopy", cubemapFaceRT);
+                BlitToCubemapFace(targetRT, copyMapMaterial, i);
+            }
+
+            cubemapFaceRT.Release();
+        }
+
+        private void BlitToCubemapFace(RenderTexture tex, Material blitMat, int face, int pass = 0)
+        {
+            GL.PushMatrix();
+            GL.LoadOrtho();
+
+            Graphics.SetRenderTarget(tex, 0, (CubemapFace) face);
+
+            blitMat.SetPass(pass);
+
+            GL.Begin(GL.QUADS);
+
+            GL.TexCoord3(0, 0, 0);
+            GL.Vertex3(0, 0, 0);
+            GL.TexCoord3(1, 0, 0);
+            GL.Vertex3(1, 0, 0);
+            GL.TexCoord3(1, 1, 0);
+            GL.Vertex3(1, 1, 0);
+            GL.TexCoord3(0, 1, 0);
+            GL.Vertex3(0, 1, 0);
+
+            GL.End();
+
+            GL.PopMatrix();
         }
 
         public void Paint()
@@ -293,12 +399,20 @@ namespace Atmosphere
 
                     if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
                     {
-                        scaledCloudMaterial.SetTexture("_FlowMap", cloudScaledFlowMap);
+                        SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap);
                     }
 
                     lastIntersectPosition = intersectPosition;
                 }
             }
+        }
+
+        private void SetMaterialTexture(Material mat, string name, RenderTexture tex)
+        {
+            if (tex.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+                mat.SetTexture("cube" + name, tex);
+            else
+                mat.SetTexture(name, tex);
         }
 
         private static double RefineCursorPositionWithRaycast(Vector3d sphereCenter, float innerSphereRadius, float outerSphereRadius, Vector3d rayDir, Vector3d cameraPos, double intersectDistance)
@@ -319,6 +433,27 @@ namespace Atmosphere
             return intersectDistance;
         }
 
+        private void BlitPaint(RenderTexture rt, Material paintMat, int pass)
+        {
+            if (rt.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+            {
+                paintMat.EnableKeyword("PAINT_CUBEMAP_ON");
+                paintMat.DisableKeyword("PAINT_CUBEMAP_OFF");
+
+                for (int i=0; i<6; i++)
+                {
+                    paintMat.SetInt("cubemapFace", i);
+                    BlitToCubemapFace(rt, paintMat, i, pass);
+                }
+            }
+            else
+            {
+                paintMat.EnableKeyword("PAINT_CUBEMAP_OFF");
+                paintMat.DisableKeyword("PAINT_CUBEMAP_ON");
+                Graphics.Blit(null, rt, paintMat, pass);
+            }
+        }
+
         private void PaintCurrentMode(Vector3d intersectPosition, double sphereRadius)
         {
             var cloudRotationMatrix = layer2D != null ? layer2D.MainRotationMatrix * layerRaymarchedVolume.ParentTransform.worldToLocalMatrix : layerRaymarchedVolume.CloudRotationMatrix;
@@ -337,17 +472,18 @@ namespace Atmosphere
             if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
             {
                 paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
-                Graphics.Blit(null, cloudCoverage, paintMaterial, 0);
+
+                BlitPaint(cloudCoverage, paintMaterial, 0);
             }
             if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
             {
                 paintMaterial.SetVector("paintValue", new Vector3(selectedCloudTypeValue, selectedCloudTypeValue, selectedCloudTypeValue));
-                Graphics.Blit(null, cloudType, paintMaterial, 0);
+                BlitPaint(cloudType, paintMaterial, 0);
             }
             if (editingMode == EditingMode.colorMap)
             {
                 paintMaterial.SetColor("paintValue", colorValue);
-                Graphics.Blit(null, cloudColorMap, paintMaterial, 0);
+                BlitPaint(cloudColorMap, paintMaterial, 0);
             }
             if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
             {
@@ -376,20 +512,20 @@ namespace Atmosphere
                 Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f, tangentOnlyFlow.y * flowValue * 0.5f + 0.5f, upwardsFlowValue * 0.5f + 0.5f);
 
                 paintMaterial.SetVector("paintValue", tangentSpaceFlow);
-                Graphics.Blit(null, editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
+                BlitPaint(editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
             }
             if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
             {
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
                 paintMaterial.SetFloat("clockWiseRotation", vortexRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                Graphics.Blit(null, editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
+                BlitPaint(editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
             }
             if (editingMode == EditingMode.flowMapBand || editingMode == EditingMode.scaledFlowMapBand)
             {
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("clockWiseRotation", bandRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                Graphics.Blit(null, editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 2);
+                BlitPaint(editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 2);
             }
 
             RenderTexture.active = active;
@@ -664,6 +800,30 @@ namespace Atmosphere
 
         private void SaveRTToFile(RenderTexture rt, string mapType)
         {
+            if (rt.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+            {
+                RenderTexture cubemapFaceRT = new RenderTexture(rt.width, rt.height, 0, rt.format, 0);
+                cubemapFaceRT.filterMode = FilterMode.Bilinear;
+                cubemapFaceRT.wrapMode = TextureWrapMode.Clamp;
+                cubemapFaceRT.useMipMap = false;
+                cubemapFaceRT.Create();
+
+                for (int i=0;i<6;i++)
+                {
+                    Graphics.CopyTexture(rt, i, cubemapFaceRT, 0);
+                    SaveSimpleRTToFile(cubemapFaceRT, mapType+"_"+((CubemapFace)(i)).ToString());
+                }
+
+                cubemapFaceRT.Release();
+            }
+            else
+            {
+                SaveSimpleRTToFile(rt, mapType);
+            }
+        }
+
+        private void SaveSimpleRTToFile(RenderTexture rt, string name)
+        {
             RenderTexture.active = rt;
 
             Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
@@ -693,15 +853,16 @@ namespace Atmosphere
             string datetime = DateTime.Now.ToString("yyyy-MM-dd\\THH-mm-ss\\Z");
 
             var gameDataPath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData");
-            string path = System.IO.Path.Combine(gameDataPath, "EVETextureExports","PluginData", body);
+            string path = System.IO.Path.Combine(gameDataPath, "EVETextureExports", "PluginData", body);
 
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
 
-            path = System.IO.Path.Combine(path, layerName + "_" + mapType + "_" + datetime + ".png");
+            path = System.IO.Path.Combine(path, layerName + "_" + name + "_" + datetime + ".png");
 
             System.IO.File.WriteAllBytes(path, bytes);
             Debug.Log("Saved to " + path);
+            ScreenMessages.PostScreenMessage("Saved to " + path);
         }
     }
 
