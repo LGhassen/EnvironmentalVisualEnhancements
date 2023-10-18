@@ -420,7 +420,8 @@ namespace Atmosphere
 				}
 				else if (targetCamera.activeTexture == null)
 				{
-					return;
+					width = Screen.width;
+					height = Screen.height;
 				}
 				else
 				{
