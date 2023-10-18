@@ -335,9 +335,9 @@ namespace Atmosphere
 
 			public static void EnableForFrame()
 			{
-				if (instance == null && FlightCamera.fetch?.mainCamera != null)
+				if (instance == null && InternalCamera.Instance != null)
 				{
-					instance = FlightCamera.fetch.mainCamera.gameObject.AddComponent<PartsRenderer>();
+					instance = InternalCamera.Instance.GetComponentInChildren<Camera>().gameObject.AddComponent<PartsRenderer>();
 				}
 
 				if (instance != null)
@@ -374,7 +374,7 @@ namespace Atmosphere
             {
                 targetCamera = FlightCamera.fetch.mainCamera;
 
-                if (targetCamera == null || targetCamera.activeTexture == null)
+                if (targetCamera == null)
                     return;
 
 				bool supportVR = VRUtils.VREnabled();
@@ -382,6 +382,10 @@ namespace Atmosphere
 				if (supportVR)
 				{
 					VRUtils.GetEyeTextureResolution(out width, out height);
+				}
+				else if (targetCamera.activeTexture == null)
+				{
+					return;
 				}
 				else
 				{
@@ -396,8 +400,7 @@ namespace Atmosphere
                 partsCamera = partsCameraGO.AddComponent<Camera>();
                 partsCamera.enabled = false;
 
-                partsCamera.transform.position = FlightCamera.fetch.transform.position;
-                partsCamera.transform.parent = FlightCamera.fetch.transform;
+				partsCamera.transform.SetParent(FlightCamera.fetch.transform, false);
 
                 partsCamera.targetTexture = depthRT;
                 partsCamera.clearFlags = CameraClearFlags.SolidColor;
@@ -429,6 +432,15 @@ namespace Atmosphere
 					partsCamera.farClipPlane  = 30f;
 
 					partsCamera.targetTexture = depthRT;
+
+					if (Camera.current.stereoActiveEye != Camera.MonoOrStereoscopicEye.Mono)
+					{
+						Camera.StereoscopicEye currentEye = Camera.current.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right ? Camera.StereoscopicEye.Right : Camera.StereoscopicEye.Left;
+
+						partsCamera.projectionMatrix = InternalCamera.Instance.GetComponent<Camera>().GetStereoProjectionMatrix(currentEye);
+						partsCamera.transform.position = targetCamera.transform.position + (currentEye == Camera.StereoscopicEye.Right ? 0.5f : -0.5f) * targetCamera.stereoSeparation * partsCamera.transform.right;
+					}
+
 					partsCamera.RenderWithShader(PartDepthShader, ""); // TODO: replacement tag for transparencies as well so we render less fluff?
 
 					Shader.SetGlobalTexture("PartsDepthTexture", depthRT);
