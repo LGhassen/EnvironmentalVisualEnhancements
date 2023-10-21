@@ -85,9 +85,9 @@ namespace Atmosphere
         List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
 
         // these are indexed by [isRightEye][flip]
-        private FlipFlop<FlipFlop<RenderTexture>> historyRT, secondaryHistoryRT, historyMotionVectorsRT;
+        private FlipFlop<FlipFlop<RenderTexture>> historyRT, historyMotionVectorsRT;
         // these are indexed by [flip]
-        private FlipFlop<RenderTexture> newRaysRT, newRaysSecondaryRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT;
+        private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT;
 
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
@@ -186,19 +186,15 @@ namespace Atmosphere
 
         private void InitRenderTextures()
         {
-            hdrEnabled = targetCamera.allowHDR;
-            var colorFormat = hdrEnabled ? RenderTextureFormat.DefaultHDR : RenderTextureFormat.ARGB32;
-
+            var colorFormat = RenderTextureFormat.ARGBHalf;
             bool supportVR = VRUtils.VREnabled();
 
             ReleaseRenderTextures();
 
             historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, colorFormat, FilterMode.Bilinear);
-            secondaryHistoryRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, colorFormat, FilterMode.Bilinear);
             historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
 
             newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, colorFormat, FilterMode.Point);
-            newRaysSecondaryRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, colorFormat, FilterMode.Point);
             newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
             lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
             maxDepthRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RHalf, FilterMode.Bilinear);
@@ -317,8 +313,8 @@ namespace Atmosphere
                 bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
 
                 // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
-                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[true]), new RenderTargetIdentifier(newMotionVectorsRT[true]), new RenderTargetIdentifier(newRaysSecondaryRT[true]), new RenderTargetIdentifier(maxDepthRT[true]) };
-                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[false]), new RenderTargetIdentifier(newMotionVectorsRT[false]), new RenderTargetIdentifier(newRaysSecondaryRT[false]), new RenderTargetIdentifier(maxDepthRT[false]) };
+                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[true]), new RenderTargetIdentifier(newMotionVectorsRT[true]), new RenderTargetIdentifier(maxDepthRT[true]) };
+                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[false]), new RenderTargetIdentifier(newMotionVectorsRT[false]), new RenderTargetIdentifier(maxDepthRT[false]) };
                 var commandBuffer = this.commandBuffer[isRightEye];
                 commandBuffer.Clear();
 
@@ -390,7 +386,6 @@ namespace Atmosphere
                     commandBuffer.SetGlobalFloat(ShaderProperties.renderSecondLayerIntersect_PROPERTY, intersection.isSecondIntersect ? 1f : 0f);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
-                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRaysSecondary_PROPERTY, newRaysSecondaryRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture("PreviousLayerMaxDepth", maxDepthRT[!useFlipRaysBuffer]); // TODO: property
 
                     commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 0); // pass 0 render clouds
@@ -410,8 +405,8 @@ namespace Atmosphere
                 commandBuffer.SetGlobalTexture("scattererReconstructedCloud", historyRT[isRightEye][useFlipScreenBuffer]); // TODO: property
 
                 //reconstruct full frame from history and new rays texture
-                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(secondaryHistoryRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
-                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(secondaryHistoryRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
+                RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
+                RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
                 RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
                 commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
@@ -420,13 +415,11 @@ namespace Atmosphere
 
                 bool readFromFlip = !useFlipScreenBuffer; // "useFlipScreenBuffer" means the *target* is flip, and we should be reading from flop
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.historyBuffer_PROPERTY, historyRT[isRightEye][readFromFlip]);
-                reconstructCloudsMaterial.SetTexture(ShaderProperties.historySecondaryBuffer_PROPERTY, secondaryHistoryRT[isRightEye][readFromFlip]);
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.historyMotionVectors_PROPERTY, historyMotionVectorsRT[isRightEye][readFromFlip]);
+
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysBuffer_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
-                reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysSecondaryBuffer_PROPERTY, newRaysSecondaryRT[!useFlipRaysBuffer]);
-                reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysSecondaryBufferBilinear_PROPERTY, newRaysSecondaryRT[!useFlipRaysBuffer]);
 
                 reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerReprojectionRadius);
                 reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerRepojectionRadius);
@@ -445,7 +438,6 @@ namespace Atmosphere
                 commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, 0);
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.colorBuffer_PROPERTY, historyRT[isRightEye][useFlipScreenBuffer]);
-                commandBuffer.SetGlobalTexture(ShaderProperties.secondaryColorBuffer_PROPERTY, secondaryHistoryRT[isRightEye][useFlipScreenBuffer]);
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
                 commandBuffer.SetGlobalTexture("maxDepthRT", maxDepthRT[!useFlipRaysBuffer]);
@@ -553,10 +545,8 @@ namespace Atmosphere
         private void ReleaseRenderTextures()
         {
             VRUtils.ReleaseVRFlipFlopRT(ref historyRT);
-            VRUtils.ReleaseVRFlipFlopRT(ref secondaryHistoryRT);
             VRUtils.ReleaseVRFlipFlopRT(ref historyMotionVectorsRT);
             RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysRT);
-            RenderTextureUtils.ReleaseFlipFlopRT(ref newRaysSecondaryRT);
             RenderTextureUtils.ReleaseFlipFlopRT(ref newMotionVectorsRT);
             RenderTextureUtils.ReleaseFlipFlopRT(ref lightningOcclusionRT);
             RenderTextureUtils.ReleaseFlipFlopRT(ref maxDepthRT);

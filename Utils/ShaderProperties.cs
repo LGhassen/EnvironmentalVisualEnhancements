@@ -129,9 +129,6 @@ namespace Utils
         public static int PreviousLayerMotionVectors_PROPERTY { get { return PreviousLayerMotionVectors; } }
         private static int PreviousLayerMotionVectors;
 
-        public static int PreviousLayerRaysSecondary_PROPERTY { get { return PreviousLayerRaysSecondary; } }
-        private static int PreviousLayerRaysSecondary;
-
         public static int PreviousLayerLightningOcclusion_PROPERTY { get { return PreviousLayerLightningOcclusion; } }
         private static int PreviousLayerLightningOcclusion;
 
@@ -140,9 +137,6 @@ namespace Utils
 
         public static int historyBuffer_PROPERTY { get { return historyBuffer; } }
         private static int historyBuffer;
-
-        public static int historySecondaryBuffer_PROPERTY { get { return historySecondaryBuffer; } }
-        private static int historySecondaryBuffer;
 
         public static int historyMotionVectors_PROPERTY { get { return historyMotionVectors; } }
         private static int historyMotionVectors;
@@ -155,12 +149,6 @@ namespace Utils
 
         public static int newRaysMotionVectors_PROPERTY { get { return newRaysMotionVectors; } }
         private static int newRaysMotionVectors;
-
-        public static int newRaysSecondaryBuffer_PROPERTY { get { return newRaysSecondaryBuffer; } }
-        private static int newRaysSecondaryBuffer;
-
-        public static int newRaysSecondaryBufferBilinear_PROPERTY { get { return newRaysSecondaryBufferBilinear; } }
-        private static int newRaysSecondaryBufferBilinear;
 
         public static int innerSphereRadius_PROPERTY { get { return innerSphereRadius; } }
         private static int innerSphereRadius;
@@ -179,9 +167,6 @@ namespace Utils
 
         public static int colorBuffer_PROPERTY { get { return colorBuffer; } }
         private static int colorBuffer;
-
-        public static int secondaryColorBuffer_PROPERTY { get { return secondaryColorBuffer; } }
-        private static int secondaryColorBuffer;
 
         public static int lightningOcclusion_PROPERTY { get { return lightningOcclusion; } }
         private static int lightningOcclusion;
@@ -264,6 +249,9 @@ namespace Utils
         public static int reprojectionCurrentPixel_PROPERTY { get { return reprojectionCurrentPixel; } }
         private static int reprojectionCurrentPixel;
 
+        public static int maxDepthRT_PROPERTY { get { return maxDepthRT; } }
+        private static int maxDepthRT;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -316,24 +304,19 @@ namespace Utils
             renderSecondLayerIntersect = Shader.PropertyToID("renderSecondLayerIntersect");
             PreviousLayerRays = Shader.PropertyToID("PreviousLayerRays");
             PreviousLayerMotionVectors = Shader.PropertyToID("PreviousLayerMotionVectors");
-            PreviousLayerRaysSecondary = Shader.PropertyToID("PreviousLayerRaysSecondary");
             PreviousLayerLightningOcclusion = Shader.PropertyToID("PreviousLayerLightningOcclusion");
             scattererReconstructedCloud = Shader.PropertyToID("scattererReconstructedCloud");
             historyBuffer = Shader.PropertyToID("historyBuffer");
-            historySecondaryBuffer = Shader.PropertyToID("historySecondaryBuffer");
             historyMotionVectors = Shader.PropertyToID("historyMotionVectors");
             newRaysBuffer = Shader.PropertyToID("newRaysBuffer");
             newRaysBufferBilinear = Shader.PropertyToID("newRaysBufferBilinear");
             newRaysMotionVectors = Shader.PropertyToID("newRaysMotionVectors");
-            newRaysSecondaryBuffer = Shader.PropertyToID("newRaysSecondaryBuffer");
-            newRaysSecondaryBufferBilinear = Shader.PropertyToID("newRaysSecondaryBufferBilinear");
             innerSphereRadius = Shader.PropertyToID("innerSphereRadius");
             outerSphereRadius = Shader.PropertyToID("outerSphereRadius");
             outerLayerRadius = Shader.PropertyToID("outerLayerRadius");
             planetRadius = Shader.PropertyToID("planetRadius");
             sphereCenter = Shader.PropertyToID("sphereCenter");
             colorBuffer = Shader.PropertyToID("colorBuffer");
-            secondaryColorBuffer = Shader.PropertyToID("secondaryColorBuffer");
             lightningOcclusion = Shader.PropertyToID("lightningOcclusion");
             cloudFade = Shader.PropertyToID("cloudFade");
             maxConcurrentLightning = Shader.PropertyToID("maxConcurrentLightning");
@@ -362,6 +345,7 @@ namespace Utils
             cloudRotation = Shader.PropertyToID("cloudRotation");
             cloudDetailRotation = Shader.PropertyToID("cloudDetailRotation");
             reprojectionCurrentPixel = Shader.PropertyToID("reprojectionCurrentPixel");
+            maxDepthRT = Shader.PropertyToID("maxDepthRT");
         }
     }
 }
