@@ -99,6 +99,9 @@ namespace Utils
         public static int invReconstructedTextureResolution_PROPERTY { get { return invReconstructedTextureResolution; } }
         private static int invReconstructedTextureResolution;
 
+        public static int paddedReconstructedTextureResolution_PROPERTY { get { return paddedReconstructedTextureResolution; } }
+        private static int paddedReconstructedTextureResolution;
+        
         public static int reprojectionXfactor_PROPERTY { get { return reprojectionXfactor; } }
         private static int reprojectionXfactor;
 
@@ -129,6 +132,8 @@ namespace Utils
         public static int PreviousLayerMotionVectors_PROPERTY { get { return PreviousLayerMotionVectors; } }
         private static int PreviousLayerMotionVectors;
 
+        public static int PreviousLayerMaxDepth_PROPERTY { get { return PreviousLayerMaxDepth; } }
+        private static int PreviousLayerMaxDepth;
         public static int PreviousLayerLightningOcclusion_PROPERTY { get { return PreviousLayerLightningOcclusion; } }
         private static int PreviousLayerLightningOcclusion;
 
@@ -251,7 +256,7 @@ namespace Utils
 
         public static int maxDepthRT_PROPERTY { get { return maxDepthRT; } }
         private static int maxDepthRT;
-
+        
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -294,6 +299,7 @@ namespace Utils
             combinedOpenGLDistanceBuffer = Shader.PropertyToID("combinedOpenGLDistanceBuffer");
             reconstructedTextureResolution = Shader.PropertyToID("reconstructedTextureResolution");
             invReconstructedTextureResolution = Shader.PropertyToID("invReconstructedTextureResolution");
+            paddedReconstructedTextureResolution = Shader.PropertyToID("paddedReconstructedTextureResolution");
             reprojectionXfactor = Shader.PropertyToID("reprojectionXfactor");
             reprojectionYfactor = Shader.PropertyToID("reprojectionYfactor");
             CameraToWorld = Shader.PropertyToID("CameraToWorld");
@@ -304,6 +310,7 @@ namespace Utils
             renderSecondLayerIntersect = Shader.PropertyToID("renderSecondLayerIntersect");
             PreviousLayerRays = Shader.PropertyToID("PreviousLayerRays");
             PreviousLayerMotionVectors = Shader.PropertyToID("PreviousLayerMotionVectors");
+            PreviousLayerMaxDepth = Shader.PropertyToID("PreviousLayerMaxDepth");
             PreviousLayerLightningOcclusion = Shader.PropertyToID("PreviousLayerLightningOcclusion");
             scattererReconstructedCloud = Shader.PropertyToID("scattererReconstructedCloud");
             historyBuffer = Shader.PropertyToID("historyBuffer");

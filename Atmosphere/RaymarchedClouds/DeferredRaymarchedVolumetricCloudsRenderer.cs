@@ -101,13 +101,24 @@ namespace Atmosphere
         int reprojectionYfactor = 2;
 
         // sampling sequences that distribute samples in a cross pattern for reprojection
-        private static readonly int[] samplingSequence4 = new int[] { 0, 2, 3, 1 };
-        private static readonly int[] samplingSequence8 = new int[] { 0, 4, 2, 6, 3, 7, 1, 5 };
+        private static readonly int[] samplingSequence3 = new int[] { 0, 2, 1 };
+        private static readonly int[] samplingSequence4 = new int[] { 0, 3, 1, 2 };
+        private static readonly int[] samplingSequence5 = new int[] { 0, 3, 1, 4, 2 };
+        private static readonly int[] samplingSequence6 = new int[] { 0, 4, 2, 3, 1, 5 };
+        private static readonly int[] samplingSequence8 = new int[] { 0, 6, 3, 4, 2, 5, 1, 7 };
+        private static readonly int[] samplingSequence9 = new int[] { 0, 7, 2, 3, 8, 1, 6, 5, 4 };
+        private static readonly int[] samplingSequence10 = new int[] { 0, 8, 1, 9, 6, 3, 5, 2, 4, 7 };
+        private static readonly int[] samplingSequence12 = new int[] { 0, 10, 3, 5, 11, 1, 8, 2, 9, 7, 4, 6 };
         private static readonly int[] samplingSequence16 = new int[] { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
         private static readonly int[] samplingSequence32 = new int[] { 0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30, 1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31 };
-        private static readonly int[] samplingSequence64 = new int[] { 0, 32, 16, 48, 8, 40, 24, 56, 4, 36, 20, 52, 12, 44, 28, 60, 2, 34, 18, 50, 10, 42, 26, 58, 6, 38, 22, 54, 14, 46, 30, 62, 1, 33, 17, 49, 9, 41, 25, 57, 5, 37, 21, 53, 13, 45, 29, 61, 3, 35, 19, 51, 11, 43, 27, 59, 7, 39, 23, 55, 15, 47, 31, 63 };
+        
+        private int[] reorderedSamplingSequence = null;
 
-        int width, height;
+        private int screenWidth, screenHeight;
+
+        // When we have dimensions not evenly divisible by the reprojection factors assume we are working with an evenly disible one then just oversample the side pixels
+        private int paddedScreenWidth, paddedScreenHeight;
+        private int newRaysRenderWidth, newRaysRenderHeight;
 
         private static readonly int lightningOcclusionResolution = 32;
 
@@ -138,36 +149,51 @@ namespace Atmosphere
                 return;
 
             SetReprojectionFactors();
+            SetRenderAndUpscaleResolutions();
+            InitRenderTextures();
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
             SetCombinedOpenGLDepthBufferKeywords(reconstructCloudsMaterial);
 
-            bool supportVR = VRUtils.VREnabled();
+            reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
+            reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
 
-            if (supportVR)
-            {
-                VRUtils.GetEyeTextureResolution(out width, out height);
-            }
-            else
-            {
-                width = targetCamera.activeTexture.width;
-                height = targetCamera.activeTexture.height;
-            }
+            reconstructCloudsMaterial.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
+            reconstructCloudsMaterial.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
 
-            InitRenderTextures();
+            reconstructCloudsMaterial.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
+            reconstructCloudsMaterial.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
 
-            reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-            reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
+            reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
+            reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
 
-            DeferredRaymarchedRendererToScreen.compositeColorMaterial.SetVector("reconstructedTextureResolution", new Vector2(width, height));
-            DeferredRaymarchedRendererToScreen.compositeColorMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)width, 1.0f / (float)height));
-
-            reconstructCloudsMaterial.SetInt("reprojectionXfactor", reprojectionXfactor);
-            reconstructCloudsMaterial.SetInt("reprojectionYfactor", reprojectionYfactor);
+            DeferredRaymarchedRendererToScreen.compositeColorMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
+            DeferredRaymarchedRendererToScreen.compositeColorMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
 
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
             isInitialized = true;
+        }
+
+        private void SetRenderAndUpscaleResolutions()
+        {
+            bool supportVR = VRUtils.VREnabled();
+
+            if (supportVR)
+            {
+                VRUtils.GetEyeTextureResolution(out screenWidth, out screenHeight);
+            }
+            else
+            {
+                screenWidth = targetCamera.activeTexture.width;
+                screenHeight = targetCamera.activeTexture.height;
+            }
+
+            paddedScreenWidth = screenWidth % reprojectionXfactor == 0 ? screenWidth : ((screenWidth / reprojectionXfactor) + 1) * reprojectionXfactor;
+            paddedScreenHeight = screenHeight % reprojectionYfactor == 0 ? screenHeight : ((screenHeight / reprojectionYfactor) + 1) * reprojectionYfactor;
+
+            newRaysRenderWidth = paddedScreenWidth / reprojectionXfactor;
+            newRaysRenderHeight = paddedScreenHeight / reprojectionYfactor;
         }
 
         private void SetCombinedOpenGLDepthBufferKeywords(Material material)
@@ -191,13 +217,14 @@ namespace Atmosphere
 
             ReleaseRenderTextures();
 
-            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, colorFormat, FilterMode.Bilinear);
-            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, width, height, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
+            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, colorFormat, FilterMode.Bilinear);
+            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
 
-            newRaysRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, colorFormat, FilterMode.Point);
-            newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RGHalf, FilterMode.Point);
+            newRaysRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, colorFormat, FilterMode.Point);
+            newMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, FilterMode.Point);
+            maxDepthRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, FilterMode.Bilinear);
+
             lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
-            maxDepthRT = RenderTextureUtils.CreateFlipFlopRT(width / reprojectionXfactor, height / reprojectionYfactor, RenderTextureFormat.RHalf, FilterMode.Bilinear);
         }
 
         private void SetReprojectionFactors()
@@ -206,28 +233,46 @@ namespace Atmosphere
             reprojectionXfactor = reprojectionFactors.Item1;
             reprojectionYfactor = reprojectionFactors.Item2;
 
-            var adaptedReprojectionXFactor = FindAdaptedReprojectionFactor(targetCamera.activeTexture.width,  reprojectionXfactor);
-            var adaptedReprojectionYFactor = FindAdaptedReprojectionFactor(targetCamera.activeTexture.height, reprojectionYfactor);
-
-            if ((adaptedReprojectionXFactor != reprojectionXfactor) || (adaptedReprojectionYFactor != reprojectionYfactor))
+            if (reprojectionXfactor == 3 && reprojectionYfactor == 1)
             {
-                Debug.LogWarning("[EVE] Temporal reprojection switched to: " + (adaptedReprojectionXFactor * adaptedReprojectionYFactor).ToString() + " on camera " + targetCamera.name +
-                    " because screen dimensions " + targetCamera.activeTexture.width.ToString() + " and " + targetCamera.activeTexture.height.ToString() +
-                    " are not evenly divisible by " + reprojectionXfactor.ToString() + " and " + reprojectionYfactor.ToString());
+                reorderedSamplingSequence = samplingSequence3;
             }
-
-            reprojectionXfactor = adaptedReprojectionXFactor;
-            reprojectionYfactor = adaptedReprojectionYFactor;
-        }
-
-        private int FindAdaptedReprojectionFactor(int cameraDimension, int reprojectionFactor)
-        {
-            while (cameraDimension % reprojectionFactor != 0)
+            else if (reprojectionXfactor == 2 && reprojectionYfactor == 2)
             {
-                reprojectionFactor /= 2;
+                reorderedSamplingSequence = samplingSequence4;
             }
-
-            return reprojectionFactor;
+            else if (reprojectionXfactor == 5 && reprojectionYfactor == 1)
+            {
+                reorderedSamplingSequence = samplingSequence5;
+            }
+            if (reprojectionXfactor == 3 && reprojectionYfactor == 2)
+            {
+                reorderedSamplingSequence = samplingSequence6;
+            }
+            else if (reprojectionXfactor == 4 && reprojectionYfactor == 2)
+            {
+                reorderedSamplingSequence = samplingSequence8;
+            }
+            else if (reprojectionXfactor == 5 && reprojectionYfactor == 2)
+            {
+                reorderedSamplingSequence = samplingSequence10;
+            }
+            if (reprojectionXfactor == 3 && reprojectionYfactor == 3)
+            {
+                reorderedSamplingSequence = samplingSequence9;
+            }
+            if (reprojectionXfactor == 4 && reprojectionYfactor == 3)
+            {
+                reorderedSamplingSequence = samplingSequence12;
+            }
+            else if (reprojectionXfactor == 4 && reprojectionYfactor == 4)
+            {
+                reorderedSamplingSequence = samplingSequence16;
+            }
+            else if (reprojectionXfactor == 8 && reprojectionYfactor == 4)
+            {
+                reorderedSamplingSequence = samplingSequence32;
+            }
         }
 
         public void EnableForThisFrame(CloudsRaymarchedVolume volume)
@@ -268,33 +313,33 @@ namespace Atmosphere
 
                 float camDistanceToPlanetOrigin = float.MaxValue;
 
-                foreach (var elt in volumesAdded)
+                foreach (var volumetricLayer in volumesAdded)
                 {
-                    //calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
-                    camDistanceToPlanetOrigin = (gameObject.transform.position - elt.ParentTransform.position).magnitude;
+                    // calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
+                    camDistanceToPlanetOrigin = (gameObject.transform.position - volumetricLayer.ParentTransform.position).magnitude;
 
-                    if (camDistanceToPlanetOrigin >= elt.InnerSphereRadius && camDistanceToPlanetOrigin <= elt.OuterSphereRadius)
+                    if (camDistanceToPlanetOrigin >= volumetricLayer.InnerSphereRadius && camDistanceToPlanetOrigin <= volumetricLayer.OuterSphereRadius)
                     {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = 0f, layer = elt, isSecondIntersect = false });
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin+elt.InnerSphereRadius, layer = elt, isSecondIntersect = true });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = 0f, layer = volumetricLayer, isSecondIntersect = false });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin+volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = true });
                     }
-                    else if (camDistanceToPlanetOrigin < elt.InnerSphereRadius)
+                    else if (camDistanceToPlanetOrigin < volumetricLayer.InnerSphereRadius)
                     {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + elt.InnerSphereRadius, layer = elt, isSecondIntersect = false });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = false });
                     }
-                    else if (camDistanceToPlanetOrigin > elt.OuterSphereRadius)
+                    else if (camDistanceToPlanetOrigin > volumetricLayer.OuterSphereRadius)
                     {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin - elt.OuterSphereRadius, layer = elt, isSecondIntersect = false });
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + elt.InnerSphereRadius, layer = elt, isSecondIntersect = true });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin - volumetricLayer.OuterSphereRadius, layer = volumetricLayer, isSecondIntersect = false });
+                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = true });
                     }
 
-                    innerReprojectionRadius = Mathf.Min(innerReprojectionRadius, elt.InnerSphereRadius);
-                    outerRepojectionRadius = Mathf.Max(outerRepojectionRadius, elt.OuterSphereRadius);
+                    innerReprojectionRadius = Mathf.Min(innerReprojectionRadius, volumetricLayer.InnerSphereRadius);
+                    outerRepojectionRadius = Mathf.Max(outerRepojectionRadius, volumetricLayer.OuterSphereRadius);
 
-                    cloudFade = Mathf.Min(cloudFade, elt.VolumetricLayerScaledFade);
+                    cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
                 }
 
-                // if the camera is higher than the highest layer by 2x as high as it is from the ground, enable orbitMode
+                // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
                 bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
@@ -354,8 +399,9 @@ namespace Atmosphere
                     Lightning.SetShaderParams(cloudMaterial);
 
                     //set material properties
-                    cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(width, height));
-                    cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / width, 1.0f / height));
+                    cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
+                    cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
+                    cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
 
                     cloudMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
                     cloudMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
@@ -386,7 +432,7 @@ namespace Atmosphere
                     commandBuffer.SetGlobalFloat(ShaderProperties.renderSecondLayerIntersect_PROPERTY, intersection.isSecondIntersect ? 1f : 0f);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
-                    commandBuffer.SetGlobalTexture("PreviousLayerMaxDepth", maxDepthRT[!useFlipRaysBuffer]); // TODO: property
+                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMaxDepth_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
 
                     commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 0); // pass 0 render clouds
                     
@@ -402,7 +448,7 @@ namespace Atmosphere
                 }
 
                 // Set texture for scatterer sunflare: temporary
-                commandBuffer.SetGlobalTexture("scattererReconstructedCloud", historyRT[isRightEye][useFlipScreenBuffer]); // TODO: property
+                commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[isRightEye][useFlipScreenBuffer]);
 
                 //reconstruct full frame from history and new rays texture
                 RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
@@ -442,7 +488,7 @@ namespace Atmosphere
                 commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
                 commandBuffer.SetGlobalTexture("maxDepthRT", maxDepthRT[!useFlipRaysBuffer]);
 
-                commandBuffer.SetGlobalVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(width, height));
+                commandBuffer.SetGlobalVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
 
                 targetCamera.AddCommandBuffer(CameraEvent.BeforeForwardOpaque, commandBuffer);
@@ -451,27 +497,11 @@ namespace Atmosphere
 
         public void SetTemporalReprojectionParams(out Vector2 uvOffset)
         {
-            int frame = Time.frameCount % (reprojectionXfactor * reprojectionYfactor);  //the current frame
+            int frame = Time.frameCount % (reprojectionXfactor * reprojectionYfactor);
 
-            if (reprojectionXfactor == 2 && reprojectionYfactor == 2)
+            if (reorderedSamplingSequence != null)
             {
-                frame = samplingSequence4[frame];
-            }
-            else if (reprojectionXfactor == 4 && reprojectionYfactor == 2)
-            {
-                frame = samplingSequence8[frame];
-            }
-            else if (reprojectionXfactor == 4 && reprojectionYfactor == 4)
-            {
-                frame = samplingSequence16[frame];
-            }
-            else if (reprojectionXfactor == 8 && reprojectionYfactor == 4)
-            {
-                frame = samplingSequence32[frame];
-            }
-            else if (reprojectionXfactor == 8 && reprojectionYfactor == 8)
-            {
-                frame = samplingSequence64[frame];
+                frame = reorderedSamplingSequence[frame];
             }
 
             //figure out the current targeted pixel
@@ -480,7 +510,7 @@ namespace Atmosphere
             //figure out the offset from center pixel when we are rendering, to be used in the raymarching shader
             Vector2 centerPixel = new Vector2((float)(reprojectionXfactor - 1) * 0.5f, (float)(reprojectionYfactor - 1) * 0.5f);
             Vector2 pixelOffset = currentPixel - centerPixel;
-            uvOffset = pixelOffset / new Vector2(width, height);
+            uvOffset = pixelOffset / new Vector2(screenWidth, screenHeight);
 
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
