@@ -89,6 +89,8 @@ namespace Atmosphere
         // these are indexed by [flip]
         private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT;
 
+        private LightVolume lightVolume = null;
+
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
@@ -172,6 +174,9 @@ namespace Atmosphere
 
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
+            if (lightVolume == null)
+                lightVolume = new LightVolume();
+
             isInitialized = true;
         }
 
@@ -233,6 +238,7 @@ namespace Atmosphere
             reprojectionXfactor = reprojectionFactors.Item1;
             reprojectionYfactor = reprojectionFactors.Item2;
 
+            // TODO: simplify this
             if (reprojectionXfactor == 3 && reprojectionYfactor == 1)
             {
                 reorderedSamplingSequence = samplingSequence3;
@@ -307,16 +313,18 @@ namespace Atmosphere
                 // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
                 // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
                 intersections.Clear();
-                float innerReprojectionRadius = float.MaxValue, outerRepojectionRadius = float.MinValue;
+                float innerCloudsRadius = float.MaxValue, outerCloudsRadius = float.MinValue;
 
                 float cloudFade = 1f;
 
                 float camDistanceToPlanetOrigin = float.MaxValue;
 
+                Vector3 cameraPosition = gameObject.transform.position;
+
                 foreach (var volumetricLayer in volumesAdded)
                 {
                     // calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
-                    camDistanceToPlanetOrigin = (gameObject.transform.position - volumetricLayer.ParentTransform.position).magnitude;
+                    camDistanceToPlanetOrigin = (cameraPosition - volumetricLayer.ParentTransform.position).magnitude;
 
                     if (camDistanceToPlanetOrigin >= volumetricLayer.InnerSphereRadius && camDistanceToPlanetOrigin <= volumetricLayer.OuterSphereRadius)
                     {
@@ -333,21 +341,29 @@ namespace Atmosphere
                         intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = true });
                     }
 
-                    innerReprojectionRadius = Mathf.Min(innerReprojectionRadius, volumetricLayer.InnerSphereRadius);
-                    outerRepojectionRadius = Mathf.Max(outerRepojectionRadius, volumetricLayer.OuterSphereRadius);
+                    innerCloudsRadius = Mathf.Min(innerCloudsRadius, volumetricLayer.InnerSphereRadius);
+                    outerCloudsRadius = Mathf.Max(outerCloudsRadius, volumetricLayer.OuterSphereRadius);
 
                     cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
                 }
 
+                Vector3 planetPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
+                float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
+
+                if (lightVolume != null)
+                {
+                    lightVolume.Update(volumesAdded, cameraPosition, planetPosition, planetRadius, innerCloudsRadius, outerCloudsRadius);
+                }
+
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
-                bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerRepojectionRadius > 2f * (outerRepojectionRadius - volumesAdded.ElementAt(0).PlanetRadius);
+                bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerCloudsRadius > 2f * (outerCloudsRadius - planetRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
                 var DeferredRaymarchedRendererToScreenMaterial = DeferredRaymarchedRendererToScreen.compositeColorMaterial;
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
                 DeferredRaymarchedRendererToScreenMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerReprojectionRadius);
-                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerRepojectionRadius);
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
+                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
                 DeferredRaymarchedRendererToScreenMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
                 DeferredRaymarchedRendererToScreen.depthOcclusionMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
@@ -398,7 +414,7 @@ namespace Atmosphere
 
                     Lightning.SetShaderParams(cloudMaterial);
 
-                    //set material properties
+                    // set material properties
                     cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
@@ -411,7 +427,7 @@ namespace Atmosphere
                     cloudMaterial.SetFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
 
                     cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
-                    cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerRepojectionRadius);
+                    cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
 
                     cloudMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
@@ -467,8 +483,8 @@ namespace Atmosphere
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
 
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerReprojectionRadius);
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerRepojectionRadius);
+                reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
+                reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
                 reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
                 reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
@@ -548,6 +564,11 @@ namespace Atmosphere
                 {
                     DeferredRaymarchedRendererToScreen.SetActive(false);
 
+                    if (lightVolume != null)
+                    {
+                        lightVolume.NotifyRenderingEnded();
+                    }
+
                     renderingEnabled = false;
                 }
             }
@@ -557,6 +578,12 @@ namespace Atmosphere
         void Cleanup()
         {
             ReleaseRenderTextures();
+
+            if (lightVolume != null)
+            {
+                lightVolume.Release();
+                lightVolume = null;
+            }
 
             if (targetCamera != null)
             {

@@ -1,6 +1,5 @@
 ﻿using EVEManager;
 using System;
-using UnityEngine;
 
 namespace Atmosphere
 {
@@ -16,6 +15,14 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
+        static int lightVolumeHorizontalResolution = 256;
+
+        static int lightVolumeVerticalResolution = 32;
+
+        static int lightVolumeDirectLightTimeSlicingFrames = 8;
+
+        static int lightVolumeAmbientLightTimeSlicingFrames = 32;
+
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
 
@@ -24,6 +31,14 @@ namespace Atmosphere
         internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal static bool UseOrbitMode { get => useOrbitMode; }
+
+        internal static int LightVolumeHorizontalResolution { get => lightVolumeHorizontalResolution; }
+
+        internal static int LightVolumeVerticalResolution { get => lightVolumeVerticalResolution; }
+
+        internal static int LightVolumeDirectLightTimeSlicingFrames { get => lightVolumeDirectLightTimeSlicingFrames; }
+
+        internal static int LightVolumeAmbientLightTimeSlicingFrames { get => lightVolumeAmbientLightTimeSlicingFrames; }
 
         internal static Tuple<int, int> GetReprojectionFactors()
         {
@@ -37,16 +52,16 @@ namespace Atmosphere
                     return new Tuple<int, int>(3, 1);
                 case TemporalUpscaling.x4:
                     return new Tuple<int, int>(2, 2);
-                case TemporalUpscaling.x5:
-                    return new Tuple<int, int>(5, 1);
+                //case TemporalUpscaling.x5:
+                    //return new Tuple<int, int>(5, 1);
                 case TemporalUpscaling.x6:
                     return new Tuple<int, int>(3, 2);
                 case TemporalUpscaling.x8:
                     return new Tuple<int, int>(4, 2);
                 case TemporalUpscaling.x9:
                     return new Tuple<int, int>(3, 3);
-                case TemporalUpscaling.x10:
-                    return new Tuple<int, int>(5, 2);
+                //case TemporalUpscaling.x10:
+                    //return new Tuple<int, int>(5, 2);
                 case TemporalUpscaling.x12:
                     return new Tuple<int, int>(4, 3);
                 case TemporalUpscaling.x16:
@@ -62,12 +77,15 @@ namespace Atmosphere
         {
             if (ObjectList.Count > 0)
             {
-
                 temporalUpscaling = ObjectList[0].TemporalUpscaling;
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
-
                 useOrbitMode = ObjectList[0].UseOrbitMode;
+
+                lightVolumeHorizontalResolution = (int)ObjectList[0].LightVolumeHorizontalResolution;
+                lightVolumeVerticalResolution = (int)ObjectList[0].LightVolumeVerticalResolution;
+                lightVolumeDirectLightTimeSlicingFrames = (int)ObjectList[0].LightVolumeDirectLightTimeSlicingFrames;
+                lightVolumeAmbientLightTimeSlicingFrames = (int)ObjectList[0].LightVolumeAmbientLightTimeSlicingFrames;
 
                 DeferredRaymarchedVolumetricCloudsRenderer.ReinitAll();
 
