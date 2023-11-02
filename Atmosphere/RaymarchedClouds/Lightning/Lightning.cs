@@ -229,10 +229,9 @@ namespace Atmosphere
 						light.intensity = lightningConfigObject.LightIntensity;
 						light.range = lightningConfigObject.LightRange;               //probably should compute this based on the intensity and not have it as a parameter?
 						light.color = lightningConfigObject.LightColor;
-
-						// light.renderMode = LightRenderMode.ForceVertex; // incompatible with Parallax for now
-
 						light.cullingMask = (1 << (int)Tools.Layer.Local) | (1 << (int)Tools.Layer.Parts) | (1 << (int)Tools.Layer.Kerbals) | (1 << (int)Tools.Layer.Default);
+
+						lightGameObject.AddComponent<DisableLightOutsideFlight>().Init(light);
 
 						GameObject boltGameObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
 
@@ -403,4 +402,24 @@ namespace Atmosphere
 			return false;
 		}
 	}
+
+	public class DisableLightOutsideFlight : MonoBehaviour
+	{
+		Light light;
+
+		public void Init(Light light)
+		{
+			this.light = light;
+		}
+
+        public void Update()
+        {
+            if (HighLogic.LoadedScene != GameScenes.FLIGHT && HighLogic.LoadedScene != GameScenes.SPACECENTER && light != null)
+            {
+				light.intensity = 0f;
+				light.range = 0f;
+				light.enabled = false;
+            }
+        }
+    }
 }
