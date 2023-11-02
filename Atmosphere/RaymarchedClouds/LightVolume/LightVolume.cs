@@ -142,25 +142,25 @@ namespace Atmosphere
 
         private void ReprojectLightVolumeIfNeeded(Vector3 cameraPosition, Vector3 planetPosition, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
         {
-            var cameraUpVector = (cameraPosition - planetPosition).normalized;
+            float cameraAltitude = (cameraPosition - planetPosition).magnitude;
+            Vector3 cameraUpVector = (cameraPosition - planetPosition) / cameraAltitude;
 
             // To compute paraboloid position, we have to make sure it covers everything visible until the horizon
             // Paraboloid oriented up from the planet will cover everything up to a horizontal line
             // Therefore find the vertical position ensuring said horizontal line goes as far as we can see on the horizon
             // To do that find ray angle from camera to the planet horizon, follow it to cloud sphere intersect then find the vertical offset from that intersect
-            var cameraAltitude = (cameraPosition - planetPosition).magnitude;
-            var distanceToPlanetHorizon = Mathf.Sqrt(cameraAltitude * cameraAltitude - planetRadius * planetRadius);
-            var cosAngle = distanceToPlanetHorizon / cameraAltitude;
+            float distanceToPlanetHorizon = Mathf.Sqrt(cameraAltitude * cameraAltitude - planetRadius * planetRadius);
+            float cosAngle = distanceToPlanetHorizon / cameraAltitude;
 
-            float  distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f));
+            float distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f));
 
             // Project result to find vertical distance
-            var projectedDistanceFromCameraToParaboloid = cosAngle * distanceToCloudSphereIntersect;
+            float projectedDistanceFromCameraToParaboloid = cosAngle * distanceToCloudSphereIntersect;
 
-            var newLightVolumeAltitude = cameraAltitude - projectedDistanceFromCameraToParaboloid;
+            float newLightVolumeAltitude = cameraAltitude - projectedDistanceFromCameraToParaboloid;
 
             // The effective covered radius is the horizontal line from paraboloid to sphere, which can be computed using a right triangle
-            var newLightVolumeRadius = Mathf.Sqrt(distanceToCloudSphereIntersect * distanceToCloudSphereIntersect - projectedDistanceFromCameraToParaboloid * projectedDistanceFromCameraToParaboloid);
+            float newLightVolumeRadius = Mathf.Sqrt(distanceToCloudSphereIntersect * distanceToCloudSphereIntersect - projectedDistanceFromCameraToParaboloid * projectedDistanceFromCameraToParaboloid);
 
             bool capRadius = false;
             if (capRadius)
@@ -176,7 +176,7 @@ namespace Atmosphere
                 newLightVolumeAltitude = Mathf.Max(verticalOffsetTarget, newLightVolumeAltitude);
             }
 
-            var newLightVolumePosition = planetPosition + cameraUpVector * newLightVolumeAltitude;
+            Vector3 newLightVolumePosition = planetPosition + cameraUpVector * newLightVolumeAltitude;
 
             float magnitudeMoved = (newLightVolumePosition - lightVolumePosition).magnitude;
 
