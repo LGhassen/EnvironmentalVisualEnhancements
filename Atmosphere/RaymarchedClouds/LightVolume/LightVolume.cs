@@ -26,6 +26,7 @@ namespace Atmosphere
         private Matrix4x4 lightVolumeToWorld = Matrix4x4.identity;
         private Matrix4x4 worldToLightVolume = Matrix4x4.identity;
         private Vector3 lightVolumeDimensions = Vector3.zero;
+        private float lightVolumeInnerRadius = 0f, lightVolumeOuterRadius = 0f;
 
         private static Shader ReprojectLightVolumeShader
         {
@@ -152,7 +153,7 @@ namespace Atmosphere
             float distanceToPlanetHorizon = Mathf.Sqrt(cameraAltitude * cameraAltitude - planetRadius * planetRadius);
             float cosAngle = distanceToPlanetHorizon / cameraAltitude;
 
-            float distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f));
+            float distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f)); // TODO: this may not work on Jool when going below the surface?
 
             // Project result to find vertical distance
             float projectedDistanceFromCameraToParaboloid = cosAngle * distanceToCloudSphereIntersect;
@@ -182,7 +183,8 @@ namespace Atmosphere
 
             // TODO: floating origin support, or just do everything relative to the planet
             if (magnitudeMoved > 0.1f * currentLightVolumeRadius || magnitudeMoved > 0.1f * newLightVolumeRadius ||
-                newLightVolumeRadius > 1.1f * currentLightVolumeRadius || currentLightVolumeRadius > 1.1f * newLightVolumeRadius)
+                newLightVolumeRadius > 1.1f * currentLightVolumeRadius || currentLightVolumeRadius > 1.1f * newLightVolumeRadius ||
+                innerCloudsRadius != lightVolumeInnerRadius || outerCloudsRadius != lightVolumeOuterRadius)
             {
                 var newLightVolumeToWorld = Matrix4x4.TRS(newLightVolumePosition, Quaternion.LookRotation(cameraUpVector), Vector3.one);
                 var newWorldToLightVolume = Matrix4x4.Inverse(newLightVolumeToWorld);
@@ -196,6 +198,8 @@ namespace Atmosphere
                 lightVolumeToWorld = newLightVolumeToWorld;
                 worldToLightVolume = newWorldToLightVolume;
                 currentLightVolumeRadius = newLightVolumeRadius;
+                lightVolumeInnerRadius = innerCloudsRadius;
+                lightVolumeOuterRadius = outerCloudsRadius;
             }
         }
 
@@ -228,9 +232,8 @@ namespace Atmosphere
             reprojectLightVolumeComputeShader.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
             reprojectLightVolumeComputeShader.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
 
-            // TODO: make this actually the previous radius
-            reprojectLightVolumeComputeShader.SetFloat("previousInnerLightVolumeRadius", innerCloudsRadius);
-            reprojectLightVolumeComputeShader.SetFloat("previousOuterLightVolumeRadius", outerCloudsRadius);
+            reprojectLightVolumeComputeShader.SetFloat("previousInnerLightVolumeRadius", lightVolumeInnerRadius);
+            reprojectLightVolumeComputeShader.SetFloat("previousOuterLightVolumeRadius", lightVolumeOuterRadius);
 
             reprojectLightVolumeComputeShader.SetTexture(0, "PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
             reprojectLightVolumeComputeShader.SetTexture(0, "Result", directLightVolume[!readFromFlipLightVolume]);
@@ -256,9 +259,8 @@ namespace Atmosphere
             reprojectLightVolumeMaterial.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
             reprojectLightVolumeMaterial.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
 
-            // TODO: make this actually the previous radius
-            reprojectLightVolumeMaterial.SetFloat("previousInnerLightVolumeRadius", innerCloudsRadius);
-            reprojectLightVolumeMaterial.SetFloat("previousOuterLightVolumeRadius", outerCloudsRadius);
+            reprojectLightVolumeMaterial.SetFloat("previousInnerLightVolumeRadius", lightVolumeInnerRadius);
+            reprojectLightVolumeMaterial.SetFloat("previousOuterLightVolumeRadius", lightVolumeOuterRadius);
 
             reprojectLightVolumeMaterial.SetTexture("PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
             ReprojectSlices(directLightVolume[!readFromFlipLightVolume]);
