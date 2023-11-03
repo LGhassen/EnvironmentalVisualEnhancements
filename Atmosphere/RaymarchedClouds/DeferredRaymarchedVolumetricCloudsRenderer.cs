@@ -347,12 +347,11 @@ namespace Atmosphere
                     cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
                 }
 
-                Vector3 planetPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
                 float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
 
                 if (lightVolume != null)
                 {
-                    lightVolume.Update(volumesAdded, cameraPosition, planetPosition, planetRadius, innerCloudsRadius, outerCloudsRadius);
+                    lightVolume.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius);
                 }
 
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode

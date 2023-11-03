@@ -21,7 +21,8 @@ namespace Atmosphere
         private bool readFromFlipLightVolume = true;
         private int nextDirectSliceToUpdate = 0, nextAmbientSliceToUpdate = 0;
 
-        private Vector3 lightVolumePosition = Vector3.zero;
+        private Vector3 planetLightVolumePosition = Vector3.zero;
+        private Vector3 worldLightVolumePosition = Vector3.zero;
         private float currentLightVolumeRadius;
         private Matrix4x4 lightVolumeToWorld = Matrix4x4.identity;
         private Matrix4x4 worldToLightVolume = Matrix4x4.identity;
@@ -66,11 +67,11 @@ namespace Atmosphere
             ambientLightVolume = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader);
         }
 
-        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Vector3 planetPosition, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
         {
             if (!updated && !released)
             {
-                ReprojectLightVolumeIfNeeded(cameraPosition, planetPosition, planetRadius, innerCloudsRadius, outerCloudsRadius);
+                UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius);
 
                 bool firstLayer = true;
 
@@ -79,7 +80,7 @@ namespace Atmosphere
                 {
                     volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld);
                     volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
-                    volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", lightVolumePosition);
+                    volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
                     volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
 
                     volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
@@ -141,10 +142,29 @@ namespace Atmosphere
             }
         }
 
-        private void ReprojectLightVolumeIfNeeded(Vector3 cameraPosition, Vector3 planetPosition, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        private void UpdateLightVolume(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
         {
-            float cameraAltitude = (cameraPosition - planetPosition).magnitude;
-            Vector3 cameraUpVector = (cameraPosition - planetPosition) / cameraAltitude;
+            UpdateCurrentLightVolumeWorldProperties(planetTransform);
+
+            MoveLightVolumeIfNeeded(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius);
+        }
+        private void UpdateCurrentLightVolumeWorldProperties(Transform planetTransform)
+        {
+            Vector3 planetPosition = planetTransform.position;
+
+            worldLightVolumePosition = planetTransform.localToWorldMatrix.MultiplyPoint(planetLightVolumePosition);
+
+            lightVolumeToWorld = Matrix4x4.TRS(worldLightVolumePosition, Quaternion.LookRotation((worldLightVolumePosition - planetPosition).normalized), Vector3.one);
+            worldToLightVolume = Matrix4x4.Inverse(lightVolumeToWorld);
+        }
+
+        private void MoveLightVolumeIfNeeded(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        {
+            Vector3 planetPosition = planetTransform.position;
+
+            Vector3 cameraUpVector = cameraPosition - planetPosition;
+            float cameraAltitude = cameraUpVector.magnitude;
+            cameraUpVector = cameraUpVector / cameraAltitude;
 
             // To compute paraboloid position, we have to make sure it covers everything visible until the horizon
             // Paraboloid oriented up from the planet will cover everything up to a horizontal line
@@ -163,6 +183,7 @@ namespace Atmosphere
             // The effective covered radius is the horizontal line from paraboloid to sphere, which can be computed using a right triangle
             float newLightVolumeRadius = Mathf.Sqrt(distanceToCloudSphereIntersect * distanceToCloudSphereIntersect - projectedDistanceFromCameraToParaboloid * projectedDistanceFromCameraToParaboloid);
 
+            /*
             bool capRadius = false;
             if (capRadius)
             {
@@ -176,27 +197,30 @@ namespace Atmosphere
 
                 newLightVolumeAltitude = Mathf.Max(verticalOffsetTarget, newLightVolumeAltitude);
             }
+            */
 
-            Vector3 newLightVolumePosition = planetPosition + cameraUpVector * newLightVolumeAltitude;
+            Vector3 newWorldLightVolumePosition = planetPosition + cameraUpVector * newLightVolumeAltitude;
 
-            float magnitudeMoved = (newLightVolumePosition - lightVolumePosition).magnitude;
+            float magnitudeMoved = (newWorldLightVolumePosition - worldLightVolumePosition).magnitude;
 
-            // TODO: floating origin support, or just do everything relative to the planet
             if (magnitudeMoved > 0.1f * currentLightVolumeRadius || magnitudeMoved > 0.1f * newLightVolumeRadius ||
                 newLightVolumeRadius > 1.1f * currentLightVolumeRadius || currentLightVolumeRadius > 1.1f * newLightVolumeRadius ||
                 innerCloudsRadius != lightVolumeInnerRadius || outerCloudsRadius != lightVolumeOuterRadius)
             {
-                var newLightVolumeToWorld = Matrix4x4.TRS(newLightVolumePosition, Quaternion.LookRotation(cameraUpVector), Vector3.one);
+                var newLightVolumeToWorld = Matrix4x4.TRS(newWorldLightVolumePosition, Quaternion.LookRotation(cameraUpVector), Vector3.one);
                 var newWorldToLightVolume = Matrix4x4.Inverse(newLightVolumeToWorld);
 
-                ReprojectLightVolume(newLightVolumePosition, newLightVolumeToWorld, innerCloudsRadius, outerCloudsRadius, planetPosition);
+                ReprojectLightVolume(newWorldLightVolumePosition, newLightVolumeToWorld, innerCloudsRadius, outerCloudsRadius, planetPosition);
 
                 // set new matrices and position as current
                 readFromFlipLightVolume = !readFromFlipLightVolume;
 
-                lightVolumePosition = newLightVolumePosition;
+                worldLightVolumePosition = newWorldLightVolumePosition;
+                planetLightVolumePosition = planetTransform.worldToLocalMatrix.MultiplyPoint(newWorldLightVolumePosition);
+
                 lightVolumeToWorld = newLightVolumeToWorld;
                 worldToLightVolume = newWorldToLightVolume;
+
                 currentLightVolumeRadius = newLightVolumeRadius;
                 lightVolumeInnerRadius = innerCloudsRadius;
                 lightVolumeOuterRadius = outerCloudsRadius;
@@ -224,7 +248,7 @@ namespace Atmosphere
             reprojectLightVolumeComputeShader.SetVector("sphereCenter", planetPosition);
 
             reprojectLightVolumeComputeShader.SetMatrix("worldToPreviousParaboloid", worldToLightVolume);
-            reprojectLightVolumeComputeShader.SetVector("previousParaboloidPosition", lightVolumePosition);
+            reprojectLightVolumeComputeShader.SetVector("previousParaboloidPosition", worldLightVolumePosition);
 
             reprojectLightVolumeComputeShader.SetMatrix("paraboloidToWorld", newLightVolumeToWorld);
             reprojectLightVolumeComputeShader.SetVector("paraboloidPosition", newLightVolumePosition);
@@ -251,7 +275,7 @@ namespace Atmosphere
         private void ReprojectWithMaterial(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
         {
             reprojectLightVolumeMaterial.SetMatrix("worldToPreviousParaboloid", worldToLightVolume);
-            reprojectLightVolumeMaterial.SetVector("previousParaboloidPosition", lightVolumePosition);
+            reprojectLightVolumeMaterial.SetVector("previousParaboloidPosition", worldLightVolumePosition);
 
             reprojectLightVolumeMaterial.SetMatrix("paraboloidToWorld", newLightVolumeToWorld);
             reprojectLightVolumeMaterial.SetVector("paraboloidPosition", newLightVolumePosition);
