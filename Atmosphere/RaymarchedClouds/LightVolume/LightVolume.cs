@@ -43,8 +43,8 @@ namespace Atmosphere
 
         public LightVolume()
         {
-            volumeResolution = RaymarchedCloudsQualityManager.LightVolumeHorizontalResolution;
-            volumeSlices = RaymarchedCloudsQualityManager.LightVolumeVerticalResolution;
+            volumeResolution = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
+            volumeSlices = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
             lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
 
             bool useComputeShader = SystemInfo.supportsComputeShaders;
@@ -60,8 +60,8 @@ namespace Atmosphere
                 reprojectLightVolumeMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
             }
 
-            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / RaymarchedCloudsQualityManager.LightVolumeDirectLightTimeSlicingFrames,  1);
-            ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / RaymarchedCloudsQualityManager.LightVolumeAmbientLightTimeSlicingFrames, 1);
+            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing, 1);
+            ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
 
             directLightVolume  = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader);
             ambientLightVolume = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader);

@@ -21,7 +21,7 @@ namespace Atmosphere
     }
 
     [ConfigName("name")]
-    public class RaymarchedCloudsQuality : IEVEObject 
+    public class RaymarchedCloudsQuality : IEVEObject
     {
         [ConfigItem]
         TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
@@ -33,36 +33,21 @@ namespace Atmosphere
         bool useOrbitMode = true;
 
         [ConfigItem]
-        float lightVolumeHorizontalResolution = 256f;
-
-        [ConfigItem]
-        float lightVolumeVerticalResolution = 32f;
-
-        [ConfigItem]
-        float lightVolumeDirectLightTimeSlicingFrames = 8f;
-
-        [ConfigItem]
-        float lightVolumeAmbientLightTimeSlicingFrames = 32f;
+        LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal bool UseOrbitMode { get => useOrbitMode; }
 
-        internal float LightVolumeHorizontalResolution { get => lightVolumeHorizontalResolution; }
-
-        internal float LightVolumeVerticalResolution { get => lightVolumeVerticalResolution; }
-
-        internal float LightVolumeDirectLightTimeSlicingFrames { get => lightVolumeDirectLightTimeSlicingFrames; }
-
-        internal float LightVolumeAmbientLightTimeSlicingFrames { get => lightVolumeAmbientLightTimeSlicingFrames; }
+        internal LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 
         public void LoadConfigNode(ConfigNode node)
         {
             ConfigHelper.LoadObjectFromConfig(this, node);
         }
 
-        public void Apply() 
+        public void Apply()
         {
 
         }
@@ -71,5 +56,29 @@ namespace Atmosphere
         {
 
         }
+    }
+
+    public class LightVolumeSettings
+    {
+        [ConfigItem]
+        bool useLightVolume = true; // TODO: may remove this after doing comparison videos/shots
+
+        [ConfigItem]
+        float horizontalResolution = 256f;
+
+        [ConfigItem]
+        float verticalResolution = 32f;
+
+        [ConfigItem]
+        float directLightTimeSlicing = 8f;
+
+        [ConfigItem]
+        float ambientLightTimeSlicing = 32f;
+
+        public bool UseLightVolume { get => useLightVolume; }
+        public float HorizontalResolution { get => horizontalResolution; }
+        public float VerticalResolution { get => verticalResolution; }
+        public float DirectLightTimeSlicing { get => directLightTimeSlicing; }
+        public float AmbientLightTimeSlicing { get => ambientLightTimeSlicing; }
     }
 }

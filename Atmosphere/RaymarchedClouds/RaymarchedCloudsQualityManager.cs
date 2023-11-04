@@ -15,13 +15,7 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
-        static int lightVolumeHorizontalResolution = 256;
-
-        static int lightVolumeVerticalResolution = 32;
-
-        static int lightVolumeDirectLightTimeSlicingFrames = 8;
-
-        static int lightVolumeAmbientLightTimeSlicingFrames = 32;
+        static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
@@ -32,13 +26,7 @@ namespace Atmosphere
 
         internal static bool UseOrbitMode { get => useOrbitMode; }
 
-        internal static int LightVolumeHorizontalResolution { get => lightVolumeHorizontalResolution; }
-
-        internal static int LightVolumeVerticalResolution { get => lightVolumeVerticalResolution; }
-
-        internal static int LightVolumeDirectLightTimeSlicingFrames { get => lightVolumeDirectLightTimeSlicingFrames; }
-
-        internal static int LightVolumeAmbientLightTimeSlicingFrames { get => lightVolumeAmbientLightTimeSlicingFrames; }
+        internal static LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 
         internal static Tuple<int, int> GetReprojectionFactors()
         {
@@ -82,10 +70,7 @@ namespace Atmosphere
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
                 useOrbitMode = ObjectList[0].UseOrbitMode;
 
-                lightVolumeHorizontalResolution = (int)ObjectList[0].LightVolumeHorizontalResolution;
-                lightVolumeVerticalResolution = (int)ObjectList[0].LightVolumeVerticalResolution;
-                lightVolumeDirectLightTimeSlicingFrames = (int)ObjectList[0].LightVolumeDirectLightTimeSlicingFrames;
-                lightVolumeAmbientLightTimeSlicingFrames = (int)ObjectList[0].LightVolumeAmbientLightTimeSlicingFrames;
+                lightVolumeSettings = ObjectList[0].LightVolumeSettings;
 
                 DeferredRaymarchedVolumetricCloudsRenderer.ReinitAll();
 
