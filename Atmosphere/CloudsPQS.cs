@@ -267,17 +267,18 @@ namespace Atmosphere
                                 QuaternionD.AngleAxis(oppositeFrameDeltaRotation.x, Vector3.right) *
                                 QuaternionD.AngleAxis(oppositeFrameDeltaRotation.y, Vector3.up) *
                                 QuaternionD.AngleAxis(oppositeFrameDeltaRotation.z, Vector3.forward);
-                            Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one);
+                            Matrix4x4 planetOppositeFrameDeltaRotationMatrix = Matrix4x4.TRS(Vector3.zero, oppositeFrameDeltaRotationQ, Vector3.one);
 
                             Matrix4x4 sphere2WorldMatrix = this.sphere.transform.localToWorldMatrix;
-                            oppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * oppositeFrameDeltaRotationMatrix * world2SphereMatrix;
+                            Matrix4x4 worldOppositeFrameDeltaRotationMatrix = sphere2WorldMatrix * planetOppositeFrameDeltaRotationMatrix * world2SphereMatrix;
 
                             layerRaymarchedVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
                                                    world2SphereMatrix,
                                                    mainRotationQ,
                                                    detailRotationQ,
                                                    mainRotationMatrix,
-                                                   oppositeFrameDeltaRotationMatrix,
+                                                   planetOppositeFrameDeltaRotationMatrix,
+                                                   worldOppositeFrameDeltaRotationMatrix,
                                                    detailRotationMatrix);
 
                             if (timeSettings != null)
@@ -400,7 +401,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume != null)
                 {
                     // TODO pass timeSettings fadeMode
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D);
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D, (float)speed.magnitude);
                 }
 
                 if (!pqs.isActive || HighLogic.LoadedScene == GameScenes.TRACKSTATION)

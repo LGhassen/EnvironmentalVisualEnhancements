@@ -321,7 +321,10 @@ namespace Atmosphere
 
                 Vector3 cameraPosition = gameObject.transform.position;
 
-                foreach (var volumetricLayer in volumesAdded)
+                float slowestRotatingLayerSpeed = float.MaxValue;
+                CloudsRaymarchedVolume slowestRotatingLayer = null;
+
+                foreach (CloudsRaymarchedVolume volumetricLayer in volumesAdded)
                 {
                     // calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
                     camDistanceToPlanetOrigin = (cameraPosition - volumetricLayer.ParentTransform.position).magnitude;
@@ -344,6 +347,12 @@ namespace Atmosphere
                     innerCloudsRadius = Mathf.Min(innerCloudsRadius, volumetricLayer.InnerSphereRadius);
                     outerCloudsRadius = Mathf.Max(outerCloudsRadius, volumetricLayer.OuterSphereRadius);
 
+                    if (volumetricLayer.LinearSpeedMagnitude < slowestRotatingLayerSpeed)
+                    {
+                        slowestRotatingLayerSpeed = volumetricLayer.LinearSpeedMagnitude;
+                        slowestRotatingLayer = volumetricLayer;
+                    }
+
                     cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
                 }
 
@@ -351,7 +360,7 @@ namespace Atmosphere
 
                 if (lightVolume != null)
                 {
-                    lightVolume.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius);
+                    lightVolume.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse);
                 }
 
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
@@ -439,7 +448,7 @@ namespace Atmosphere
                     cloudPreviousV.m23 += noiseReprojectionOffset.z;
 
                     cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentP * currentV);
-                    cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * intersection.layer.OppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
+                    cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * intersection.layer.WorldOppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
 
                     // handle the actual rendering
                     commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysRT[true].depthBuffer);

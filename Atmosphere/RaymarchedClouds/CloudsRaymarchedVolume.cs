@@ -228,8 +228,11 @@ namespace Atmosphere
 
         private double timeXoffset = 0.0, timeYoffset = 0.0, timeZoffset = 0.0;
 
-        private Matrix4x4 oppositeFrameDeltaRotationMatrix = Matrix4x4.identity;
-        public Matrix4x4 OppositeFrameDeltaRotationMatrix { get => oppositeFrameDeltaRotationMatrix; }
+        private Matrix4x4 worldOppositeFrameDeltaRotationMatrix = Matrix4x4.identity;
+        public Matrix4x4 WorldOppositeFrameDeltaRotationMatrix { get => worldOppositeFrameDeltaRotationMatrix; }
+
+        private Matrix4x4 planetOppositeFrameDeltaRotationMatrix = Matrix4x4.identity;
+        public Matrix4x4 PlanetOppositeFrameDeltaRotationMatrix { get => planetOppositeFrameDeltaRotationMatrix; }
 
         private Vector3 noiseReprojectionOffset = Vector3.zero;
 
@@ -257,7 +260,11 @@ namespace Atmosphere
 
         private CloudsMaterial CloudsPQSMaterial;
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d)
+        private float linearSpeedMagnitude;
+
+        public float LinearSpeedMagnitude { get => linearSpeedMagnitude; }
+
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude)
         {
             parentCelestialBody = celestialBody;
             CloudsPQSMaterial = material;
@@ -338,6 +345,8 @@ namespace Atmosphere
             }
 
             sunlight = Sun.Instance.GetComponent<Light>();
+
+            this.linearSpeedMagnitude = linearSpeedMagnitude;
         }
 
         public void ApplyShaderParams()
@@ -789,7 +798,7 @@ namespace Atmosphere
             return true;
         }
 
-        internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 inOppositeFrameDeltaRotationMatrix, Matrix4x4 detailRotationMatrix)
+        internal void UpdatePos(Vector3 WorldPos, Matrix4x4 World2Planet, QuaternionD rotation, QuaternionD detailRotation, Matrix4x4 mainRotationMatrix, Matrix4x4 inPlanetOppositeFrameDeltaRotationMatrix, Matrix4x4 inWorldOppositeFrameDeltaRotationMatrix, Matrix4x4 detailRotationMatrix)
         {
             if (HighLogic.LoadedScene == GameScenes.FLIGHT || HighLogic.LoadedScene == GameScenes.SPACECENTER)
             {
@@ -809,10 +818,11 @@ namespace Atmosphere
 
                 cloudRotationMatrix = rotationMatrix;
                 this.mainDetailRotationMatrix = mainDetailRotationMatrix;
-                oppositeFrameDeltaRotationMatrix = inOppositeFrameDeltaRotationMatrix;
+                worldOppositeFrameDeltaRotationMatrix = inWorldOppositeFrameDeltaRotationMatrix;
+                planetOppositeFrameDeltaRotationMatrix = inPlanetOppositeFrameDeltaRotationMatrix;
 
                 // calculate the instantaneous movement direction of the cloud at the floating origin
-                Vector3 lastPosition = oppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
+                Vector3 lastPosition = worldOppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
                 tangentialMovementDirection = (-lastPosition).normalized;
 
                 if (particleField != null) particleField.Update();

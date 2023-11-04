@@ -23,11 +23,14 @@ namespace Atmosphere
 
         private Vector3 planetLightVolumePosition = Vector3.zero;
         private Vector3 worldLightVolumePosition = Vector3.zero;
-        private float currentLightVolumeRadius;
+
         private Matrix4x4 lightVolumeToWorld = Matrix4x4.identity;
         private Matrix4x4 worldToLightVolume = Matrix4x4.identity;
+
+        private float currentLightVolumeRadius;
+
         private Vector3 lightVolumeDimensions = Vector3.zero;
-        private float lightVolumeInnerRadius = 0f, lightVolumeOuterRadius = 0f;
+        private float lightVolumeLowestAltitude = 0f, lightVolumeHighestAltitude = 0f;
 
         private static Shader ReprojectLightVolumeShader
         {
@@ -60,31 +63,31 @@ namespace Atmosphere
                 reprojectLightVolumeMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
             }
 
-            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing, 1);
+            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing,  1);
             ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
 
             directLightVolume  = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader);
             ambientLightVolume = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader);
         }
 
-        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
         {
             if (!updated && !released)
             {
-                UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius);
+                UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestLayerPlanetFrameDeltaRotationMatrix);
 
                 bool firstLayer = true;
 
-                // TODO: think about having layers update in separate frames?
                 foreach (var volumetricLayer in volumes)
                 {
-                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld);
-                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
-                    volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
                     volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
 
-                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
-                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
+                    volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
+                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld);
+                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
+                    
+                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", lightVolumeLowestAltitude);
+                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("outerLightVolumeRadius", lightVolumeHighestAltitude);
 
                     volumetricLayer.RaymarchedCloudMaterial.SetFloat("clearExistingVolume", firstLayer ? 1f : 0f);
 
@@ -142,14 +145,17 @@ namespace Atmosphere
             }
         }
 
-        private void UpdateLightVolume(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        private void UpdateLightVolume(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
         {
-            UpdateCurrentLightVolumeWorldProperties(planetTransform);
+            UpdateCurrentLightVolumePosition(planetTransform, slowestLayerPlanetFrameDeltaRotationMatrix);
 
             MoveLightVolumeIfNeeded(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius);
         }
-        private void UpdateCurrentLightVolumeWorldProperties(Transform planetTransform)
+        private void UpdateCurrentLightVolumePosition(Transform planetTransform, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
         {
+            // Always rotate light volume to match slowest rotating layer, kind of a hack but gives good enough results in most cases
+            planetLightVolumePosition = slowestLayerPlanetFrameDeltaRotationMatrix.MultiplyPoint(planetLightVolumePosition);
+
             Vector3 planetPosition = planetTransform.position;
 
             worldLightVolumePosition = planetTransform.localToWorldMatrix.MultiplyPoint(planetLightVolumePosition);
@@ -205,7 +211,7 @@ namespace Atmosphere
 
             if (magnitudeMoved > 0.1f * currentLightVolumeRadius || magnitudeMoved > 0.1f * newLightVolumeRadius ||
                 newLightVolumeRadius > 1.1f * currentLightVolumeRadius || currentLightVolumeRadius > 1.1f * newLightVolumeRadius ||
-                innerCloudsRadius != lightVolumeInnerRadius || outerCloudsRadius != lightVolumeOuterRadius)
+                innerCloudsRadius != lightVolumeLowestAltitude || outerCloudsRadius != lightVolumeHighestAltitude)
             {
                 var newLightVolumeToWorld = Matrix4x4.TRS(newWorldLightVolumePosition, Quaternion.LookRotation(cameraUpVector), Vector3.one);
                 var newWorldToLightVolume = Matrix4x4.Inverse(newLightVolumeToWorld);
@@ -222,8 +228,8 @@ namespace Atmosphere
                 worldToLightVolume = newWorldToLightVolume;
 
                 currentLightVolumeRadius = newLightVolumeRadius;
-                lightVolumeInnerRadius = innerCloudsRadius;
-                lightVolumeOuterRadius = outerCloudsRadius;
+                lightVolumeLowestAltitude = innerCloudsRadius;
+                lightVolumeHighestAltitude = outerCloudsRadius;
             }
         }
 
@@ -256,8 +262,8 @@ namespace Atmosphere
             reprojectLightVolumeComputeShader.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
             reprojectLightVolumeComputeShader.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
 
-            reprojectLightVolumeComputeShader.SetFloat("previousInnerLightVolumeRadius", lightVolumeInnerRadius);
-            reprojectLightVolumeComputeShader.SetFloat("previousOuterLightVolumeRadius", lightVolumeOuterRadius);
+            reprojectLightVolumeComputeShader.SetFloat("previousInnerLightVolumeRadius", lightVolumeLowestAltitude);
+            reprojectLightVolumeComputeShader.SetFloat("previousOuterLightVolumeRadius", lightVolumeHighestAltitude);
 
             reprojectLightVolumeComputeShader.SetTexture(0, "PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
             reprojectLightVolumeComputeShader.SetTexture(0, "Result", directLightVolume[!readFromFlipLightVolume]);
@@ -283,8 +289,8 @@ namespace Atmosphere
             reprojectLightVolumeMaterial.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
             reprojectLightVolumeMaterial.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
 
-            reprojectLightVolumeMaterial.SetFloat("previousInnerLightVolumeRadius", lightVolumeInnerRadius);
-            reprojectLightVolumeMaterial.SetFloat("previousOuterLightVolumeRadius", lightVolumeOuterRadius);
+            reprojectLightVolumeMaterial.SetFloat("previousInnerLightVolumeRadius", lightVolumeLowestAltitude);
+            reprojectLightVolumeMaterial.SetFloat("previousOuterLightVolumeRadius", lightVolumeHighestAltitude);
 
             reprojectLightVolumeMaterial.SetTexture("PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
             ReprojectSlices(directLightVolume[!readFromFlipLightVolume]);
