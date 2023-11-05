@@ -32,6 +32,8 @@ namespace Atmosphere
         private Vector3 lightVolumeDimensions = Vector3.zero;
         private float lightVolumeLowestAltitude = 0f, lightVolumeHighestAltitude = 0f;
 
+        private const float reprojectionThreshold = 0.03f;
+        private const float radiusReprojectionThreshold = 1f + reprojectionThreshold;
         private static Shader ReprojectLightVolumeShader
         {
             get
@@ -209,8 +211,8 @@ namespace Atmosphere
 
             float magnitudeMoved = (newWorldLightVolumePosition - worldLightVolumePosition).magnitude;
 
-            if (magnitudeMoved > 0.1f * currentLightVolumeRadius || magnitudeMoved > 0.1f * newLightVolumeRadius ||
-                newLightVolumeRadius > 1.1f * currentLightVolumeRadius || currentLightVolumeRadius > 1.1f * newLightVolumeRadius ||
+            if (magnitudeMoved > reprojectionThreshold * currentLightVolumeRadius || magnitudeMoved > reprojectionThreshold * newLightVolumeRadius ||
+                newLightVolumeRadius > radiusReprojectionThreshold * currentLightVolumeRadius || currentLightVolumeRadius > radiusReprojectionThreshold * newLightVolumeRadius ||
                 innerCloudsRadius != lightVolumeLowestAltitude || outerCloudsRadius != lightVolumeHighestAltitude)
             {
                 var newLightVolumeToWorld = Matrix4x4.TRS(newWorldLightVolumePosition, Quaternion.LookRotation(cameraUpVector), Vector3.one);
