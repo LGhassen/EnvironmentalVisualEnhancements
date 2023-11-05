@@ -282,6 +282,8 @@ namespace Atmosphere
         // TODO: shader properties
         private void ReprojectWithMaterial(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
         {
+            reprojectLightVolumeMaterial.SetVector("sphereCenter", planetPosition);
+
             reprojectLightVolumeMaterial.SetMatrix("worldToPreviousParaboloid", worldToLightVolume);
             reprojectLightVolumeMaterial.SetVector("previousParaboloidPosition", worldLightVolumePosition);
 
