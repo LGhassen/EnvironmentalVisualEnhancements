@@ -179,8 +179,8 @@ namespace Atmosphere
                 volumeSlices = volumeSlicesSetting;
                 lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
 
-                RenderTextureUtils.ResizeFlipFlopRT(ref directLightVolume, volumeResolution, volumeResolution, false, volumeSlices);
-                RenderTextureUtils.ResizeFlipFlopRT(ref ambientLightVolume, volumeResolution, volumeResolution, false, volumeSlices);
+                RenderTextureUtils.ResizeFlipFlopRT(ref directLightVolume, volumeResolution, volumeResolution, volumeSlices);
+                RenderTextureUtils.ResizeFlipFlopRT(ref ambientLightVolume, volumeResolution, volumeResolution, volumeSlices);
 
                 if (reprojectLightVolumeComputeShader != null)
                 {

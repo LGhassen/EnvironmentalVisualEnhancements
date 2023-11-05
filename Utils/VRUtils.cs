@@ -34,6 +34,18 @@ namespace Utils
             flipFlop = new FlipFlop<FlipFlop<RenderTexture>>(ff, ff);
         }
 
+        public static void ResizeVRFlipFlopRT(ref FlipFlop<FlipFlop<RenderTexture>> flipFlop, int newWidth, int newHeight)
+        {
+            var leftEyeFlipFlop = flipFlop[false];
+            var rightEyeFlipFlop = flipFlop[true];
+
+            if (leftEyeFlipFlop[true] != null)
+                RenderTextureUtils.ResizeFlipFlopRT(ref leftEyeFlipFlop, newWidth, newHeight);
+
+            if (rightEyeFlipFlop[true] != null)
+                RenderTextureUtils.ResizeFlipFlopRT(ref rightEyeFlipFlop, newWidth, newHeight);
+        }
+
         public static Matrix4x4 GetNonJitteredProjectionMatrixForCamera(Camera cam)
         {
             if (cam.stereoActiveEye == Camera.MonoOrStereoscopicEye.Mono)

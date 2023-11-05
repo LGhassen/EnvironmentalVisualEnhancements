@@ -33,12 +33,17 @@ namespace Atmosphere
         bool useOrbitMode = true;
 
         [ConfigItem]
+        int screenshotModeDenoisingIterations = 8;
+
+        [ConfigItem]
         LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal bool UseOrbitMode { get => useOrbitMode; }
+
+        internal int ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 
         internal LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 

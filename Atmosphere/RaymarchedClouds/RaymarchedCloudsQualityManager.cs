@@ -15,6 +15,8 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
+        static int screenShotModeDenoisingIterations = 8;
+
         static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
@@ -25,6 +27,8 @@ namespace Atmosphere
         internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal static bool UseOrbitMode { get => useOrbitMode; }
+
+        internal static int ScreenShotModeDenoisingIterations { get => screenShotModeDenoisingIterations; }
 
         internal static LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 
@@ -69,6 +73,8 @@ namespace Atmosphere
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
                 useOrbitMode = ObjectList[0].UseOrbitMode;
+
+                screenShotModeDenoisingIterations = ObjectList[0].ScreenShotModeDenoisingIterations;
 
                 lightVolumeSettings = ObjectList[0].LightVolumeSettings;
 
