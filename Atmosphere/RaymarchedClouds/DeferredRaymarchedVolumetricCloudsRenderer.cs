@@ -89,8 +89,6 @@ namespace Atmosphere
         // these are indexed by [flip]
         private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT;
 
-        private LightVolume lightVolume = null;
-
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
@@ -173,9 +171,6 @@ namespace Atmosphere
             DeferredRaymarchedRendererToScreen.compositeColorMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
 
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
-
-            if (lightVolume == null)
-                lightVolume = new LightVolume();
 
             isInitialized = true;
         }
@@ -358,10 +353,7 @@ namespace Atmosphere
 
                 float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
 
-                if (lightVolume != null)
-                {
-                    lightVolume.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse);
-                }
+                LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse);
 
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
                 bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerCloudsRadius > 2f * (outerCloudsRadius - planetRadius);
@@ -571,11 +563,7 @@ namespace Atmosphere
                 if (doneRendering)
                 {
                     DeferredRaymarchedRendererToScreen.SetActive(false);
-
-                    if (lightVolume != null)
-                    {
-                        lightVolume.NotifyRenderingEnded();
-                    }
+                    LightVolume.Instance.NotifyRenderingEnded();
 
                     renderingEnabled = false;
                 }
@@ -586,12 +574,6 @@ namespace Atmosphere
         void Cleanup()
         {
             ReleaseRenderTextures();
-
-            if (lightVolume != null)
-            {
-                lightVolume.Release();
-                lightVolume = null;
-            }
 
             if (targetCamera != null)
             {

@@ -8,6 +8,20 @@ namespace Atmosphere
 {
     class LightVolume
     {
+        private static LightVolume instance;
+
+        public static LightVolume Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new LightVolume();
+                }
+                return instance;
+            }
+        }
+
         private int volumeResolution = 0;
         private int volumeSlices = 0;
 
@@ -76,6 +90,8 @@ namespace Atmosphere
         {
             if (!updated && !released)
             {
+                UpdateSettings();
+
                 UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestLayerPlanetFrameDeltaRotationMatrix);
 
                 bool firstLayer = true;
@@ -130,6 +146,34 @@ namespace Atmosphere
 
                 updated = true;
             }
+        }
+
+        private void UpdateSettings()
+        {
+            int volumeResolutionSetting = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
+            int volumeSlicesSetting = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
+
+            if (volumeResolutionSetting != volumeResolution || volumeSlicesSetting != volumeSlices)
+            {
+                volumeResolution = volumeResolutionSetting;
+                volumeSlices = volumeSlicesSetting;
+                lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
+
+                RenderTextureUtils.ResizeFlipFlopRT(ref directLightVolume, volumeResolution, volumeResolution, false, volumeSlices);
+                RenderTextureUtils.ResizeFlipFlopRT(ref ambientLightVolume, volumeResolution, volumeResolution, false, volumeSlices);
+
+                if (reprojectLightVolumeComputeShader != null)
+                {
+                    reprojectLightVolumeComputeShader.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                }
+                else
+                {
+                    reprojectLightVolumeMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                }
+            }
+
+            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing, 1);
+            ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
         }
 
         public void NotifyRenderingEnded()

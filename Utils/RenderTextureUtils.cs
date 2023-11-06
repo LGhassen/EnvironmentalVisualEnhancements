@@ -51,6 +51,35 @@ namespace Utils
             flipFlop = new FlipFlop<RenderTexture>(null, null);
         }
 
+        public static void ResizeFlipFlopRT(ref FlipFlop<RenderTexture> flipFlop, int newWidth, int newHeight, bool copyContents, int newDepth = 0)
+        {
+            bool is3d = flipFlop[false].volumeDepth > 0;
+
+            // Create new RenderTextures with the specified dimensions
+            var newFlip = CreateRenderTexture(newWidth, newHeight, flipFlop[false].format, flipFlop[false].useMipMap, flipFlop[false].filterMode, flipFlop[false].dimension, is3d && newDepth > 0 ? newDepth : flipFlop[false].volumeDepth, flipFlop[false].enableRandomWrite);
+            var newFlop = CreateRenderTexture(newWidth, newHeight, flipFlop[true].format,  flipFlop[true].useMipMap,  flipFlop[true].filterMode,  flipFlop[true].dimension,  is3d && newDepth > 0 ? newDepth : flipFlop[true].volumeDepth,  flipFlop[true].enableRandomWrite);
+
+            if (copyContents)
+            {
+                if (is3d)
+                {
+                    // TODO
+                }
+                else
+                {
+                    // Copy the contents from the old RenderTextures to the new ones
+                    Graphics.Blit(flipFlop[false], newFlip);
+                    Graphics.Blit(flipFlop[true], newFlop);
+                }
+            }
+
+            // Release the old RenderTextures
+            ReleaseFlipFlopRT(ref flipFlop);
+
+            // Update the FlipFlop with the new RenderTextures
+            flipFlop = new FlipFlop<RenderTexture>(newFlip, newFlop);
+        }
+
         public static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool useMips, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false)
         {
             var rt = new RenderTexture(width, height, 0, format);
