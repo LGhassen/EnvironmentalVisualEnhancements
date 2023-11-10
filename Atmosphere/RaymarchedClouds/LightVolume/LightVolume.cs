@@ -101,7 +101,7 @@ namespace Atmosphere
                     volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
 
                     volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
-                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld);
+                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld); // is this needed?
                     volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
                     
                     volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", lightVolumeLowestAltitude);
@@ -143,6 +143,18 @@ namespace Atmosphere
 
                 nextDirectSliceToUpdate  = (nextDirectSliceToUpdate + directLightSlicesToUpdateEveryFrame) % volumeSlices;
                 nextAmbientSliceToUpdate = (nextAmbientSliceToUpdate + ambientLightSlicesToUpdateEveryFrame) % volumeSlices;
+
+                // temporary: set global params for scatterer for testing
+                Shader.SetGlobalVector("scattererLightVolumeDimensions", lightVolumeDimensions);
+
+                Shader.SetGlobalVector("scattererParaboloidPosition", worldLightVolumePosition);
+                Shader.SetGlobalMatrix("scattererWorldToParaboloid", worldToLightVolume);
+
+                Shader.SetGlobalFloat("scattererInnerLightVolumeRadius", lightVolumeLowestAltitude);
+                Shader.SetGlobalFloat("scattererOuterLightVolumeRadius", lightVolumeHighestAltitude);
+
+                Shader.SetGlobalTexture("scattererDirectLightVolume", directLightVolume[readFromFlipLightVolume]);
+
 
                 updated = true;
             }
