@@ -75,10 +75,15 @@ namespace Atmosphere
         [ConfigItem]
         float ambientLightTimeSlicing = 32f;
 
+        [ConfigItem]
+        float timewarpRateMultiplier = 3f;
+
         public bool UseLightVolume { get => useLightVolume; }
         public float HorizontalResolution { get => horizontalResolution; }
         public float VerticalResolution { get => verticalResolution; }
         public float DirectLightTimeSlicing { get => directLightTimeSlicing; }
         public float AmbientLightTimeSlicing { get => ambientLightTimeSlicing; }
+
+        public float TimewarpRateMultiplier { get => timewarpRateMultiplier; }
     }
 }

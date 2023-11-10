@@ -184,7 +184,15 @@ namespace Atmosphere
                 }
             }
 
-            directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing, 1);
+
+            float directLightTimeSlicingFrames = RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing;
+
+            if (TimeWarp.CurrentRate > 2f)
+            {
+                directLightTimeSlicingFrames /= Mathf.Min(TimeWarp.CurrentRate * 0.5f, RaymarchedCloudsQualityManager.LightVolumeSettings.TimewarpRateMultiplier);
+            }
+
+            directLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)directLightTimeSlicingFrames, 1);
             ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
         }
 
