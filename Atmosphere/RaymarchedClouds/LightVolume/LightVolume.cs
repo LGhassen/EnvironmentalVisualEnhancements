@@ -230,6 +230,9 @@ namespace Atmosphere
             float cameraAltitude = cameraUpVector.magnitude;
             cameraUpVector = cameraUpVector / cameraAltitude;
 
+            cameraAltitude = Mathf.Max(cameraAltitude, planetRadius + 2500f); // Completely arbitrary but it helps keep a certain level of detail in the distance
+            planetRadius = Mathf.Min(planetRadius, innerCloudsRadius);
+
             // To compute paraboloid position, we have to make sure it covers everything visible until the horizon
             // Paraboloid oriented up from the planet will cover everything up to a horizontal line
             // Therefore find the vertical position ensuring said horizontal line goes as far as we can see on the horizon
@@ -237,7 +240,7 @@ namespace Atmosphere
             float distanceToPlanetHorizon = Mathf.Sqrt(cameraAltitude * cameraAltitude - planetRadius * planetRadius);
             float cosAngle = distanceToPlanetHorizon / cameraAltitude;
 
-            float distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f)); // TODO: this may not work on Jool when going below the surface?
+            float distanceToCloudSphereIntersect = distanceToPlanetHorizon + Mathf.Sqrt(Mathf.Max(outerCloudsRadius * outerCloudsRadius - planetRadius * planetRadius, 0f));
 
             // Project result to find vertical distance
             float projectedDistanceFromCameraToParaboloid = cosAngle * distanceToCloudSphereIntersect;
