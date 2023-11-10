@@ -431,13 +431,17 @@ namespace Atmosphere
 
                     cloudMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
-                    Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
                     Matrix4x4 cloudPreviousV = prevV;
 
-                    // inject upwards noise offset
-                    cloudPreviousV.m03 += noiseReprojectionOffset.x;
-                    cloudPreviousV.m13 += noiseReprojectionOffset.y;
-                    cloudPreviousV.m23 += noiseReprojectionOffset.z;
+                    // inject upwards noise offset, but only at low timewarp values, otherwise the movement is too much and adds artifacts
+                    if (TimeWarp.CurrentRate <= 2f)
+                    {
+                        Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
+
+                        cloudPreviousV.m03 += noiseReprojectionOffset.x;
+                        cloudPreviousV.m13 += noiseReprojectionOffset.y;
+                        cloudPreviousV.m23 += noiseReprojectionOffset.z;
+                    }
 
                     cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentP * currentV);
                     cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * intersection.layer.WorldOppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
