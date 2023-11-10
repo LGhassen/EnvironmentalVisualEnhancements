@@ -34,7 +34,7 @@ namespace Atmosphere
 				{
 					var nextNode = lightningNode.Next;
 
-					if (lightningNode.Value.Update(Tools.getDeltaTime()))
+					if (lightningNode.Value.Update(Tools.GetDeltaTime()))
                     {
 						activeLightningList.Remove(lightningNode);
 						currentCount--;

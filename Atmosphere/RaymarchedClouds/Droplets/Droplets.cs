@@ -98,7 +98,7 @@ namespace Atmosphere
 		{
 			if (FlightGlobals.ActiveVessel != null)
             {
-                float deltaTime = Tools.getDeltaTime();
+                float deltaTime = Tools.GetDeltaTime();
 				float currentSpeed = (float)FlightGlobals.ActiveVessel.srf_velocity.magnitude;
 
 				HandleCoverageAndWetness(deltaTime, currentSpeed);

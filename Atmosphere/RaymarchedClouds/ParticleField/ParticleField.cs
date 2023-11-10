@@ -190,7 +190,7 @@ namespace Atmosphere
 				gravityVector = (parentTransform.position - FlightCamera.fetch.transform.position).normalized;
 			}
 
-			Vector3 timeOffsetDelta = Tools.getDeltaTime() * (gravityVector * particleFieldConfigObject.FallSpeed + cloudsRaymarchedVolume.TangentialMovementDirection * particleFieldConfigObject.TangentialSpeed);
+			Vector3 timeOffsetDelta = Tools.GetDeltaTime() * (gravityVector * particleFieldConfigObject.FallSpeed + cloudsRaymarchedVolume.TangentialMovementDirection * particleFieldConfigObject.TangentialSpeed);
 
 			accumulatedTimeOffset += timeOffsetDelta;
 

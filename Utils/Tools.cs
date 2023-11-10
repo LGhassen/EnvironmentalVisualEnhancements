@@ -169,9 +169,13 @@ namespace Utils
             return color.r > 1f || color.g > 1f || color.b > 1f || color.a > 1f;
         }
 
-        public static float getDeltaTime()
+        // The built-in KSP TimeWarp.DeltaTime is inaccurate in physical warp, this calculates the correct value and also handles mods that change timeScale
+        public static float GetDeltaTime()
         {
-            return Time.deltaTime * TimeWarp.CurrentRate * Time.timeScale;
+            // Warp mode low is physical, high is on rails, in physical timewarp the current rate is already factored into unity deltaTime
+            float timeWarpMultiplier = TimeWarp.WarpMode == TimeWarp.Modes.LOW ? 1f : TimeWarp.CurrentRate;
+
+            return Time.deltaTime * timeWarpMultiplier * Time.timeScale;
         }
     }
 }

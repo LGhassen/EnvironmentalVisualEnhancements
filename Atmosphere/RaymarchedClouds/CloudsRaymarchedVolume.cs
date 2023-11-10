@@ -661,7 +661,7 @@ namespace Atmosphere
 
             if (flowMap != null && flowMap.Texture != null)
             {
-                float scaledDeltaTime = Tools.getDeltaTime();
+                float scaledDeltaTime = Tools.GetDeltaTime();
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.timeDelta_PROPERTY, scaledDeltaTime);
 
                 flowLoopTime += scaledDeltaTime * FlowMap.Speed;
@@ -688,11 +688,11 @@ namespace Atmosphere
             double xOffset = 0.0, yOffset = 0.0, zOffset = 0.0;
 
             Vector3 upwardsVector = (parentTransform.position).normalized; //usually this is fine but if you see some issues add the camera
-            noiseReprojectionOffset = -Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
+            noiseReprojectionOffset = -Tools.GetDeltaTime() * (upwardsVector * upwardsCloudSpeed);
 
             upwardsVector = cloudRotationMatrix.MultiplyVector(upwardsVector);
 
-            Vector3 cloudSpaceNoiseOffset = Tools.getDeltaTime() * (upwardsVector * upwardsCloudSpeed);
+            Vector3 cloudSpaceNoiseOffset = Tools.GetDeltaTime() * (upwardsVector * upwardsCloudSpeed);
 
             timeXoffset += cloudSpaceNoiseOffset.x; timeYoffset += cloudSpaceNoiseOffset.y; timeZoffset += cloudSpaceNoiseOffset.z;
 
