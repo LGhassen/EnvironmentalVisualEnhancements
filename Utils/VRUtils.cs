@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.XR;
-
 
 namespace Utils
 {
@@ -22,11 +17,11 @@ namespace Utils
             height = XRSettings.eyeTextureHeight;
         }
 
-        public static FlipFlop<FlipFlop<RenderTexture>> CreateVRFlipFlopRT(bool supportVR, int width, int height, RenderTextureFormat format, FilterMode filterMode)
+        public static FlipFlop<FlipFlop<RenderTexture>> CreateVRFlipFlopRT(bool supportVR, int width, int height, RenderTextureFormat format, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Clamp)
         {
             return new FlipFlop<FlipFlop<RenderTexture>>(
-                supportVR ? RenderTextureUtils.CreateFlipFlopRT(width, height, format, filterMode) : new FlipFlop<RenderTexture>(null, null),
-                RenderTextureUtils.CreateFlipFlopRT(width, height, format, filterMode));
+                supportVR ? RenderTextureUtils.CreateFlipFlopRT(width, height, format, filterMode, dimension, depth, randomReadWrite, wrapMode) : new FlipFlop<RenderTexture>(null, null),
+                RenderTextureUtils.CreateFlipFlopRT(width, height, format, filterMode, dimension, depth, randomReadWrite, wrapMode));
         }
 
         public static void ReleaseVRFlipFlopRT(ref FlipFlop<FlipFlop<RenderTexture>> flipFlop)

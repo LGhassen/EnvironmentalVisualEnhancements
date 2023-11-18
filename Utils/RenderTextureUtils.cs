@@ -32,7 +32,7 @@ namespace Utils
 
     public static class RenderTextureUtils
 	{
-        public static FlipFlop<RenderTexture> CreateFlipFlopRT(int width, int height, RenderTextureFormat format, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Repeat)
+        public static FlipFlop<RenderTexture> CreateFlipFlopRT(int width, int height, RenderTextureFormat format, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Clamp)
         {
             return new FlipFlop<RenderTexture>(
                 CreateRenderTexture(width, height, format, false, filterMode, dimension, depth, randomReadWrite, wrapMode),
