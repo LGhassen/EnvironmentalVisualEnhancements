@@ -86,59 +86,62 @@ namespace Atmosphere
             ambientLightVolume = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader, TextureWrapMode.Clamp);
         }
 
-        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
+        public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix, float maxRadius)
         {
             if (!updated && !released)
             {
                 UpdateSettings();
 
-                UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestLayerPlanetFrameDeltaRotationMatrix);
+                UpdateLightVolume(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestLayerPlanetFrameDeltaRotationMatrix, maxRadius);
 
                 bool firstLayer = true;
 
                 foreach (var volumetricLayer in volumes)
                 {
-                    volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                    if (volumetricLayer.LightVolumeSettings.UseLightVolume)
+                    {
+                        volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
 
-                    volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
-                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld); // is this needed?
-                    volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
+                        volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
+                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld); // is this needed?
+                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
                     
-                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", lightVolumeLowestAltitude);
-                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("outerLightVolumeRadius", lightVolumeHighestAltitude);
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", lightVolumeLowestAltitude);
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("outerLightVolumeRadius", lightVolumeHighestAltitude);
 
-                    volumetricLayer.RaymarchedCloudMaterial.SetFloat("clearExistingVolume", firstLayer ? 1f : 0f);
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("clearExistingVolume", firstLayer ? 1f : 0f);
 
-                    int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
+                        int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
 
-                    for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
-                    {
-                        float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
-                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
-                        volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerDirectLightVolumeSliceToUpdate);
+                        for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
+                        {
+                            float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
+                            volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
+                            volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerDirectLightVolumeSliceToUpdate);
 
-                        Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
+                            Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
 
-                        currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
+                            currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
+                        }
+
+                        int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
+
+                        for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
+                        {
+                            float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
+                            volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
+                            volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerAmbientLightVolumeSliceToUpdate);
+
+                            Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
+
+                            currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
+                        }
+
+                        volumetricLayer.RaymarchedCloudMaterial.SetTexture("directLightVolume", directLightVolume[readFromFlipLightVolume]);
+                        volumetricLayer.RaymarchedCloudMaterial.SetTexture("ambientLightVolume", ambientLightVolume[readFromFlipLightVolume]);
+
+                        firstLayer = false;
                     }
-
-                    int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
-
-                    for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
-                    {
-                        float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
-                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
-                        volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerAmbientLightVolumeSliceToUpdate);
-
-                        Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
-
-                        currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
-                    }
-
-                    volumetricLayer.RaymarchedCloudMaterial.SetTexture("directLightVolume", directLightVolume[readFromFlipLightVolume]);
-                    volumetricLayer.RaymarchedCloudMaterial.SetTexture("ambientLightVolume", ambientLightVolume[readFromFlipLightVolume]);
-
-                    firstLayer = false;
                 }
 
                 nextDirectSliceToUpdate  = (nextDirectSliceToUpdate + directLightSlicesToUpdateEveryFrame) % volumeSlices;
@@ -211,11 +214,11 @@ namespace Atmosphere
             }
         }
 
-        private void UpdateLightVolume(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
+        private void UpdateLightVolume(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix, float maxRadius)
         {
             UpdateCurrentLightVolumePosition(planetTransform, slowestLayerPlanetFrameDeltaRotationMatrix);
 
-            MoveLightVolumeIfNeeded(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius);
+            MoveLightVolumeIfNeeded(cameraPosition, planetTransform, planetRadius, innerCloudsRadius, outerCloudsRadius, maxRadius);
         }
         private void UpdateCurrentLightVolumePosition(Transform planetTransform, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix)
         {
@@ -230,7 +233,7 @@ namespace Atmosphere
             worldToLightVolume = Matrix4x4.Inverse(lightVolumeToWorld);
         }
 
-        private void MoveLightVolumeIfNeeded(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius)
+        private void MoveLightVolumeIfNeeded(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, float maxRadius)
         {
             Vector3 planetPosition = planetTransform.position;
 
@@ -258,21 +261,19 @@ namespace Atmosphere
             // The effective covered radius is the horizontal line from paraboloid to sphere, which can be computed using a right triangle
             float newLightVolumeRadius = Mathf.Sqrt(distanceToCloudSphereIntersect * distanceToCloudSphereIntersect - projectedDistanceFromCameraToParaboloid * projectedDistanceFromCameraToParaboloid);
 
-            /*
-            bool capRadius = false;
-            if (capRadius)
+            if (maxRadius < Mathf.Infinity)
             {
                 // To cap the radius, have to find the vertical point on a sphere that gives you that horizontal distance
-                var targetRadius = 200000f;
-
-                var cosAngleTarget = targetRadius / outerCloudsRadius;
+                var cosAngleTarget = maxRadius / outerCloudsRadius;
                 var sinAngleTarget = Mathf.Sqrt(1f - cosAngleTarget * cosAngleTarget);
 
                 var verticalOffsetTarget = sinAngleTarget * outerCloudsRadius;
 
+                // Cap it by the lower clouds radius otherwise we don't render anything
+                verticalOffsetTarget = Mathf.Min(verticalOffsetTarget, innerCloudsRadius);
+
                 newLightVolumeAltitude = Mathf.Max(verticalOffsetTarget, newLightVolumeAltitude);
             }
-            */
 
             Vector3 newWorldLightVolumePosition = planetPosition + cameraUpVector * newLightVolumeAltitude;
 

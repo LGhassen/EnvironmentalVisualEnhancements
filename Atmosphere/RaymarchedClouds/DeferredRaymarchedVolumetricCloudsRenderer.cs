@@ -315,9 +315,14 @@ namespace Atmosphere
                 float camDistanceToPlanetOrigin = float.MaxValue;
 
                 Vector3 cameraPosition = gameObject.transform.position;
+                
+                bool useLightVolume = false;
+                float lightVolumeMaxRadius = Mathf.Infinity;
 
-                float slowestRotatingLayerSpeed = float.MaxValue;
-                CloudsRaymarchedVolume slowestRotatingLayer = null;
+                float innerLightVolumeRadius = float.MaxValue, outerLightVolumeRadius = float.MinValue;
+
+                float lightVolumeSlowestRotatingLayerSpeed = float.MaxValue;
+                CloudsRaymarchedVolume lightVolumeSlowestRotatingLayer = null;
 
                 foreach (CloudsRaymarchedVolume volumetricLayer in volumesAdded)
                 {
@@ -342,18 +347,29 @@ namespace Atmosphere
                     innerCloudsRadius = Mathf.Min(innerCloudsRadius, volumetricLayer.InnerSphereRadius);
                     outerCloudsRadius = Mathf.Max(outerCloudsRadius, volumetricLayer.OuterSphereRadius);
 
-                    if (volumetricLayer.LinearSpeedMagnitude < slowestRotatingLayerSpeed)
-                    {
-                        slowestRotatingLayerSpeed = volumetricLayer.LinearSpeedMagnitude;
-                        slowestRotatingLayer = volumetricLayer;
-                    }
-
                     cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
+
+                    if (volumetricLayer.LightVolumeSettings.UseLightVolume)
+                    {
+                        useLightVolume = true;
+
+                        innerLightVolumeRadius = Mathf.Min(innerLightVolumeRadius, volumetricLayer.InnerSphereRadius);
+                        outerLightVolumeRadius = Mathf.Max(outerLightVolumeRadius, volumetricLayer.OuterSphereRadius);
+
+                        if (volumetricLayer.LinearSpeedMagnitude < lightVolumeSlowestRotatingLayerSpeed)
+                        {
+                            lightVolumeSlowestRotatingLayerSpeed = volumetricLayer.LinearSpeedMagnitude;
+                            lightVolumeSlowestRotatingLayer = volumetricLayer;
+                        }
+
+                        lightVolumeMaxRadius = Mathf.Min(lightVolumeMaxRadius, volumetricLayer.LightVolumeSettings.MaxLightVolumeRadius);
+                    }
                 }
 
                 float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
 
-                LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerCloudsRadius, outerCloudsRadius, slowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse);
+                if (useLightVolume)
+                    LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerLightVolumeRadius, outerLightVolumeRadius, lightVolumeSlowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse, lightVolumeMaxRadius);
 
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
                 bool orbitMode = (TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerCloudsRadius > 2f * (outerCloudsRadius - planetRadius);
@@ -408,7 +424,7 @@ namespace Atmosphere
                 if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                     commandBuffer.SetGlobalTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
-                commandBuffer.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, 1f); // TODO: check if actual light volume is enabled
+                commandBuffer.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, useLightVolume ? 1f : 0f);
 
                 foreach (var intersection in intersections)
                 {

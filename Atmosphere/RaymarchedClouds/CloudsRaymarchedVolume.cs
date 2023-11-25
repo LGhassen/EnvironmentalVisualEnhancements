@@ -69,6 +69,9 @@ namespace Atmosphere
         [ConfigItem]
         RaymarchingSettings raymarchingSettings = new RaymarchingSettings();
 
+        [ConfigItem]
+        LightVolumeUsage lightVolumeSettings = new LightVolumeUsage();
+
         [ConfigItem, Optional]
         ParticleField particleField = null;
 
@@ -263,6 +266,7 @@ namespace Atmosphere
         private float linearSpeedMagnitude;
 
         public float LinearSpeedMagnitude { get => linearSpeedMagnitude; }
+        public LightVolumeUsage LightVolumeSettings { get => lightVolumeSettings; }
 
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude)
         {
@@ -358,6 +362,17 @@ namespace Atmosphere
                 screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
                 screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
                 screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
+            }
+
+            if (lightVolumeSettings.UseLightVolume)
+            {
+                raymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_ON");
+                raymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_OFF");
+            }
+            else
+            {
+                raymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_OFF");
+                raymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_ON");
             }
         }
 
