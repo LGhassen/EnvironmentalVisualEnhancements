@@ -119,7 +119,7 @@ namespace Atmosphere
                             volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
                             volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerDirectLightVolumeSliceToUpdate);
 
-                            Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
+                            RenderTextureUtils.Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
 
                             currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
                         }
@@ -132,7 +132,7 @@ namespace Atmosphere
                             volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
                             volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerAmbientLightVolumeSliceToUpdate);
 
-                            Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
+                            RenderTextureUtils.Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
 
                             currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
                         }
@@ -380,36 +380,8 @@ namespace Atmosphere
                 reprojectLightVolumeMaterial.SetFloat("verticalUV", verticalUV);
                 reprojectLightVolumeMaterial.SetInt("verticalSliceId", i);
 
-                Blit3D(targetRT, i, volumeSlices, reprojectLightVolumeMaterial, 0);
+                RenderTextureUtils.Blit3D(targetRT, i, volumeSlices, reprojectLightVolumeMaterial, 0);
             }
-        }
-
-        // TODO move to utility class
-        private void Blit3D(RenderTexture tex, int slice, int size, Material blitMat, int pass)
-        {
-            GL.PushMatrix();
-            GL.LoadOrtho();
-
-            Graphics.SetRenderTarget(tex, 0, CubemapFace.Unknown, slice);
-
-            float z = Mathf.Clamp01(slice / (float)(size - 1));
-
-            blitMat.SetPass(pass);
-
-            GL.Begin(GL.QUADS);
-
-            GL.TexCoord3(0, 0, z);
-            GL.Vertex3(0, 0, 0);
-            GL.TexCoord3(1, 0, z);
-            GL.Vertex3(1, 0, 0);
-            GL.TexCoord3(1, 1, z);
-            GL.Vertex3(1, 1, 0);
-            GL.TexCoord3(0, 1, z);
-            GL.Vertex3(0, 1, 0);
-
-            GL.End();
-
-            GL.PopMatrix();
         }
     }
 }

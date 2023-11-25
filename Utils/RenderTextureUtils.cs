@@ -96,5 +96,32 @@ namespace Utils
 
             return rt;
         }
+
+        public static void Blit3D(RenderTexture tex, int slice, int size, Material blitMat, int pass)
+        {
+            GL.PushMatrix();
+            GL.LoadOrtho();
+
+            Graphics.SetRenderTarget(tex, 0, CubemapFace.Unknown, slice);
+
+            float z = Mathf.Clamp01(slice / (float)(size - 1));
+
+            blitMat.SetPass(pass);
+
+            GL.Begin(GL.QUADS);
+
+            GL.TexCoord3(0, 0, z);
+            GL.Vertex3(0, 0, 0);
+            GL.TexCoord3(1, 0, z);
+            GL.Vertex3(1, 0, 0);
+            GL.TexCoord3(1, 1, z);
+            GL.Vertex3(1, 1, 0);
+            GL.TexCoord3(0, 1, z);
+            GL.Vertex3(0, 1, 0);
+
+            GL.End();
+
+            GL.PopMatrix();
+        }
     }
 }
