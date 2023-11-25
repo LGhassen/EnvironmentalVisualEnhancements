@@ -408,6 +408,8 @@ namespace Atmosphere
                 if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                     commandBuffer.SetGlobalTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
+                commandBuffer.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, 1f); // TODO: check if actual light volume is enabled
+
                 foreach (var intersection in intersections)
                 {
                     var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
@@ -558,6 +560,7 @@ namespace Atmosphere
                     if (doneRendering)
                     {
                         Shader.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, Texture2D.whiteTexture);
+                        Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, 0f); // TODO: check if actual light volume is enabled
                         renderingEnabled = false;
                         volumesAdded.Clear();
                         useFlipScreenBuffer = !useFlipScreenBuffer;

@@ -140,6 +140,9 @@ namespace Utils
         public static int scattererReconstructedCloud_PROPERTY { get { return scattererReconstructedCloud; } }
         private static int scattererReconstructedCloud;
 
+        public static int scattererCloudLightVolumeEnabled_PROPERTY { get { return scattererCloudLightVolumeEnabled; } }
+        private static int scattererCloudLightVolumeEnabled;
+
         public static int historyBuffer_PROPERTY { get { return historyBuffer; } }
         private static int historyBuffer;
 
@@ -313,6 +316,7 @@ namespace Utils
             PreviousLayerMaxDepth = Shader.PropertyToID("PreviousLayerMaxDepth");
             PreviousLayerLightningOcclusion = Shader.PropertyToID("PreviousLayerLightningOcclusion");
             scattererReconstructedCloud = Shader.PropertyToID("scattererReconstructedCloud");
+            scattererCloudLightVolumeEnabled = Shader.PropertyToID("scattererCloudLightVolumeEnabled");
             historyBuffer = Shader.PropertyToID("historyBuffer");
             historyMotionVectors = Shader.PropertyToID("historyMotionVectors");
             newRaysBuffer = Shader.PropertyToID("newRaysBuffer");
