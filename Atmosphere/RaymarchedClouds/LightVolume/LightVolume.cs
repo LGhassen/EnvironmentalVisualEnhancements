@@ -100,24 +100,25 @@ namespace Atmosphere
                 {
                     if (volumetricLayer.LightVolumeSettings.UseLightVolume)
                     {
-                        volumetricLayer.RaymarchedCloudMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                        volumetricLayer.RaymarchedCloudMaterial.SetVector(ShaderProperties.lightVolumeDimensions_PROPERTY, lightVolumeDimensions);
 
-                        volumetricLayer.RaymarchedCloudMaterial.SetVector("paraboloidPosition", worldLightVolumePosition);
-                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix("paraboloidToWorld", lightVolumeToWorld); // is this needed?
-                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix("worldToParaboloid", worldToLightVolume);
-                    
-                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("innerLightVolumeRadius", lightVolumeLowestAltitude);
-                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("outerLightVolumeRadius", lightVolumeHighestAltitude);
+                        volumetricLayer.RaymarchedCloudMaterial.SetVector(ShaderProperties.paraboloidPosition_PROPERTY, worldLightVolumePosition);
+                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix(ShaderProperties.paraboloidToWorld_PROPERTY, lightVolumeToWorld); // is this needed?
+                        volumetricLayer.RaymarchedCloudMaterial.SetMatrix(ShaderProperties.worldToParaboloid_PROPERTY, worldToLightVolume);
 
-                        volumetricLayer.RaymarchedCloudMaterial.SetFloat("clearExistingVolume", firstLayer ? 1f : 0f);
+
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.innerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.outerLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
+
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.clearExistingVolume_PROPERTY, firstLayer ? 1f : 0f);
 
                         int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
 
                         for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
                         {
                             float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
-                            volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerDirectLightVolumeSliceToUpdate);
+                            volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerDirectLightVolumeSliceToUpdate);
 
                             RenderTextureUtils.Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
 
@@ -129,16 +130,16 @@ namespace Atmosphere
                         for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
                         {
                             float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
-                            volumetricLayer.RaymarchedCloudMaterial.SetFloat("verticalUV", verticalUV);
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt("verticalSliceId", currentLayerAmbientLightVolumeSliceToUpdate);
+                            volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
 
                             RenderTextureUtils.Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
 
                             currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
                         }
 
-                        volumetricLayer.RaymarchedCloudMaterial.SetTexture("directLightVolume", directLightVolume[readFromFlipLightVolume]);
-                        volumetricLayer.RaymarchedCloudMaterial.SetTexture("ambientLightVolume", ambientLightVolume[readFromFlipLightVolume]);
+                        volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.directLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
+                        volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.ambientLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
 
                         firstLayer = false;
                     }
@@ -148,16 +149,15 @@ namespace Atmosphere
                 nextAmbientSliceToUpdate = (nextAmbientSliceToUpdate + ambientLightSlicesToUpdateEveryFrame) % volumeSlices;
 
                 // temporary: set global params for scatterer for testing
-                Shader.SetGlobalVector("scattererLightVolumeDimensions", lightVolumeDimensions);
+                Shader.SetGlobalVector(ShaderProperties.scattererLightVolumeDimensions_PROPERTY, lightVolumeDimensions);
 
-                Shader.SetGlobalVector("scattererParaboloidPosition", worldLightVolumePosition);
-                Shader.SetGlobalMatrix("scattererWorldToParaboloid", worldToLightVolume);
+                Shader.SetGlobalVector(ShaderProperties.scattererParaboloidPosition_PROPERTY, worldLightVolumePosition);
+                Shader.SetGlobalMatrix(ShaderProperties.scattererWorldToParaboloid_PROPERTY, worldToLightVolume);
 
-                Shader.SetGlobalFloat("scattererInnerLightVolumeRadius", lightVolumeLowestAltitude);
-                Shader.SetGlobalFloat("scattererOuterLightVolumeRadius", lightVolumeHighestAltitude);
+                Shader.SetGlobalFloat(ShaderProperties.scattererInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
+                Shader.SetGlobalFloat(ShaderProperties.scattererOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-                Shader.SetGlobalTexture("scattererDirectLightVolume", directLightVolume[readFromFlipLightVolume]);
-
+                Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
 
                 updated = true;
             }
@@ -179,11 +179,11 @@ namespace Atmosphere
 
                 if (reprojectLightVolumeComputeShader != null)
                 {
-                    reprojectLightVolumeComputeShader.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                    reprojectLightVolumeComputeShader.SetVector(ShaderProperties.lightVolumeDimensions_PROPERTY, lightVolumeDimensions);
                 }
                 else
                 {
-                    reprojectLightVolumeMaterial.SetVector("lightVolumeDimensions", lightVolumeDimensions);
+                    reprojectLightVolumeMaterial.SetVector(ShaderProperties.lightVolumeDimensions_PROPERTY, lightVolumeDimensions);
                 }
             }
 
@@ -315,70 +315,67 @@ namespace Atmosphere
             }
         }
 
-        // TODO: shader properties
         private void ReprojectWithCompute(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
         {
             uint xThreads, yThreads, zThreads; // TODO move these to init?
             reprojectLightVolumeComputeShader.GetKernelThreadGroupSizes(0, out xThreads, out yThreads, out zThreads);
 
-            reprojectLightVolumeComputeShader.SetVector("sphereCenter", planetPosition);
+            reprojectLightVolumeComputeShader.SetVector(ShaderProperties.sphereCenter_PROPERTY, planetPosition);
 
-            reprojectLightVolumeComputeShader.SetMatrix("worldToPreviousParaboloid", worldToLightVolume);
-            reprojectLightVolumeComputeShader.SetVector("previousParaboloidPosition", worldLightVolumePosition);
+            reprojectLightVolumeComputeShader.SetMatrix(ShaderProperties.worldToPreviousParaboloid_PROPERTY, worldToLightVolume);
+            reprojectLightVolumeComputeShader.SetVector(ShaderProperties.previousParaboloidPosition_PROPERTY, worldLightVolumePosition);
 
-            reprojectLightVolumeComputeShader.SetMatrix("paraboloidToWorld", newLightVolumeToWorld);
-            reprojectLightVolumeComputeShader.SetVector("paraboloidPosition", newLightVolumePosition);
+            reprojectLightVolumeComputeShader.SetMatrix(ShaderProperties.paraboloidToWorld_PROPERTY, newLightVolumeToWorld);
+            reprojectLightVolumeComputeShader.SetVector(ShaderProperties.paraboloidPosition_PROPERTY, newLightVolumePosition);
 
-            reprojectLightVolumeComputeShader.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
-            reprojectLightVolumeComputeShader.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
+            reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.innerLightVolumeRadius_PROPERTY, innerCloudsRadius);
+            reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.outerLightVolumeRadius_PROPERTY, outerCloudsRadius);
 
-            reprojectLightVolumeComputeShader.SetFloat("previousInnerLightVolumeRadius", lightVolumeLowestAltitude);
-            reprojectLightVolumeComputeShader.SetFloat("previousOuterLightVolumeRadius", lightVolumeHighestAltitude);
+            reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.previousInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
+            reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.previousOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-            reprojectLightVolumeComputeShader.SetTexture(0, "PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
-            reprojectLightVolumeComputeShader.SetTexture(0, "Result", directLightVolume[!readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, directLightVolume[!readFromFlipLightVolume]);
 
             reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, volumeSlices / (int)zThreads);
 
 
-            reprojectLightVolumeComputeShader.SetTexture(0, "PreviousLightVolume", ambientLightVolume[readFromFlipLightVolume]);
-            reprojectLightVolumeComputeShader.SetTexture(0, "Result", ambientLightVolume[!readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, ambientLightVolume[!readFromFlipLightVolume]);
 
             reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, volumeSlices / (int)zThreads);
         }
 
-        // TODO: shader properties
         private void ReprojectWithMaterial(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
         {
-            reprojectLightVolumeMaterial.SetVector("sphereCenter", planetPosition);
+            reprojectLightVolumeMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, planetPosition);
 
-            reprojectLightVolumeMaterial.SetMatrix("worldToPreviousParaboloid", worldToLightVolume);
-            reprojectLightVolumeMaterial.SetVector("previousParaboloidPosition", worldLightVolumePosition);
+            reprojectLightVolumeMaterial.SetMatrix(ShaderProperties.worldToPreviousParaboloid_PROPERTY, worldToLightVolume);
+            reprojectLightVolumeMaterial.SetVector(ShaderProperties.previousParaboloidPosition_PROPERTY, worldLightVolumePosition);
 
-            reprojectLightVolumeMaterial.SetMatrix("paraboloidToWorld", newLightVolumeToWorld);
-            reprojectLightVolumeMaterial.SetVector("paraboloidPosition", newLightVolumePosition);
+            reprojectLightVolumeMaterial.SetMatrix(ShaderProperties.paraboloidToWorld_PROPERTY, newLightVolumeToWorld);
+            reprojectLightVolumeMaterial.SetVector(ShaderProperties.paraboloidPosition_PROPERTY, newLightVolumePosition);
 
-            reprojectLightVolumeMaterial.SetFloat("innerLightVolumeRadius", innerCloudsRadius);
-            reprojectLightVolumeMaterial.SetFloat("outerLightVolumeRadius", outerCloudsRadius);
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.innerLightVolumeRadius_PROPERTY, innerCloudsRadius);
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.outerLightVolumeRadius_PROPERTY, outerCloudsRadius);
 
-            reprojectLightVolumeMaterial.SetFloat("previousInnerLightVolumeRadius", lightVolumeLowestAltitude);
-            reprojectLightVolumeMaterial.SetFloat("previousOuterLightVolumeRadius", lightVolumeHighestAltitude);
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.previousInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.previousOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-            reprojectLightVolumeMaterial.SetTexture("PreviousLightVolume", directLightVolume[readFromFlipLightVolume]);
+            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.PreviousLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
             ReprojectSlices(directLightVolume[!readFromFlipLightVolume]);
 
-            reprojectLightVolumeMaterial.SetTexture("PreviousLightVolume", ambientLightVolume[readFromFlipLightVolume]);
+            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.PreviousLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
             ReprojectSlices(ambientLightVolume[!readFromFlipLightVolume]);
         }
 
-        // TODO: shader properties
         private void ReprojectSlices(RenderTexture targetRT)
         {
             for (int i = 0; i < volumeSlices; i++)
             {
                 float verticalUV = ((float)i + 0.5f) / (float)volumeSlices;
-                reprojectLightVolumeMaterial.SetFloat("verticalUV", verticalUV);
-                reprojectLightVolumeMaterial.SetInt("verticalSliceId", i);
+                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+                reprojectLightVolumeMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, i);
 
                 RenderTextureUtils.Blit3D(targetRT, i, volumeSlices, reprojectLightVolumeMaterial, 0);
             }
