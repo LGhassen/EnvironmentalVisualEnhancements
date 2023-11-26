@@ -170,6 +170,7 @@
     <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldManager.cs" />
     <Compile Include="RaymarchedClouds\ParticleField\ParticleFieldConfig.cs" />
     <Compile Include="RaymarchedClouds\ParticleField\ParticleField.cs" />
+    <Compile Include="RaymarchedClouds\LightVolumeUsage.cs" />
     <Compile Include="RaymarchedClouds\RaymarchingSettings.cs" />
     <Compile Include="RaymarchedClouds\CloudType.cs" />
     <Compile Include="RaymarchedClouds\CloudsRaymarchedVolume.cs" />

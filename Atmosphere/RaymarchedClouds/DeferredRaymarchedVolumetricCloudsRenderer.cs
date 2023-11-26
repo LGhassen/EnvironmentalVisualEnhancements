@@ -74,6 +74,7 @@ namespace Atmosphere
         bool renderingEnabled = false;
         bool isInitialized = false;
         bool hdrEnabled = false;
+        bool useLightVolume = false;
 
         private Camera targetCamera;
         private FlipFlop<CommandBuffer> commandBuffer; // indexed by isRightEye
@@ -316,7 +317,7 @@ namespace Atmosphere
 
                 Vector3 cameraPosition = gameObject.transform.position;
                 
-                bool useLightVolume = false;
+                useLightVolume = false;
                 float lightVolumeMaxRadius = Mathf.Infinity;
 
                 float innerLightVolumeRadius = float.MaxValue, outerLightVolumeRadius = float.MinValue;
@@ -423,8 +424,6 @@ namespace Atmosphere
 
                 if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                     commandBuffer.SetGlobalTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
-
-                commandBuffer.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, useLightVolume ? 1f : 0f);
 
                 foreach (var intersection in intersections)
                 {
@@ -562,6 +561,8 @@ namespace Atmosphere
             }
             else
             {
+                Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, renderingEnabled && useLightVolume ? 1f : 0f);
+
                 bool doneRendering = targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
 
                 if (renderingEnabled)
@@ -575,8 +576,7 @@ namespace Atmosphere
                     previousV[isRightEye] = VRUtils.GetViewMatrixForCamera(targetCamera);
                     if (doneRendering)
                     {
-                        Shader.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, Texture2D.whiteTexture);
-                        Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, 0f); // TODO: check if actual light volume is enabled
+                        Shader.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, Texture2D.whiteTexture);                        
                         renderingEnabled = false;
                         volumesAdded.Clear();
                         useFlipScreenBuffer = !useFlipScreenBuffer;
@@ -591,7 +591,6 @@ namespace Atmosphere
                     renderingEnabled = false;
                 }
             }
-
         }
 
         void Cleanup()
