@@ -70,6 +70,9 @@ namespace Atmosphere
         float verticalResolution = 32f;
 
         [ConfigItem]
+        float stepCount = 50f;
+
+        [ConfigItem]
         float directLightTimeSlicing = 8f;
 
         [ConfigItem]
@@ -81,6 +84,7 @@ namespace Atmosphere
         public bool UseLightVolume { get => useLightVolume; }
         public float HorizontalResolution { get => horizontalResolution; }
         public float VerticalResolution { get => verticalResolution; }
+        public float StepCount { get => stepCount; }
         public float DirectLightTimeSlicing { get => directLightTimeSlicing; }
         public float AmbientLightTimeSlicing { get => ambientLightTimeSlicing; }
 

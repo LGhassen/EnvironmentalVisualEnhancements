@@ -329,6 +329,8 @@ namespace Utils
         public static int Result_PROPERTY { get { return Result; } }
         private static int Result;
 
+        public static int lightVolumeLightMarchSteps_PROPERTY { get { return lightVolumeLightMarchSteps; } }
+        private static int lightVolumeLightMarchSteps;
 
         private void Awake()
         {
@@ -451,7 +453,7 @@ namespace Utils
             previousOuterLightVolumeRadius = Shader.PropertyToID("previousOuterLightVolumeRadius");
             PreviousLightVolume = Shader.PropertyToID("PreviousLightVolume");
             Result = Shader.PropertyToID("Result");
-
+            lightVolumeLightMarchSteps = Shader.PropertyToID("lightVolumeLightMarchSteps");
         }
     }
 }

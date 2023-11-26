@@ -24,6 +24,7 @@ namespace Atmosphere
 
         private int volumeResolution = 0;
         private int volumeSlices = 0;
+        private int stepCount = 0;
 
         private int directLightSlicesToUpdateEveryFrame, ambientLightSlicesToUpdateEveryFrame;
 
@@ -64,6 +65,7 @@ namespace Atmosphere
         {
             volumeResolution = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
             volumeSlices = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
+            stepCount = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.StepCount;
             lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
 
             bool useComputeShader = SystemInfo.supportsComputeShaders;
@@ -111,6 +113,8 @@ namespace Atmosphere
                         volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.outerLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
                         volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.clearExistingVolume_PROPERTY, firstLayer ? 1f : 0f);
+
+                        volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.lightVolumeLightMarchSteps_PROPERTY, stepCount);
 
                         int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
 
@@ -167,6 +171,7 @@ namespace Atmosphere
         {
             int volumeResolutionSetting = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
             int volumeSlicesSetting = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
+            stepCount = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.StepCount;
 
             if (volumeResolutionSetting != volumeResolution || volumeSlicesSetting != volumeSlices)
             {
@@ -186,7 +191,6 @@ namespace Atmosphere
                     reprojectLightVolumeMaterial.SetVector(ShaderProperties.lightVolumeDimensions_PROPERTY, lightVolumeDimensions);
                 }
             }
-
 
             float directLightTimeSlicingFrames = RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing;
 
