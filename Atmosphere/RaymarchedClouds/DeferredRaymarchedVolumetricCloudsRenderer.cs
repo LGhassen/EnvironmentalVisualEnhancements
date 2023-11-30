@@ -73,7 +73,6 @@ namespace Atmosphere
 
         bool renderingEnabled = false;
         bool isInitialized = false;
-        bool hdrEnabled = false;
         bool useLightVolume = false;
 
         private Camera targetCamera;
@@ -340,10 +339,7 @@ namespace Atmosphere
         {
             if (isInitialized)
             {
-                if (hdrEnabled != targetCamera.allowHDR)
-                {
-                    InitRenderTextures();
-                }
+                InitRenderTextures();
 
                 volumesAdded.Add(volume);
 
