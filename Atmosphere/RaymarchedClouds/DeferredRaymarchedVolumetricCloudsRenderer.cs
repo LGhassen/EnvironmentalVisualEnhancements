@@ -121,7 +121,7 @@ namespace Atmosphere
         private int newRaysRenderWidth, newRaysRenderHeight;
 
         private static readonly int lightningOcclusionResolution = 32;
-        private int screenshotModeIterations = 8;
+        private float screenshotModeIterations = 8;
 
 
         private static Shader reconstructCloudShader = null;
@@ -173,7 +173,7 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
             reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
 
-            reconstructCloudsMaterial.SetFloat("screenshotModeIterations", (float)screenshotModeIterations);
+            reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
 
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
@@ -482,7 +482,7 @@ namespace Atmosphere
 
                 bool useFlipRaysBuffer = true;
 
-                int renderingIterations = 1;
+                float renderingIterations = 1;
 
                 if (cloudsScreenshotModeEnabled)
                 {

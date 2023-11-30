@@ -15,7 +15,7 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
-        static int screenShotModeDenoisingIterations = 8;
+        static float screenShotModeDenoisingIterations = 8;
 
         static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
@@ -28,7 +28,7 @@ namespace Atmosphere
 
         internal static bool UseOrbitMode { get => useOrbitMode; }
 
-        internal static int ScreenShotModeDenoisingIterations { get => screenShotModeDenoisingIterations; }
+        internal static float ScreenShotModeDenoisingIterations { get => screenShotModeDenoisingIterations; }
 
         internal static LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 
