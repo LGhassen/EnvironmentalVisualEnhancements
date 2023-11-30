@@ -268,7 +268,7 @@ namespace Atmosphere
 
         private void InitRenderTextures()
         {
-            var colorFormat = RenderTextureFormat.ARGBHalf;
+            var colorFormat = RenderTextureFormat.DefaultHDR;
             bool supportVR = VRUtils.VREnabled();
 
             ReleaseRenderTextures();
@@ -339,8 +339,6 @@ namespace Atmosphere
         {
             if (isInitialized)
             {
-                InitRenderTextures();
-
                 volumesAdded.Add(volume);
 
                 renderingEnabled = true;                    
