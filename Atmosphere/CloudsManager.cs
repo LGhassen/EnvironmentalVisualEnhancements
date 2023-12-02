@@ -34,24 +34,27 @@ namespace Atmosphere
 
         private void PreprocessConfigs()
         {
-            foreach (UrlDir.UrlConfig config in Configs)
-            {
-                foreach (ConfigNode node in config.config.nodes)
+            if (Configs != null)
+            { 
+                foreach (UrlDir.UrlConfig config in Configs)
                 {
-                    var cb = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD));
-
-                    if (cb != null)
+                    foreach (ConfigNode node in config.config.nodes)
                     {
-                        var handler = celestialBodyCloudsHandlers.Find(x => x.CelestialBody == cb);
+                        var cb = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD));
 
-                        if (handler != null)
+                        if (cb != null)
                         {
-                            handler.AddConfigNode(node);
-                        }
-                        else
-                        {
-                            handler = new CelestialBodyCloudsHandler(cb, new List<ConfigNode>() { node });
-                            celestialBodyCloudsHandlers.Add(handler);
+                            var handler = celestialBodyCloudsHandlers.Find(x => x.CelestialBody == cb);
+
+                            if (handler != null)
+                            {
+                                handler.AddConfigNode(node);
+                            }
+                            else
+                            {
+                                handler = new CelestialBodyCloudsHandler(cb, new List<ConfigNode>() { node });
+                                celestialBodyCloudsHandlers.Add(handler);
+                            }
                         }
                     }
                 }
