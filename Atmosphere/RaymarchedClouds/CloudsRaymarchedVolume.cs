@@ -51,6 +51,13 @@ namespace Atmosphere
 
         public TextureWrapper CoverageMap { get => coverageMap; }
 
+        [ConfigItem, Optional]
+        string sdfMap;
+
+        Texture2D sdf;
+
+        public Texture2D SDF { get => sdf; }
+
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
 
@@ -409,6 +416,24 @@ namespace Atmosphere
             {
                 mat.SetTexture("CloudCoverage", Texture2D.whiteTexture);
                 mat.EnableKeyword("MAP_TYPE_1");
+            }
+
+            if (!string.IsNullOrEmpty(sdfMap) && sdf == null)
+            {
+                sdf = SDFUtils.LoadSDFFromGameDataFile(sdfMap+".sdf"); // TODO: error handling here because it fails to load and borks everything
+                                                        // also maybe indicate red in the UI?
+            }
+
+            if (sdf != null)
+            {
+                mat.EnableKeyword("SDF_ON"); mat.DisableKeyword("SDF_OFF");
+                mat.SetTexture("CloudSDF", sdf); // I don't think texture2D is gonna work with cubemaps btw, gonna need custom logic
+
+                Debug.Log("SDF loaded successfully");
+            }
+            else
+            {
+                mat.DisableKeyword("SDF_ON"); mat.EnableKeyword("SDF_OFF");
             }
 
             ApplyCloudTexture(cloudTypeMap, "CloudType", mat, 2);

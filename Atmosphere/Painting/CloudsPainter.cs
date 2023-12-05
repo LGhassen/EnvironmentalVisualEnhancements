@@ -407,7 +407,7 @@ namespace Atmosphere
             }
         }
 
-        private void SetMaterialTexture(Material mat, string name, RenderTexture tex)
+        private void SetMaterialTexture(Material mat, string name, Texture tex)
         {
             if (tex.dimension == UnityEngine.Rendering.TextureDimension.Cube)
                 mat.SetTexture("cube" + name, tex);
@@ -664,6 +664,25 @@ namespace Atmosphere
             {
                 SaveAllTextures();
             }
+
+            placement.y += 2;
+
+            if (cloudCoverage != null)
+            {
+                if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Generate SDF"))
+                {
+                    var sdfRT = SDFUtils.GenerateSDF(cloudCoverage);
+
+                    string path = CreateFileNameAndPath("sdf", "sdf");
+
+                    SDFUtils.SaveSDFToFile(sdfRT, path);
+                    sdfRT.Release();
+
+                    Debug.Log("Saved to " + path);
+                    ScreenMessages.PostScreenMessage("Saved to " + path);
+                }
+            }
+
             placement.y += 1;
         }
 
@@ -775,6 +794,25 @@ namespace Atmosphere
             placement.y += 1;
         }
 
+        private void DrawIntField(Rect placementBase, ref Rect placement, string name, ref int field, int? minValue = null, int? maxValue = null)
+        {
+            Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
+            Rect fieldRect = GUIHelper.GetRect(placementBase, ref placement);
+            GUIHelper.SplitRect(ref labelRect, ref fieldRect, GUIHelper.valueRatio);
+
+            GUI.Label(labelRect, name);
+
+            field = int.Parse(GUI.TextField(fieldRect, field.ToString()));
+
+            if (maxValue.HasValue)
+                field = Math.Min(maxValue.Value, field);
+
+            if (minValue.HasValue)
+                field = Math.Max(minValue.Value, field);
+
+            placement.y += 1;
+        }
+
         private void DrawColorField(Rect placementBase, ref Rect placement, string name, ref Color field)
         {
             Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
@@ -811,18 +849,18 @@ namespace Atmosphere
                 for (int i=0;i<6;i++)
                 {
                     Graphics.CopyTexture(rt, i, cubemapFaceRT, 0);
-                    SaveSimpleRTToFile(cubemapFaceRT, mapType+"_"+((CubemapFace)(i)).ToString());
+                    SaveSimpleRTToPNGFile(cubemapFaceRT, mapType+"_"+((CubemapFace)(i)).ToString());
                 }
 
                 cubemapFaceRT.Release();
             }
             else
             {
-                SaveSimpleRTToFile(rt, mapType);
+                SaveSimpleRTToPNGFile(rt, mapType);
             }
         }
 
-        private void SaveSimpleRTToFile(RenderTexture rt, string name)
+        private void SaveSimpleRTToPNGFile(RenderTexture rt, string name)
         {
             RenderTexture.active = rt;
 
@@ -830,7 +868,7 @@ namespace Atmosphere
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             RenderTexture.active = null;
 
-            if (rt.format == RenderTextureFormat.R8)
+            if (rt.format == RenderTextureFormat.R8 || rt.format == RenderTextureFormat.RHalf || rt.format == RenderTextureFormat.R16)
             {
                 var pixels = tex.GetPixels();
 
@@ -850,6 +888,15 @@ namespace Atmosphere
 
             UnityEngine.Object.DestroyImmediate(tex);
 
+            string path = CreateFileNameAndPath(name, "png");
+
+            System.IO.File.WriteAllBytes(path, bytes);
+            Debug.Log("Saved to " + path);
+            ScreenMessages.PostScreenMessage("Saved to " + path);
+        }
+
+        private string CreateFileNameAndPath(string name, string extension)
+        {
             string datetime = DateTime.Now.ToString("yyyy-MM-dd\\THH-mm-ss\\Z");
 
             var gameDataPath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData");
@@ -858,11 +905,8 @@ namespace Atmosphere
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
 
-            path = System.IO.Path.Combine(path, layerName + "_" + name + "_" + datetime + ".png");
-
-            System.IO.File.WriteAllBytes(path, bytes);
-            Debug.Log("Saved to " + path);
-            ScreenMessages.PostScreenMessage("Saved to " + path);
+            path = System.IO.Path.Combine(path, layerName + "_" + name + "_" + datetime + "." + extension);
+            return path;
         }
     }
 
