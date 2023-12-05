@@ -24,7 +24,7 @@ namespace Atmosphere
     public class RaymarchedCloudsQuality : IEVEObject
     {
         [ConfigItem]
-        TemporalUpscaling temporalUpscaling = TemporalUpscaling.x8;
+        TemporalUpscaling temporalUpscaling = TemporalUpscaling.x9;
 
         [ConfigItem]
         bool nonTiling3DNoise = true;
@@ -33,7 +33,7 @@ namespace Atmosphere
         bool useOrbitMode = true;
 
         [ConfigItem]
-        int screenshotModeDenoisingIterations = 8;
+        float screenshotModeDenoisingIterations = 8f;
 
         [ConfigItem]
         LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
@@ -43,7 +43,7 @@ namespace Atmosphere
 
         internal bool UseOrbitMode { get => useOrbitMode; }
 
-        internal int ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
+        internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 
         internal LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 

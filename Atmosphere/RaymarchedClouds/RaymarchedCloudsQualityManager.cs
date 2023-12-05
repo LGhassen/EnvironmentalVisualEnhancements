@@ -15,7 +15,7 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
-        static float screenShotModeDenoisingIterations = 8;
+        static float screenShotModeDenoisingIterations = 8f;
 
         static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
 
