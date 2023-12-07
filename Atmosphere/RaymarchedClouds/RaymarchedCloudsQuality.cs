@@ -66,9 +66,6 @@ namespace Atmosphere
     public class LightVolumeSettings
     {
         [ConfigItem]
-        bool useLightVolume = true; // TODO: may remove this after doing comparison videos/shots
-
-        [ConfigItem]
         float horizontalResolution = 256f;
 
         [ConfigItem]
@@ -86,7 +83,6 @@ namespace Atmosphere
         [ConfigItem]
         float timewarpRateMultiplier = 3f;
 
-        public bool UseLightVolume { get => useLightVolume; }
         public float HorizontalResolution { get => horizontalResolution; }
         public float VerticalResolution { get => verticalResolution; }
         public float StepCount { get => stepCount; }
