@@ -497,6 +497,7 @@ namespace Atmosphere
                 {
                     HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, orbitMode, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, currentP, currentV, prevV, prevP);
                     frame++;
+                    frame = frame % ShaderLoader.ShaderLoaderClass.stbnDimensions.z;
                 }
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.colorBuffer_PROPERTY, historyRT[isRightEye][useFlipScreenBuffer]);
