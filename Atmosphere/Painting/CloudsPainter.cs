@@ -295,36 +295,12 @@ namespace Atmosphere
 
                 // Blit from RT face to full cubemap RT face, using our material, there's no blit method for this, use custom blit
                 copyMapMaterial.SetTexture("textureToCopy", cubemapFaceRT);
-                BlitToCubemapFace(targetRT, copyMapMaterial, i);
+                RenderTextureUtils.BlitToCubemapFace(targetRT, copyMapMaterial, i);
             }
 
             cubemapFaceRT.Release();
         }
 
-        private void BlitToCubemapFace(RenderTexture tex, Material blitMat, int face, int pass = 0)
-        {
-            GL.PushMatrix();
-            GL.LoadOrtho();
-
-            Graphics.SetRenderTarget(tex, 0, (CubemapFace) face);
-
-            blitMat.SetPass(pass);
-
-            GL.Begin(GL.QUADS);
-
-            GL.TexCoord3(0, 0, 0);
-            GL.Vertex3(0, 0, 0);
-            GL.TexCoord3(1, 0, 0);
-            GL.Vertex3(1, 0, 0);
-            GL.TexCoord3(1, 1, 0);
-            GL.Vertex3(1, 1, 0);
-            GL.TexCoord3(0, 1, 0);
-            GL.Vertex3(0, 1, 0);
-
-            GL.End();
-
-            GL.PopMatrix();
-        }
 
         public void Paint()
         {
@@ -443,7 +419,7 @@ namespace Atmosphere
                 for (int i=0; i<6; i++)
                 {
                     paintMat.SetInt("cubemapFace", i);
-                    BlitToCubemapFace(rt, paintMat, i, pass);
+                    RenderTextureUtils.BlitToCubemapFace(rt, paintMat, i, pass);
                 }
             }
             else

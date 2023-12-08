@@ -112,5 +112,30 @@ namespace Utils
 
             GL.PopMatrix();
         }
+
+        public static void BlitToCubemapFace(RenderTexture tex, Material blitMat, int face, int pass = 0)
+        {
+            GL.PushMatrix();
+            GL.LoadOrtho();
+
+            Graphics.SetRenderTarget(tex, 0, (CubemapFace)face);
+
+            blitMat.SetPass(pass);
+
+            GL.Begin(GL.QUADS);
+
+            GL.TexCoord3(0, 0, 0);
+            GL.Vertex3(0, 0, 0);
+            GL.TexCoord3(1, 0, 0);
+            GL.Vertex3(1, 0, 0);
+            GL.TexCoord3(1, 1, 0);
+            GL.Vertex3(1, 1, 0);
+            GL.TexCoord3(0, 1, 0);
+            GL.Vertex3(0, 1, 0);
+
+            GL.End();
+
+            GL.PopMatrix();
+        }
     }
 }

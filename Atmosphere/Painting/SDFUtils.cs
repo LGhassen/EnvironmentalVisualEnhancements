@@ -23,42 +23,46 @@ namespace Atmosphere
             }
         }
 
-        // TODO: think about cubemap support
         public static RenderTexture GenerateSDF(RenderTexture coverageMap)
         {
             int width = coverageMap.width;
             int height = coverageMap.height;
 
+            var flipRT = RenderTextureUtils.CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Point, coverageMap.dimension);
+            var flopRT = RenderTextureUtils.CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Point, coverageMap.dimension);
+
             Material material = new Material(SdfShader);
 
-            var flipRT = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);
-            var flopRT = new RenderTexture(width, height, 0, RenderTextureFormat.RGFloat);
+            bool cubemapMode = coverageMap.dimension == UnityEngine.Rendering.TextureDimension.Cube;
 
-            flipRT.useMipMap = false;
-            flopRT.useMipMap = false;
-
-            flipRT.filterMode = FilterMode.Point;
-            flopRT.filterMode = FilterMode.Point;
-
-            flipRT.Create();
-            flopRT.Create();
+            if (cubemapMode) // TODO: handle these in the shader
+            {
+                material.EnableKeyword("CUBEMAP_ON");
+                material.DisableKeyword("CUBEMAP_OFF");
+            }
+            else
+            {
+                material.DisableKeyword("CUBEMAP_ON");
+                material.EnableKeyword("CUBEMAP_OFF");
+            }
 
             // Initialization pass
             material.SetTexture("inputImage", coverageMap);
-            Graphics.Blit(null, flipRT, material, 0);
+
+            BlitToTarget(material, cubemapMode, flipRT, 0);
 
             // Iterative passes
             bool renderToFlip = false;
-            int iterations = (int)Mathf.Ceil(Mathf.Log(Mathf.Max(width, height), 2f));
+            int iterations = (int)Mathf.Ceil(Mathf.Log(Mathf.Max(width, height), 2f)); // TODO: figure this out with cubemaps
 
             for (int i=0; i < iterations; i++)
             {
                 RenderTexture.active = null;
 
                 material.SetFloat("iteration", (float)i);
-
                 material.SetTexture("previousResult", renderToFlip ? flopRT : flipRT);
-                Graphics.Blit(null, renderToFlip ? flipRT : flopRT, material, 1);
+
+                BlitToTarget(material, cubemapMode, renderToFlip ? flipRT : flopRT, 1);
 
                 renderToFlip = !renderToFlip;
             }
@@ -68,7 +72,8 @@ namespace Atmosphere
 
             material.SetTexture("inputImage", coverageMap);
             material.SetTexture("previousResult", renderToFlip ? flopRT : flipRT);
-            Graphics.Blit(null, resultRT, material, 2);
+
+            BlitToTarget(material, cubemapMode, resultRT, 2);
 
             var downscaledResult = new RenderTexture(width / 4, height / 4, 0, RenderTextureFormat.R16);
             downscaledResult.wrapMode = TextureWrapMode.Repeat;
@@ -79,7 +84,8 @@ namespace Atmosphere
             // Downscaling pass
             material.SetTexture("scalarImage", resultRT);
             material.SetVector("screenParams", new Vector2(width / 4, height / 4));
-            Graphics.Blit(null, downscaledResult, material, 3);
+
+            BlitToTarget(material, cubemapMode, downscaledResult, 3);
 
             flipRT.Release();
             flopRT.Release();
@@ -87,23 +93,85 @@ namespace Atmosphere
             return downscaledResult;
         }
 
+        private static void BlitToTarget(Material material, bool cubemapMode, RenderTexture targetRT, int pass)
+        {
+            if (!cubemapMode)
+            {
+                Graphics.Blit(null, targetRT, material, pass);
+            }
+            else
+            {
+                for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
+                {
+                    material.SetInt("cubemapFace", cubemapFace); // TODO: handle these in the shader, similarly to paint mode
+                    RenderTextureUtils.BlitToCubemapFace(targetRT, material, cubemapFace, pass);
+                }
+            }
+        }
+
         public static void SaveSDFToFile(RenderTexture sdf, string path)
         {
-            Texture2D temp = new Texture2D(sdf.width, sdf.height, TextureFormat.R16, false, false);
+            byte[] byteArray;
 
-            RenderTexture.active = sdf;
-            temp.ReadPixels(new Rect(0, 0, sdf.width, sdf.height), 0, 0);
-            temp.Apply();
-            RenderTexture.active = null;
-
-            byte[] byteArray = temp.GetRawTextureData();
+            byteArray = GetByteArray(sdf);
 
             byteArray = AddHeader(byteArray, new SDFHeader(sdf.width, sdf.height, 0, sdf.dimension == UnityEngine.Rendering.TextureDimension.Cube));
 
             System.IO.File.WriteAllBytes(path, byteArray);
         }
 
-        public static Texture2D LoadSDFFromGameDataFile(string path)
+        private static byte[] GetByteArray(RenderTexture sdf)
+        {
+            byte[] byteArray = null;
+
+            if (sdf.dimension != UnityEngine.Rendering.TextureDimension.Cube)
+            {
+                Texture2D temp = new Texture2D(sdf.width, sdf.height, TextureFormat.R16, false, false);
+
+                RenderTexture.active = sdf;
+                temp.ReadPixels(new Rect(0, 0, sdf.width, sdf.height), 0, 0);
+                temp.Apply();
+                RenderTexture.active = null;
+
+                byteArray = temp.GetRawTextureData();
+            }
+            else
+            {
+                // For cubemap need to copy every single RT face to a separate RT, then read to a 2D texture separately then add the total bytes
+                RenderTexture cubemapFaceRT = new RenderTexture(sdf.width, sdf.height, 0, sdf.format, 0);
+                cubemapFaceRT.filterMode = FilterMode.Bilinear;
+                cubemapFaceRT.wrapMode = TextureWrapMode.Clamp;
+                cubemapFaceRT.useMipMap = false;
+                cubemapFaceRT.Create();
+
+                Texture2D temp = new Texture2D(sdf.width, sdf.height, TextureFormat.R16, false, false);
+
+                for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
+                {
+                    Graphics.CopyTexture(sdf, cubemapFace, cubemapFaceRT, 0);
+
+                    RenderTexture.active = cubemapFaceRT;
+                    temp.ReadPixels(new Rect(0, 0, cubemapFaceRT.width, cubemapFaceRT.height), 0, 0);
+                    temp.Apply();
+                    RenderTexture.active = null;
+
+                    var faceArray = temp.GetRawTextureData();
+
+                    if (byteArray == null)
+                    {
+                        byteArray = new byte[6 * faceArray.Length];
+                    }
+
+                    Buffer.BlockCopy(faceArray, 0, byteArray, cubemapFace * faceArray.Length, faceArray.Length);
+                }
+
+                cubemapFaceRT.Release();
+            }
+
+            return byteArray;
+        }
+
+        public static Texture LoadSDFFromGameDataFile(string path)
         {
             var gameDataPath = System.IO.Path.Combine(KSPUtil.ApplicationRootPath, "GameData");
             path = System.IO.Path.Combine(gameDataPath, path);
@@ -113,13 +181,33 @@ namespace Atmosphere
             byte[] imageByteArray = GetArrayWithoutHeader(byteArray, out SDFHeader sdfHeader);
             byteArray = null;
 
-            Texture2D sdf = new Texture2D(sdfHeader.Width, sdfHeader.Height, TextureFormat.R16, false, false);
-            sdf.wrapMode = TextureWrapMode.Clamp;
-            sdf.filterMode = FilterMode.Bilinear;
-            sdf.LoadRawTextureData(imageByteArray);
-            sdf.Apply();
+            if (!sdfHeader.CubeMap)
+            {
+                Texture2D sdf2d = new Texture2D(sdfHeader.Width, sdfHeader.Height, TextureFormat.R16, false, false);
+                sdf2d.wrapMode = TextureWrapMode.Clamp;
+                sdf2d.filterMode = FilterMode.Bilinear;
+                sdf2d.LoadRawTextureData(imageByteArray);
+                sdf2d.Apply();
 
-            return sdf;
+                return sdf2d;
+            }
+            else
+            {
+                Cubemap sdfCubemap = new Cubemap(sdfHeader.Width, TextureFormat.R16, false);
+                sdfCubemap.filterMode = FilterMode.Bilinear;
+
+                byte[] faceByteArray = new byte[imageByteArray.Length / 6];
+
+                for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
+                {
+                    Buffer.BlockCopy(imageByteArray, cubemapFace * faceByteArray.Length, faceByteArray, 0, faceByteArray.Length);
+                    sdfCubemap.SetPixelData(faceByteArray, 0, (CubemapFace)cubemapFace, 0);
+                }
+
+                sdfCubemap.Apply();
+
+                return sdfCubemap;
+            }
         }
 
         public struct SDFHeader
