@@ -191,6 +191,9 @@ namespace Atmosphere
                 {
                     layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
                 }
+
+                cloudMaterial.DisableKeyword("SDF_ON");
+                cloudMaterial.EnableKeyword("SDF_OFF");
             }
 
             if (cloudType != null)
@@ -566,7 +569,6 @@ namespace Atmosphere
 
         public void DrawGUI(Rect placementBase, ref Rect placement)
         {
-            // TODO: add button to unload
             placement.height = 1;
 
             Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
@@ -647,19 +649,24 @@ namespace Atmosphere
             {
                 if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Generate SDF"))
                 {
-                    var sdfRT = SDFUtils.GenerateSDF(cloudCoverage);
-
-                    string path = CreateFileNameAndPath("sdf", "sdf");
-
-                    SDFUtils.SaveSDFToFile(sdfRT, path);
-                    sdfRT.Release();
-
-                    Debug.Log("Saved to " + path);
-                    ScreenMessages.PostScreenMessage("Saved to " + path);
+                    GenerateAndSaveSDF();
                 }
             }
 
             placement.y += 1;
+        }
+
+        private void GenerateAndSaveSDF()
+        {
+            var sdfRT = SDFUtils.GenerateSDF(cloudCoverage);
+
+            string path = CreateFileNameAndPath("sdf", "sdf");
+
+            SDFUtils.SaveSDFToFile(sdfRT, path);
+            sdfRT.Release();
+
+            Debug.Log("Saved to " + path);
+            ScreenMessages.PostScreenMessage("Saved to " + path);
         }
 
         private void ResetCurrentTextures()
@@ -745,6 +752,11 @@ namespace Atmosphere
             if(cloudScaledFlowMap != null)
             {
                 SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
+            }
+            if (cloudCoverage != null)
+            {
+                // Do it last separately because it is the heaviest vram-wise
+                GenerateAndSaveSDF();
             }
         }
 
