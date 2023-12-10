@@ -71,7 +71,7 @@ namespace Utils
         public string[] TexList { get => texList; }
         public string Name { get => name; }
 
-        public CubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType, bool mipmaps, bool readable)
+        public CubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType)
         {
             this.name = value;
             type = cubeType == TextureTypeEnum.RGB2_CubeMap ? TextureTypeEnum.RGB2_CubeMap : TextureTypeEnum.CubeMap;
@@ -88,9 +88,9 @@ namespace Utils
             }
         }
 
-        public static void GenerateCubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType, bool mipmaps, bool readable)
+        public static void GenerateCubemapWrapperConfig(string value, string[] textureNames, TextureTypeEnum cubeType)
         {
-            CubemapList[value] = new CubemapWrapperConfig(value, textureNames, cubeType, mipmaps, readable);
+            CubemapList[value] = new CubemapWrapperConfig(value, textureNames, cubeType);
         }
 
         internal static bool Exists(string value, TextureTypeEnum type)
@@ -119,6 +119,11 @@ namespace Utils
         Texture2D texNegative;
         Texture2D[] texList;
         Cubemap cubemap;
+        string name;
+
+        // TODO: refactor, technical debt
+        private static Dictionary<string, Cubemap> loadedNativeCubemaps = new Dictionary<string, Cubemap>();
+        private static Dictionary<string, int> loadedNativeCubemapUseCount = new Dictionary<string, int>();
 
         public Cubemap Cubemap { get => cubemap; }
 
@@ -128,15 +133,16 @@ namespace Utils
 
             if (cubemapWrapperConfig != null)
             {
-                return new CubemapWrapper(cubemapWrapperConfig);
+                return new CubemapWrapper(cubemapWrapperConfig, name);
             }
 
             return null;
         }
 
-        protected CubemapWrapper(CubemapWrapperConfig config)
+        protected CubemapWrapper(CubemapWrapperConfig config, string name)
         {
             cubemapWrapperConfig = config;
+            this.name = name;
 
             if (cubemapWrapperConfig.Type == TextureTypeEnum.RGB2_CubeMap)
             {
@@ -150,7 +156,17 @@ namespace Utils
             }
             else
             {
-                LoadSixFaceCubemap(config);
+                // check loaded native cubemaps
+                if (loadedNativeCubemaps.ContainsKey(name))
+                {
+                    Debug.Log($"[EVE] Native cubemap {name} loaded from cache");
+                    cubemap = loadedNativeCubemaps[name];
+                    loadedNativeCubemapUseCount[name]++;
+                }
+                else
+                {
+                    LoadSixFaceCubemap(config);
+                }
             }
         }
 
@@ -180,7 +196,7 @@ namespace Utils
             }
             else
             {
-                Debug.LogWarning("[EVE] Cubemap " + config.Name + " cannot be loaded as native cubemap. Consider using the same format, dimensions, mip count and equal width and height on all cubemap faces to get a performance boost.");
+                Debug.LogWarning("[EVE] Cubemap " + config.Name + " cannot be loaded as native cubemap. Consider using the same format, dimensions, mip count, equal width and height on all cubemap faces and making textures readable to get a performance boost.");
             }
         }
 
@@ -226,6 +242,10 @@ namespace Utils
                     texList[i] = null;
                 }
                 texList = null;
+
+                // track loaded native cubemap
+                loadedNativeCubemaps[name] = Cubemap;
+                loadedNativeCubemapUseCount[name] = 1;
             }
         }
 
@@ -233,7 +253,7 @@ namespace Utils
         {
             if (canBeLoadedAsNativeCubemap && i > 0 &&
                 (texList[i].format != texList[0].format || texList[i].height != texList[0].height || texList[i].width != texList[0].width ||
-                 texList[i].height != texList[0].width || texList[i].mipmapCount != texList[0].mipmapCount))
+                 texList[i].height != texList[0].width || texList[i].mipmapCount != texList[0].mipmapCount || !texList[i].isReadable))
             {
                 canBeLoadedAsNativeCubemap = false;
             }
@@ -282,8 +302,17 @@ namespace Utils
             {
                 if (cubemap!=null)
                 {
-                    GameObject.Destroy(cubemap);
-                    cubemap = null;
+                    loadedNativeCubemapUseCount[name]--;
+
+                    if (loadedNativeCubemapUseCount[name] == 0)
+                    {
+                        loadedNativeCubemaps.Remove(name);
+                        loadedNativeCubemapUseCount.Remove(name);
+                        
+                        GameObject.Destroy(cubemap);
+                        cubemap = null;
+                        Debug.Log($"[EVE] Native cubemap {name} removed from cache");
+                    }
                 }
                 else
                 { 
@@ -431,7 +460,7 @@ namespace Utils
             {
                 if (!textureInitialized)
                 { 
-                    CubemapWrapper cubeMap = CubemapWrapper.Create(value);
+                    CubemapWrapper cubeMap = CubemapWrapper.Create(value); //maybe this can be hooked up inside TextureOnDemandLoader?
                     if (cubeMap == null)
                         Debug.LogError("[EVE] Cannot apply " + value + " , cubemap invalid or not found");
                     else
