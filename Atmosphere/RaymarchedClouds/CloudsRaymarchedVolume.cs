@@ -54,9 +54,9 @@ namespace Atmosphere
         [ConfigItem, Optional]
         string sdfMap;
 
-        Texture2D sdf;
+        Texture sdf;
 
-        public Texture2D SDF { get => sdf; }
+        public Texture SDF { get => sdf; }
 
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
@@ -427,7 +427,11 @@ namespace Atmosphere
             if (sdf != null)
             {
                 mat.EnableKeyword("SDF_ON"); mat.DisableKeyword("SDF_OFF");
-                mat.SetTexture("CloudSDF", sdf); // I don't think texture2D is gonna work with cubemaps btw, gonna need custom logic
+                
+                if (sdf.dimension == TextureDimension.Cube)
+                    mat.SetTexture("cubeCloudSDF", sdf);
+                else
+                    mat.SetTexture("CloudSDF", sdf);
 
                 Debug.Log("SDF loaded successfully");
             }

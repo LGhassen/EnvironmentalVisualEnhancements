@@ -658,15 +658,8 @@ namespace Atmosphere
 
         private void GenerateAndSaveSDF()
         {
-            var sdfRT = SDFUtils.GenerateSDF(cloudCoverage);
-
             string path = CreateFileNameAndPath("sdf", "sdf");
-
-            SDFUtils.SaveSDFToFile(sdfRT, path);
-            sdfRT.Release();
-
-            Debug.Log("Saved to " + path);
-            ScreenMessages.PostScreenMessage("Saved to " + path);
+            SDFTool.GenerateAndSaveSDFInBackground(cloudCoverage, path);
         }
 
         private void ResetCurrentTextures()

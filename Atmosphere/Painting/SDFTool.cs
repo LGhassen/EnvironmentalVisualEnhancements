@@ -6,11 +6,32 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Collections;
 
 namespace Atmosphere
 {
-    public static class SDFUtils
+    [KSPAddon(KSPAddon.Startup.Instantly, true)]
+    public class SDFTool : MonoBehaviour
     {
+        private static SDFTool instance;
+
+        public SDFTool()
+        {
+            if (instance == null)
+            {
+                Debug.Log("SDFUtils instance created");
+                instance = this;
+            }
+            else
+            {
+                throw new UnityException("Attempted double instance!");
+            }
+        }
+
+        public void Start()
+        {
+            DontDestroyOnLoad(this);
+        }
 
         private static Shader sdfShader;
 
@@ -23,8 +44,14 @@ namespace Atmosphere
             }
         }
 
-        public static RenderTexture GenerateSDF(RenderTexture coverageMap)
+        private static bool sdfGenerationRunning = false;
+
+        IEnumerator GenerateAndSaveSDFCoroutine(RenderTexture coverageMap, string path)
         {
+            sdfGenerationRunning = true;
+
+            ScreenMessages.PostScreenMessage("Generating SDF");
+
             int width = coverageMap.width;
             int height = coverageMap.height;
 
@@ -35,7 +62,7 @@ namespace Atmosphere
 
             bool cubemapMode = coverageMap.dimension == UnityEngine.Rendering.TextureDimension.Cube;
 
-            if (cubemapMode) // TODO: handle these in the shader
+            if (cubemapMode)
             {
                 material.EnableKeyword("CUBEMAP_ON");
                 material.DisableKeyword("CUBEMAP_OFF");
@@ -51,11 +78,17 @@ namespace Atmosphere
 
             BlitToTarget(material, cubemapMode, flipRT, 0);
 
+            yield return new WaitForFixedUpdate();
+
             // Iterative passes
             bool renderToFlip = false;
-            int iterations = (int)Mathf.Ceil(Mathf.Log(Mathf.Max(width, height), 2f)); // TODO: figure this out with cubemaps
 
-            for (int i=0; i < iterations; i++)
+            int iterations = (int)Mathf.Ceil(Mathf.Log(Mathf.Max(width, height), 2f));
+            if (cubemapMode) iterations += 20; // kind of a hack but iterations are cheap and it works
+
+            int percentDone = 0;
+
+            for (int i = 0; i < iterations; i++)
             {
                 RenderTexture.active = null;
 
@@ -65,6 +98,16 @@ namespace Atmosphere
                 BlitToTarget(material, cubemapMode, renderToFlip ? flipRT : flopRT, 1);
 
                 renderToFlip = !renderToFlip;
+
+                int currentPercentDone = i * 100 / iterations;
+
+                if (currentPercentDone - percentDone >= 20)
+                {
+                    percentDone = currentPercentDone;
+                    ScreenMessages.PostScreenMessage("Generating SDF "+percentDone.ToString()+"%");
+                }
+
+                yield return new WaitForFixedUpdate();
             }
 
             // Finalization pass
@@ -75,22 +118,56 @@ namespace Atmosphere
 
             BlitToTarget(material, cubemapMode, resultRT, 2);
 
-            var downscaledResult = new RenderTexture(width / 4, height / 4, 0, RenderTextureFormat.R16);
-            downscaledResult.wrapMode = TextureWrapMode.Repeat;
-            downscaledResult.useMipMap = true;
-            downscaledResult.autoGenerateMips = false;
-            downscaledResult.Create();
+            yield return new WaitForFixedUpdate();
+
+            var downscaledResult = RenderTextureUtils.CreateRenderTexture(width / 4, height / 4, RenderTextureFormat.R16, false, FilterMode.Point, coverageMap.dimension);
 
             // Downscaling pass
-            material.SetTexture("scalarImage", resultRT);
             material.SetVector("screenParams", new Vector2(width / 4, height / 4));
 
-            BlitToTarget(material, cubemapMode, downscaledResult, 3);
+            if (!cubemapMode)
+            {
+                material.SetTexture("scalarImage", resultRT);
+                Graphics.Blit(null, downscaledResult, material, 3);
+                yield return new WaitForFixedUpdate();
+            }
+            else
+            {
+                // For cubemaps this needs to be done face by face
+                var faceRT = RenderTextureUtils.CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Point, UnityEngine.Rendering.TextureDimension.Tex2D);
+
+                for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
+                {
+                    // here we need to copy a specific face and set it up as input
+                    Graphics.CopyTexture(resultRT, cubemapFace, faceRT, 0);
+
+                    material.SetTexture("scalarImage", faceRT);
+                    RenderTextureUtils.BlitToCubemapFace(downscaledResult, material, cubemapFace, 3);
+                    yield return new WaitForFixedUpdate();
+                }
+
+                faceRT.Release();
+            }
 
             flipRT.Release();
             flopRT.Release();
 
-            return downscaledResult;
+            SaveSDFToFile(downscaledResult, path);
+
+            downscaledResult.Release();
+
+            Debug.Log("Saved to " + path);
+            ScreenMessages.PostScreenMessage("Saved to " + path);
+
+            sdfGenerationRunning = false;
+        }
+
+        public static void GenerateAndSaveSDFInBackground(RenderTexture coverageMap, string path)
+        {
+            if (!sdfGenerationRunning)
+            {
+                instance.StartCoroutine(instance.GenerateAndSaveSDFCoroutine(coverageMap, path));
+            }
         }
 
         private static void BlitToTarget(Material material, bool cubemapMode, RenderTexture targetRT, int pass)
