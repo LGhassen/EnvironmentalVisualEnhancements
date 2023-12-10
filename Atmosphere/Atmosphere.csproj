@@ -145,7 +145,7 @@
       <Link>Properties\AssemblyVersionInfo.cs</Link>
     </Compile>
     <Compile Include="FlowMap.cs" />
-    <Compile Include="Painting\SDFUtils.cs" />
+    <Compile Include="Painting\SDFTool.cs" />
     <Compile Include="Painting\CloudsPainterManager.cs" />
     <Compile Include="CloudsPQS.cs" />
     <Compile Include="CloudsManager.cs" />
