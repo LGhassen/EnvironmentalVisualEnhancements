@@ -743,11 +743,6 @@ namespace Atmosphere
             {
                 SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
             }
-            if (cloudCoverage != null)
-            {
-                // Do it last separately because it is the heaviest vram-wise
-                GenerateAndSaveSDF();
-            }
         }
 
         private void DrawFloatField(Rect placementBase, ref Rect placement, string name, ref float field, float? minValue = null, float? maxValue = null, string format = null)

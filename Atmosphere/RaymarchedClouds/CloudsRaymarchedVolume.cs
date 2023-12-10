@@ -420,7 +420,7 @@ namespace Atmosphere
 
             if (!string.IsNullOrEmpty(sdfMap) && sdf == null)
             {
-                sdf = SDFUtils.LoadSDFFromGameDataFile(sdfMap+".sdf"); // TODO: error handling here because it fails to load and borks everything
+                sdf = SDFTool.LoadSDFFromGameDataFile(sdfMap+".sdf"); // TODO: error handling here because it fails to load and borks everything
                                                         // also maybe indicate red in the UI?
             }
 
