@@ -285,23 +285,20 @@ namespace Atmosphere
         // There's no built in unity blit method to blit into a RT cubemap, or from a cubemap face, so implement my own
         private void CopyCubemapToRT(Texture sourceTexture, RenderTexture targetRT, Material copyMapMaterial)
         {
-            // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, we have to use Graphics.CopyTexture on a temporary RT and later copy manually to R8 or color texture with the custom material
-            RenderTexture cubemapFaceRT = new RenderTexture(sourceTexture.width, sourceTexture.height, 0, RenderTextureFormat.ARGB32, 0);
-            cubemapFaceRT.filterMode = FilterMode.Bilinear;
-            cubemapFaceRT.wrapMode = TextureWrapMode.Clamp;
-            cubemapFaceRT.useMipMap = false;
-            cubemapFaceRT.Create();
+            // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, we have to use Graphics.CopyTexture on a temporary texture and later copy manually to R8 or color texture with the custom material)
+            Texture2D cubemapFace = new Texture2D(sourceTexture.width, sourceTexture.width, ((Cubemap)sourceTexture).format, false);
 
             for (int i = 0; i < 6; i++)
             {
-                Graphics.CopyTexture(sourceTexture, i, 0, cubemapFaceRT, 0, 0);
+                Graphics.CopyTexture(sourceTexture, i, 0, cubemapFace, 0, 0);
 
                 // Blit from RT face to full cubemap RT face, using our material, there's no blit method for this, use custom blit
-                copyMapMaterial.SetTexture("textureToCopy", cubemapFaceRT);
+                copyMapMaterial.SetTexture("textureToCopy", cubemapFace);
                 RenderTextureUtils.BlitToCubemapFace(targetRT, copyMapMaterial, i);
             }
 
-            cubemapFaceRT.Release();
+            GameObject.Destroy(cubemapFace);
+            cubemapFace = null;
         }
 
 
