@@ -193,6 +193,7 @@ namespace Utils
             {
                 int topMipLevelSizeInBytes = (texList[0].width * texList[0].height * TextureConverter.GetBitsPerPixel(texList[0].format)) / 8;
 
+                
                 for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
                 {
                     var textureData = texList[cubemapFace].GetRawTextureData();
@@ -279,9 +280,17 @@ namespace Utils
             }
             else
             {
-                for (int i = 0; i < 6; i++)
+                if (cubemap!=null)
                 {
-                    TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexList[i]);
+                    GameObject.Destroy(cubemap);
+                    cubemap = null;
+                }
+                else
+                { 
+                    for (int i = 0; i < 6; i++)
+                    {
+                        TextureOnDemandLoader.NotifyUnload(cubemapWrapperConfig.TexList[i]);
+                    }
                 }
             }
         }
