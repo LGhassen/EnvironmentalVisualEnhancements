@@ -287,6 +287,7 @@ namespace Atmosphere
         {
             // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, we have to use Graphics.CopyTexture on a temporary texture and later copy manually to R8 or color texture with the custom material)
             Texture2D cubemapFace = new Texture2D(sourceTexture.width, sourceTexture.width, ((Cubemap)sourceTexture).format, false);
+            cubemapFace.Apply(false, true);
 
             for (int i = 0; i < 6; i++)
             {
