@@ -5,10 +5,10 @@ namespace Atmosphere
     public class RaymarchingSettings
     {
         [ConfigItem]
-        float lightMarchSteps = 4;
+        float lightMarchSteps = 2;
 
         [ConfigItem]
-        float lightMarchDistance = 800f;
+        float lightMarchDistance = 400f;
 
         [ConfigItem]
         float baseStepSize = 45f;
