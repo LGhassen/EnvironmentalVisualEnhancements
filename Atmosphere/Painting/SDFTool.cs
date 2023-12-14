@@ -192,7 +192,7 @@ namespace Atmosphere
 
             byteArray = GetByteArray(sdf);
 
-            byteArray = AddHeader(byteArray, new SDFHeader(sdf.width, sdf.height, 0, sdf.dimension == UnityEngine.Rendering.TextureDimension.Cube));
+            byteArray = AddHeader(byteArray, new SDFHeader(sdf.width, sdf.height, 0, sdf.dimension == UnityEngine.Rendering.TextureDimension.Cube, TextureFormat.R16, 1));
 
             System.IO.File.WriteAllBytes(path, byteArray);
         }
@@ -260,7 +260,7 @@ namespace Atmosphere
 
             if (!sdfHeader.CubeMap)
             {
-                Texture2D sdf2d = new Texture2D(sdfHeader.Width, sdfHeader.Height, TextureFormat.R16, false, false);
+                Texture2D sdf2d = new Texture2D(sdfHeader.Width, sdfHeader.Height, sdfHeader.Format, false, false);
                 sdf2d.wrapMode = TextureWrapMode.Clamp;
                 sdf2d.filterMode = FilterMode.Bilinear;
                 sdf2d.LoadRawTextureData(imageByteArray);
@@ -270,7 +270,7 @@ namespace Atmosphere
             }
             else
             {
-                Cubemap sdfCubemap = new Cubemap(sdfHeader.Width, TextureFormat.R16, false);
+                Cubemap sdfCubemap = new Cubemap(sdfHeader.Width, sdfHeader.Format, false);
                 sdfCubemap.filterMode = FilterMode.Bilinear;
 
                 byte[] faceByteArray = new byte[imageByteArray.Length / 6];
@@ -293,19 +293,27 @@ namespace Atmosphere
             public int Height;
             public int VolumeDepth;
             public bool CubeMap;
-            public byte Reserved0;
-            public byte Reserved1;
-            public byte Reserved2;
+            public TextureFormat Format;
+            public int Version;
 
-            public SDFHeader(int width, int height, int volumeDepth, bool cubeMap)
+            public int Reserved0;
+            public int Reserved1;
+            public int Reserved2;
+            public int Reserved3;
+
+            public SDFHeader(int width, int height, int volumeDepth, bool cubeMap, TextureFormat format, int version)
             {
                 Width = width;
                 Height = height;
                 VolumeDepth = volumeDepth;
                 CubeMap = cubeMap;
-                Reserved0 = new byte();
-                Reserved1 = new byte();
-                Reserved2 = new byte();
+                Format = format;
+                Version = version;
+
+                Reserved0 = 0;
+                Reserved1 = 0;
+                Reserved2 = 0;
+                Reserved3 = 0;
             }
         }
 
