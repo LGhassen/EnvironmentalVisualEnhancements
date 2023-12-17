@@ -79,6 +79,9 @@ namespace Atmosphere
         [ConfigItem]
         LightVolumeUsage lightVolumeSettings = new LightVolumeUsage();
 
+        [ConfigItem]
+        CloudPhaseFunctions phaseFunctions = new CloudPhaseFunctions();
+
         [ConfigItem, Optional]
         ParticleField particleField = null;
 
@@ -422,7 +425,7 @@ namespace Atmosphere
             {
                 sdf = SDFTool.LoadSDFFromGameDataFile(sdfMap+".sdf"); // TODO: error handling here because it fails to load and borks everything
                                                         // also maybe indicate red in the UI?
-            }
+            }            
 
             if (sdf != null)
             {
@@ -562,6 +565,9 @@ namespace Atmosphere
             mat.SetFloat("skylightMultiplier", skylightMultiplier);
             mat.SetFloat("skylightTintMultiplier", skylightTintMultiplier);
             mat.SetFloat("shadowCasterDensity", receivedShadowsDensity);
+
+            mat.SetVector("directPhaseFunctionProperties", new Vector4(phaseFunctions.SingleScattering1.x, phaseFunctions.SingleScattering1.y, phaseFunctions.SingleScattering2.x, phaseFunctions.SingleScattering2.y));
+            mat.SetVector("multiplePhaseFunctionProperties", new Vector4(phaseFunctions.MultipleScattering1.x, phaseFunctions.MultipleScattering1.y, phaseFunctions.MultipleScattering2.x, phaseFunctions.MultipleScattering2.y));
 
             mat.EnableKeyword("CLOUD_SHADOW_CASTER_OFF");
 
