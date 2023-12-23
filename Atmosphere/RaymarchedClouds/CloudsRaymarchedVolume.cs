@@ -293,6 +293,7 @@ namespace Atmosphere
             ProcessCloudTypes();
 
             ApplyShaderParams();
+            raymarchedCloudMaterial.SetFloat("scattererEnabled", 0f); // should be done on init only
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
