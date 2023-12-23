@@ -85,28 +85,36 @@ namespace CelestialShadows
         {
             if (HighLogic.LoadedScene != GameScenes.MAINMENU && screenSpaceShadowGO != null && body.pqsController != null)
             {
-                Matrix4x4 bodies = Matrix4x4.zero;
-                int i = 0;
-                foreach (CelestialBody cb in shadowList)
-                {
-                    if (cb != null && cb.transform != null)
+                if (body.pqsController.isActive && HighLogic.LoadedScene != GameScenes.SPACECENTER)
+                { 
+                    Matrix4x4 bodies = Matrix4x4.zero;
+                    int i = 0;
+                    foreach (CelestialBody cb in shadowList)
                     {
-                        bodies.SetRow(i, cb.transform.position);
-                        bodies[i, 3] = (float)(cb.Radius);
-                        i++;
-                        if (i == 4)
-                            break;
+                        if (cb != null && cb.transform != null)
+                        {
+                            bodies.SetRow(i, cb.transform.position);
+                            bodies[i, 3] = (float)(cb.Radius);
+                            i++;
+                            if (i == 4)
+                                break;
+                        }
                     }
-                }
 
-                if (shadowMat != null)
+                    if (shadowMat != null)
+                    {
+                        shadowMat.SetVector(ShaderProperties._SunPos_PROPERTY, Sun.Instance.sun.transform.position);
+                        shadowMat.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, bodies);
+                    }
+
+                    screenSpaceShadowGO.SetActive(true);
+                    screenSpaceShadow.SetActive(true);
+                }
+                else
                 {
-                    shadowMat.SetVector(ShaderProperties._SunPos_PROPERTY, Sun.Instance.sun.transform.position);
-                    shadowMat.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, bodies);
+                    screenSpaceShadowGO.SetActive(false);
+                    screenSpaceShadow.SetActive(false);
                 }
-
-                screenSpaceShadowGO.SetActive(body.pqsController.isActive);
-                screenSpaceShadow.SetActive(body.pqsController.isActive);
             }
         }
     }
