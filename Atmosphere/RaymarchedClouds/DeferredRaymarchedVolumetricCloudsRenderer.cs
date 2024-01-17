@@ -506,7 +506,7 @@ namespace Atmosphere
                 commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[isRightEye][useFlipScreenBuffer]);
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
-                commandBuffer.SetGlobalTexture("maxDepthRT", maxDepthRT[!useFlipRaysBuffer]); // TODO: property
+                commandBuffer.SetGlobalTexture(ShaderProperties.maxDepthRT_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
 
                 //commandBuffer.SetGlobalVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
@@ -744,9 +744,14 @@ namespace Atmosphere
             compositeColorMaterial.SetOverrideTag("IgnoreProjector", "True");
             depthOcclusionMaterial.SetOverrideTag("IgnoreProjector", "True");
 
-            //compositeMR.sharedMaterial = compositeColorMaterial;
-            compositeMR.materials = new List<Material>() { compositeColorMaterial, depthOcclusionMaterial }.ToArray();
-            //compositeMR.materials = new List<Material>() { compositeColorMaterial }.ToArray();
+            if (Tools.IsUnifiedCameraMode())
+            {
+                compositeMR.materials = new List<Material>() { compositeColorMaterial, depthOcclusionMaterial }.ToArray();
+            }
+            else
+            {
+                compositeMR.materials = new List<Material>() { compositeColorMaterial }.ToArray();
+            }
 
             compositeMR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             compositeMR.receiveShadows = false;
