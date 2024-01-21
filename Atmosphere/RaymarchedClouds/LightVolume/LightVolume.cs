@@ -23,12 +23,15 @@ namespace Atmosphere
         }
 
         private int volumeResolution = 0;
-        private int volumeSlices = 0;
+        private int volumeSlices = 0;           // volume slices of a single direct or ambient volume
+        private int mergedVolumeSlices = 0;     // total slices of the combined volume holding both
         private int stepCount = 0;
 
         private int directLightSlicesToUpdateEveryFrame, ambientLightSlicesToUpdateEveryFrame;
 
-        private FlipFlop<RenderTexture> directLightVolume, ambientLightVolume;
+        // The first slices are for direct light, and the second half for ambient. The volumes are combined
+        // to save a texture slot on Macs which have a hidden 16 texture limit in OpenGL (regardless of samplers)
+        private FlipFlop<RenderTexture> lightVolume;
 
         private ComputeShader reprojectLightVolumeComputeShader = null;
         private static Shader reprojectLightVolumeShader = null;
@@ -65,6 +68,7 @@ namespace Atmosphere
         {
             volumeResolution = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
             volumeSlices = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
+            mergedVolumeSlices = volumeSlices * 2;
             stepCount = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.StepCount;
             lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
 
@@ -84,8 +88,7 @@ namespace Atmosphere
             directLightSlicesToUpdateEveryFrame  = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.DirectLightTimeSlicing,  1);
             ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
 
-            directLightVolume  = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader, TextureWrapMode.Clamp);
-            ambientLightVolume = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, volumeSlices, useComputeShader, TextureWrapMode.Clamp);
+            lightVolume  = RenderTextureUtils.CreateFlipFlopRT(volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, mergedVolumeSlices, useComputeShader, TextureWrapMode.Clamp);
         }
 
         public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix, float maxRadius)
@@ -120,11 +123,11 @@ namespace Atmosphere
 
                         for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
                         {
-                            float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
+                            float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
                             volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
                             volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerDirectLightVolumeSliceToUpdate);
 
-                            RenderTextureUtils.Blit3D(directLightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
+                            RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
 
                             currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
                         }
@@ -133,17 +136,16 @@ namespace Atmosphere
 
                         for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
                         {
-                            float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)volumeSlices;
+                            float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
                             volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
                             volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
 
-                            RenderTextureUtils.Blit3D(ambientLightVolume[readFromFlipLightVolume], currentLayerAmbientLightVolumeSliceToUpdate, volumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
+                            RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
 
                             currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
                         }
 
-                        volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.directLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
-                        volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.ambientLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
+                        volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.lightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
 
                         firstLayer = false;
                     }
@@ -161,7 +163,7 @@ namespace Atmosphere
                 Shader.SetGlobalFloat(ShaderProperties.scattererInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
                 Shader.SetGlobalFloat(ShaderProperties.scattererOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-                Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
+                Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
 
                 updated = true;
             }
@@ -177,10 +179,10 @@ namespace Atmosphere
             {
                 volumeResolution = volumeResolutionSetting;
                 volumeSlices = volumeSlicesSetting;
+                mergedVolumeSlices = 2 * volumeSlices;
                 lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
 
-                RenderTextureUtils.ResizeFlipFlopRT(ref directLightVolume, volumeResolution, volumeResolution, volumeSlices);
-                RenderTextureUtils.ResizeFlipFlopRT(ref ambientLightVolume, volumeResolution, volumeResolution, volumeSlices);
+                RenderTextureUtils.ResizeFlipFlopRT(ref lightVolume, volumeResolution, volumeResolution, mergedVolumeSlices);
 
                 if (reprojectLightVolumeComputeShader != null)
                 {
@@ -212,8 +214,7 @@ namespace Atmosphere
         {
             if (!released)
             {
-                RenderTextureUtils.ReleaseFlipFlopRT(ref directLightVolume);
-                RenderTextureUtils.ReleaseFlipFlopRT(ref ambientLightVolume);
+                RenderTextureUtils.ReleaseFlipFlopRT(ref lightVolume);
                 released = true;
             }
         }
@@ -338,16 +339,10 @@ namespace Atmosphere
             reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.previousInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
             reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.previousOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
-            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, directLightVolume[!readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, lightVolume[!readFromFlipLightVolume]);
 
-            reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, volumeSlices / (int)zThreads);
-
-
-            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
-            reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, ambientLightVolume[!readFromFlipLightVolume]);
-
-            reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, volumeSlices / (int)zThreads);
+            reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, mergedVolumeSlices / (int)zThreads);
         }
 
         private void ReprojectWithMaterial(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
@@ -366,22 +361,30 @@ namespace Atmosphere
             reprojectLightVolumeMaterial.SetFloat(ShaderProperties.previousInnerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
             reprojectLightVolumeMaterial.SetFloat(ShaderProperties.previousOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
-            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.PreviousLightVolume_PROPERTY, directLightVolume[readFromFlipLightVolume]);
-            ReprojectSlices(directLightVolume[!readFromFlipLightVolume]);
-
-            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.PreviousLightVolume_PROPERTY, ambientLightVolume[readFromFlipLightVolume]);
-            ReprojectSlices(ambientLightVolume[!readFromFlipLightVolume]);
+            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.PreviousLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
+            ReprojectSlices(lightVolume[!readFromFlipLightVolume]);
         }
 
         private void ReprojectSlices(RenderTexture targetRT)
         {
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 0f);
+
             for (int i = 0; i < volumeSlices; i++)
             {
-                float verticalUV = ((float)i + 0.5f) / (float)volumeSlices;
+                float verticalUV = ((float)i + 0.5f) / (float)(volumeSlices);
                 reprojectLightVolumeMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
-                reprojectLightVolumeMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, i);
 
-                RenderTextureUtils.Blit3D(targetRT, i, volumeSlices, reprojectLightVolumeMaterial, 0);
+                RenderTextureUtils.Blit3D(targetRT, i, mergedVolumeSlices, reprojectLightVolumeMaterial, 0);
+            }
+
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 1f);
+
+            for (int i = 0; i < volumeSlices; i++)
+            {
+                float verticalUV = ((float)i + 0.5f) / (float)(volumeSlices);
+                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+
+                RenderTextureUtils.Blit3D(targetRT, volumeSlices + i, mergedVolumeSlices, reprojectLightVolumeMaterial, 0);
             }
         }
     }

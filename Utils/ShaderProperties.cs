@@ -287,6 +287,9 @@ namespace Utils
         public static int verticalSliceId_PROPERTY { get { return verticalSliceId; } }
         private static int verticalSliceId;
 
+        public static int lightVolume_PROPERTY { get { return lightVolume; } }
+        private static int lightVolume;
+
         public static int directLightVolume_PROPERTY { get { return directLightVolume; } }
         private static int directLightVolume;
 
@@ -439,6 +442,7 @@ namespace Utils
             clearExistingVolume = Shader.PropertyToID("clearExistingVolume");
             verticalUV = Shader.PropertyToID("verticalUV");
             verticalSliceId = Shader.PropertyToID("verticalSliceId");
+            lightVolume = Shader.PropertyToID("lightVolume");
             directLightVolume = Shader.PropertyToID("directLightVolume");
             ambientLightVolume = Shader.PropertyToID("ambientLightVolume");
             scattererLightVolumeDimensions = Shader.PropertyToID("scattererLightVolumeDimensions");
