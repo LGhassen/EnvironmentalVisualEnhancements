@@ -524,6 +524,8 @@ namespace Atmosphere
             {
                 var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
 
+                SetCombinedOpenGLDepthBufferKeywords(cloudMaterial);
+
                 Lightning.SetShaderParams(cloudMaterial);
 
                 // set material properties
@@ -539,8 +541,6 @@ namespace Atmosphere
 
                 cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
                 cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
-
-                cloudMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
                 Matrix4x4 cloudPreviousV = prevV;
 
