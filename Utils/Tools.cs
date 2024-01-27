@@ -139,6 +139,7 @@ namespace Utils
         }
 
         public static GameObject GetMainMenuObject(string name)
+
         {
             var all = GameObject.FindObjectsOfType<GameObject>();
             GameObject fallback = null;
@@ -159,6 +160,17 @@ namespace Utils
                 unifiedCameraMode = SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
             }
             return unifiedCameraMode.Value;
+        }
+
+        public static bool? macOS = null;
+
+        public static bool IsMac()
+        {
+            if (macOS == null)
+            {
+                macOS = SystemInfo.graphicsDeviceVersion.Contains("Metal") || SystemInfo.operatingSystem.Contains("Mac");
+            }
+            return macOS.Value;
         }
 
         // true if color appears to be RGB (0-255)

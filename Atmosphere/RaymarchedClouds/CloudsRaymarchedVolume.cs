@@ -192,7 +192,13 @@ namespace Atmosphere
 
         public void SetShadowCasterTextureParams(RenderTexture editorTexture = null, bool editorAlphamask = false)
         {
-            if (shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
+            // On Mac we are still short of one texture slot if all features are enabled, disable 2d shadow caster in this case
+            // as it is the least impactful feature and mostly superseded by light volume
+            bool skipShadowCaster = Tools.IsMac() && lightVolumeSettings.UseLightVolume && cloudColorMap != null
+                && curlNoise != null && curlNoiseRT != null && sdf != null
+                && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas);
+
+            if (!skipShadowCaster && shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
                 setShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture, editorAlphamask);
 
@@ -205,9 +211,9 @@ namespace Atmosphere
                         setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
                     }
                 }
-
-                shadowCasterTextureSet = true;
             }
+
+            shadowCasterTextureSet = true;
         }
 
         private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture, bool editorAlphamask)
