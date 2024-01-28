@@ -136,10 +136,14 @@ namespace Atmosphere
                 // For cubemaps this needs to be done face by face
                 var faceRT = RenderTextureUtils.CreateRenderTexture(width, height, RenderTextureFormat.RGHalf, false, FilterMode.Point, UnityEngine.Rendering.TextureDimension.Tex2D);
 
+                var copyMapMaterial = new Material(ShaderLoaderClass.FindShader("EVE/CopyMap"));
+                copyMapMaterial.EnableKeyword("CUBEMAP_MODE_ON");
+                copyMapMaterial.SetTexture("textureToCopy", resultRT);
+
                 for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
                 {
-                    // here we need to copy a specific face and set it up as input
-                    Graphics.CopyTexture(resultRT, cubemapFace, faceRT, 0);
+                    copyMapMaterial.SetInt("cubemapFace", cubemapFace);
+                    Graphics.Blit(null, faceRT, copyMapMaterial);
 
                     material.SetTexture("scalarImage", faceRT);
                     RenderTextureUtils.BlitToCubemapFace(downscaledResult, material, cubemapFace, 3);
@@ -223,9 +227,14 @@ namespace Atmosphere
 
                 Texture2D temp = new Texture2D(sdf.width, sdf.height, TextureFormat.R16, false, false);
 
+                var copyMapMaterial = new Material(ShaderLoaderClass.FindShader("EVE/CopyMap"));
+                copyMapMaterial.EnableKeyword("CUBEMAP_MODE_ON");
+                copyMapMaterial.SetTexture("textureToCopy", sdf);
+
                 for (int cubemapFace = 0; cubemapFace < 6; cubemapFace++)
                 {
-                    Graphics.CopyTexture(sdf, cubemapFace, cubemapFaceRT, 0);
+                    copyMapMaterial.SetInt("cubemapFace", cubemapFace);
+                    Graphics.Blit(null, cubemapFaceRT, copyMapMaterial);
 
                     RenderTexture.active = cubemapFaceRT;
                     temp.ReadPixels(new Rect(0, 0, cubemapFaceRT.width, cubemapFaceRT.height), 0, 0);

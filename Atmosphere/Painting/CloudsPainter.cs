@@ -282,24 +282,19 @@ namespace Atmosphere
             }
         }
 
-        // There's no built in unity blit method to blit into a RT cubemap, or from a cubemap face, so implement my own
+        // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, do it manually with a custom blit.
+        // Blitting from a cubemap face is also not supported except with Graphics.CopyTexture so implement my own by transforming the uv
+        // and cubemap face index to cubemap direction to sample the original cubemap
         private void CopyCubemapToRT(Texture sourceTexture, RenderTexture targetRT, Material copyMapMaterial)
         {
-            // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, we have to use Graphics.CopyTexture on a temporary texture and later copy manually to R8 or color texture with the custom material)
-            Texture2D cubemapFace = new Texture2D(sourceTexture.width, sourceTexture.width, ((Cubemap)sourceTexture).format, false);
-            cubemapFace.Apply(false, true);
+            copyMapMaterial.EnableKeyword("CUBEMAP_MODE_ON");
+            copyMapMaterial.SetTexture("textureToCopy", sourceTexture);
 
             for (int i = 0; i < 6; i++)
             {
-                Graphics.CopyTexture(sourceTexture, i, 0, cubemapFace, 0, 0);
-
-                // Blit from RT face to full cubemap RT face, using our material, there's no blit method for this, use custom blit
-                copyMapMaterial.SetTexture("textureToCopy", cubemapFace);
+                copyMapMaterial.SetInt("cubemapFace", i);
                 RenderTextureUtils.BlitToCubemapFace(targetRT, copyMapMaterial, i);
             }
-
-            GameObject.Destroy(cubemapFace);
-            cubemapFace = null;
         }
 
 
@@ -820,9 +815,15 @@ namespace Atmosphere
                 cubemapFaceRT.useMipMap = false;
                 cubemapFaceRT.Create();
 
+                var copyMapMaterial = new Material(CopyMapShader);
+                copyMapMaterial.EnableKeyword("CUBEMAP_MODE_ON");
+                copyMapMaterial.SetTexture("textureToCopy", rt);
+
                 for (int i=0;i<6;i++)
                 {
-                    Graphics.CopyTexture(rt, i, cubemapFaceRT, 0);
+                    copyMapMaterial.SetInt("cubemapFace", i);
+                    Graphics.Blit(null, cubemapFaceRT, copyMapMaterial);
+
                     SaveSimpleRTToPNGFile(cubemapFaceRT, mapType+"_"+((CubemapFace)(i)).ToString());
                 }
 
