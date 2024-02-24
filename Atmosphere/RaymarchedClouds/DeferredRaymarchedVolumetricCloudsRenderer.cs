@@ -22,7 +22,7 @@ namespace Atmosphere
             else
             {
                 // add null to the cameras we don't want to render on so we don't do a string compare every time
-                if ((cam.name == "TRReflectionCamera") || (cam.name == "Reflection Probes Camera"))
+                if ((cam.name == "TRReflectionCamera") || (cam.name == "Reflection Probes Camera") || (cam.name == "DepthCamera") || (cam.name == "NearCamera"))
                 {
                     CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = null;
                 }
