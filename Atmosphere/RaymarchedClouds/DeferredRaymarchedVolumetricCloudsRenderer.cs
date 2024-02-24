@@ -33,12 +33,18 @@ namespace Atmosphere
                 }
                 else
                 {
-                    CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = (DeferredRaymarchedVolumetricCloudsRenderer)cam.gameObject.AddComponent(typeof(DeferredRaymarchedVolumetricCloudsRenderer));
+                    CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = (DeferredRaymarchedVolumetricCloudsRenderer)cam.gameObject
+                        .AddComponent(typeof(DeferredRaymarchedVolumetricCloudsRenderer));
 
-                    if (!Tools.IsUnifiedCameraMode() && cam.name == "Camera 00")
+                    if (cam.name == "Camera 00")
                     {
-                        CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam].useCombinedOpenGLDistanceBuffer = true;
-                        cam.gameObject.AddComponent<DepthToDistanceCommandBuffer>();
+                        CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam].MainFlightCamera = true;
+
+                        if (!Tools.IsUnifiedCameraMode())
+                        {
+                            CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam].useCombinedOpenGLDistanceBuffer = true;
+                            cam.gameObject.AddComponent<DepthToDistanceCommandBuffer>();
+                        }
                     }
                 }
             }
@@ -120,6 +126,8 @@ namespace Atmosphere
         private int paddedScreenWidth, paddedScreenHeight;
         private int newRaysRenderWidth, newRaysRenderHeight;
 
+        private bool mainFlightCamera = false;
+
         private static readonly int lightningOcclusionResolution = 32;
         private float screenshotModeIterations = 8;
 
@@ -136,6 +144,8 @@ namespace Atmosphere
                 return reconstructCloudShader;
             }
         }
+
+        public bool MainFlightCamera { get => mainFlightCamera; set => mainFlightCamera = value; }
 
         private bool useCombinedOpenGLDistanceBuffer = false;
 
@@ -425,7 +435,7 @@ namespace Atmosphere
 
                 float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
 
-                if (useLightVolume)
+                if (useLightVolume && mainFlightCamera)
                     LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerLightVolumeRadius, outerLightVolumeRadius, lightVolumeSlowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse, lightVolumeMaxRadius);
 
                 // if the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
