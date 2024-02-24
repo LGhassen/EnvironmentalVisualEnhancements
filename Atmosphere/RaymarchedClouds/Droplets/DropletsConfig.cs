@@ -12,6 +12,27 @@ namespace Atmosphere
         string name = "new droplets config";
 
         [ConfigItem]
+        TextureWrapper puddlesNoise = null;
+
+        [ConfigItem]
+        bool usePuddles = false;
+
+        [ConfigItem]
+        float puddleStrength = 0.5f;
+
+        [ConfigItem]
+        float puddleTiling = 0.001f;
+
+        [ConfigItem]
+        float inclinationTolerance = 0.001f;
+
+        [ConfigItem]
+        float blurDistance = 0.01f;
+
+        [ConfigItem]
+        float blurRadius = 2f;
+
+        [ConfigItem]
         float minCoverageThreshold = 0.0f;
 
         [ConfigItem]
@@ -88,6 +109,20 @@ namespace Atmosphere
 
         public string Name { get => name; }
         public TextureWrapper Noise { get => noise; }
+        public TextureWrapper PuddlesNoise { get => puddlesNoise; }
+
+        public bool UsePuddles { get => usePuddles; }
+
+        public float PuddleStrength { get => puddleStrength; }
+
+        public float PuddleTiling { get => puddleTiling; }
+
+        public float InclinationTolerance { get => inclinationTolerance; }
+
+        public float BlurDistance { get => blurDistance; }
+
+        public float BlurRadius { get => blurRadius; }
+
         public float MinCoverageThreshold { get => minCoverageThreshold; }
         public float MaxCoverageThreshold { get => maxCoverageThreshold; }
         public float SpeedIncreaseFactor { get => speedIncreaseFactor; }

@@ -52,7 +52,20 @@ namespace Atmosphere
 			}
 		}
 
-		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
+        static Shader puddlesShader = null;
+        static Shader PuddlesShader
+        {
+            get
+            {
+                if (puddlesShader == null) puddlesShader = ShaderLoaderClass.FindShader("EVE/Puddles");
+                return puddlesShader;
+            }
+        }
+
+		Material puddlesMaterial;
+		GameObject puddlesGO;
+
+        public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
         {
 			dropletsConfigObject = DropletsManager.GetConfig(dropletsConfig);
 
@@ -92,7 +105,15 @@ namespace Atmosphere
 			}
 
 			GameEvents.OnCameraChange.Remove(CameraChanged);
-		}
+
+            
+			if (puddlesGO != null)
+			{
+                puddlesGO.transform.parent = null;
+                GameObject.Destroy(puddlesGO);
+                puddlesGO = null;
+            }
+        }
 
 		public void Update()
 		{
@@ -111,6 +132,18 @@ namespace Atmosphere
 						dropletsIvaMaterial.SetMatrix("internalSpaceMatrix", InternalSpace.Instance.transform.worldToLocalMatrix);
 				}
 			}
+
+            var targetCamera = FlightCamera.fetch.mainCamera;
+			if (targetCamera != null && puddlesMaterial!=null)
+			{
+				puddlesMaterial.SetMatrix("CameraToWorld", targetCamera.cameraToWorldMatrix);
+				puddlesMaterial.SetVector("upVector", -parentTransform.position.normalized);
+                puddlesMaterial.SetFloat("_Strength", dropletsConfigObject.PuddleStrength);
+                puddlesMaterial.SetFloat("_Tiling", dropletsConfigObject.PuddleTiling);
+                puddlesMaterial.SetFloat("inclinationTolerance", dropletsConfigObject.InclinationTolerance);
+                puddlesMaterial.SetFloat("blurDistance", dropletsConfigObject.BlurDistance);
+                puddlesMaterial.SetFloat("blurRadius", dropletsConfigObject.BlurRadius);
+            }
         }
 
         private void HandleCoverageAndWetness(float deltaTime, float currentSpeed)
@@ -128,6 +161,11 @@ namespace Atmosphere
 			currentWetness = Mathf.Lerp(currentWetness, 0f, (currentSpeed - dropletsConfigObject.FadeOutStartSpeed) / (dropletsConfigObject.FadeOutEndSpeed - dropletsConfigObject.FadeOutStartSpeed));
 
 			dropletsIvaMaterial.SetFloat("_Coverage", currentWetness);
+
+			/*
+			if (puddlesMaterial != null)
+				puddlesMaterial.SetFloat("_Strength", currentWetness);
+			*/
 		}
 
         private void ApplyDrying(float deltaTime)
@@ -288,7 +326,18 @@ namespace Atmosphere
 			}
 
 			dropletsIvaMaterial.SetFloat("lerp12", 0f);
-		}
+
+
+
+
+            if (dropletsConfigObject.UsePuddles)
+			{
+                puddlesMaterial = new Material(PuddlesShader);
+                puddlesMaterial.renderQueue = 2600;
+
+                dropletsConfigObject.PuddlesNoise.ApplyTexture(puddlesMaterial, "_Noise");
+			}
+        }
 
 		
 		void InitGameObjects(Transform parent)
@@ -310,7 +359,29 @@ namespace Atmosphere
 			dropletsGO.layer = (int)Tools.Layer.Internal;
 			
 			dropletsGO.SetActive(false);
-		}
+
+            if (dropletsConfigObject.UsePuddles)
+			{ 
+				
+                puddlesGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+				puddlesGO.name = "Puddles GO";
+
+				cl = puddlesGO.GetComponent<Collider>();
+				if (cl != null) GameObject.Destroy(cl);
+
+				mr = puddlesGO.GetComponent<MeshRenderer>();
+				mr.material = puddlesMaterial;
+
+				mf = puddlesGO.GetComponent<MeshFilter>();
+				mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
+
+				puddlesGO.transform.parent = parent;
+				puddlesGO.transform.localPosition = Vector3.zero;
+				puddlesGO.layer = (int)Tools.Layer.Local;
+
+				puddlesGO.SetActive(true);
+            }
+        }
 		
 
 		public void SetDropletsEnabled(bool value)

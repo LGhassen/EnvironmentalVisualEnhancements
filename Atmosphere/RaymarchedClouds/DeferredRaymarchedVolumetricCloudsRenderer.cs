@@ -22,11 +22,12 @@ namespace Atmosphere
             else
             {
                 // add null to the cameras we don't want to render on so we don't do a string compare every time
+                /*
                 if ((cam.name == "TRReflectionCamera") || (cam.name == "Reflection Probes Camera"))
                 {
                     CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = null;
                 }
-                else if (!Tools.IsUnifiedCameraMode() && cam.name == "Camera 01")
+                else*/ if (!Tools.IsUnifiedCameraMode() && cam.name == "Camera 01")
                 {
                     CameraToDeferredRaymarchedVolumetricCloudsRenderer[cam] = null;
                     cam.gameObject.AddComponent<DepthToDistanceCommandBuffer>();
@@ -130,7 +131,7 @@ namespace Atmosphere
 
         private static readonly int lightningOcclusionResolution = 32;
         private float screenshotModeIterations = 8;
-
+        private bool reflectionProbeCamera = false;
 
         private static Shader reconstructCloudShader = null;
         private static Shader ReconstructionShader
@@ -161,6 +162,13 @@ namespace Atmosphere
 
             if (targetCamera == null || targetCamera.activeTexture == null)
                 return;
+
+
+            if (targetCamera.name == "TRReflectionCamera" || targetCamera.name == "Reflection Probes Camera")
+                reflectionProbeCamera = true;
+
+            if (reflectionProbeCamera)
+                targetCamera.depthTextureMode = targetCamera.depthTextureMode | DepthTextureMode.Depth;
 
             SetReprojectionFactors();
             SetRenderAndUpscaleResolutions();
