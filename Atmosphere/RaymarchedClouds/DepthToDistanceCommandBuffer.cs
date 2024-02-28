@@ -1,4 +1,5 @@
 ﻿using ShaderLoader;
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
@@ -48,7 +49,21 @@ namespace Atmosphere
 
 		public void OnPostRender()
 		{
-			if (!initialized)
+            if (initialized && camera.activeTexture != null)
+            {
+                if (renderTexture.width != camera.activeTexture.width || renderTexture.height != camera.activeTexture.height)
+                {
+                    renderTexture.Release();
+                    renderTexture = null;
+
+					buffer.Clear();
+					buffer = null;
+
+                    initialized = false;
+                }
+            }
+
+            if (!initialized)
 				Init();
 		}
 
