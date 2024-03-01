@@ -87,8 +87,13 @@ namespace Atmosphere
         // raw list of volumes added
         List<CloudsRaymarchedVolume> volumesAdded = new List<CloudsRaymarchedVolume>();
 
-        // list of intersections sorted by distance, for rendering closest to farthest, such that already occluded layers in the distance don't add any raymarching cost
-        List<raymarchedLayerIntersection> intersections = new List<raymarchedLayerIntersection>();
+        // list of volume bounds, to be traversed bottom to top to figure out overlaps
+        List<RaymarchedLayerBound> volumesBounds = new List<RaymarchedLayerBound>();
+
+        // an overlap interval is a region of space where a given set of layers overlap
+        // this is a list of overlap intervals sorted by distance from camera for rendering closest to
+        // farthest such that already occluded layers/overlaps in the distance don't add any raymarching cost
+        List<OverlapIntervalIntersection> intersections = new List<OverlapIntervalIntersection>();
 
         // these are indexed by [isRightEye][flip]
         private FlipFlop<FlipFlop<RenderTexture>> historyRT, historyMotionVectorsRT;
@@ -351,6 +356,9 @@ namespace Atmosphere
             {
                 volumesAdded.Add(volume);
 
+                volumesBounds.Add(new RaymarchedLayerBound() { nature = RaymarchedLayerBoundNature.Bottom, radius = volume.InnerSphereRadius, layer = volume });
+                volumesBounds.Add(new RaymarchedLayerBound() { nature = RaymarchedLayerBoundNature.Top, radius = volume.OuterSphereRadius, layer = volume });
+
                 renderingEnabled = true;                    
                 DeferredRaymarchedRendererToScreen.SetActive(true);
                 
@@ -358,10 +366,29 @@ namespace Atmosphere
             }
         }
 
-        struct raymarchedLayerIntersection
+        public enum RaymarchedLayerBoundNature
+        {
+            Bottom,
+            Top
+        }
+
+        struct RaymarchedLayerBound
+        {
+            public float radius;
+            public CloudsRaymarchedVolume layer;
+            public RaymarchedLayerBoundNature nature;
+        }
+
+        struct OverlapInterval
+        {
+            public float InnerRadius;
+            public float OuterRadius;
+            public List<CloudsRaymarchedVolume> volumes;
+        }
+        struct OverlapIntervalIntersection
         {
             public float distance;
-            public CloudsRaymarchedVolume layer;
+            public OverlapInterval overlapInterval;
             public bool isSecondIntersect;
         }
 
@@ -371,17 +398,15 @@ namespace Atmosphere
             {
                 HandleScreenshotMode();
 
-                // calculate intersections and intersection distances for each layer if we're inside layer -> 1 intersect with distance 0 and 1 intersect with distance camAltitude + 2*planetRadius+innerLayerAlt (layers must not overlap, possibly enforce this in the Clouds class?)
-                // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
-                // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
-                intersections.Clear();
+                Vector3 cameraPosition = gameObject.transform.position;
+                float camDistanceToPlanetOrigin = (cameraPosition - volumesAdded[0].ParentTransform.position).magnitude;
+
+                List<OverlapInterval> overlapIntervals = ResolveLayerOverlapIntervals(volumesBounds);                
+                ResolveLayerIntersections(overlapIntervals, camDistanceToPlanetOrigin, intersections);
+
                 float innerCloudsRadius = float.MaxValue, outerCloudsRadius = float.MinValue;
 
                 float cloudFade = 1f;
-
-                float camDistanceToPlanetOrigin = float.MaxValue;
-
-                Vector3 cameraPosition = gameObject.transform.position;
 
                 useLightVolume = false;
                 float lightVolumeMaxRadius = Mathf.Infinity;
@@ -393,24 +418,6 @@ namespace Atmosphere
 
                 foreach (CloudsRaymarchedVolume volumetricLayer in volumesAdded)
                 {
-                    // calculate camera altitude, doing it per volume is overkill, but let's leave it so if we render volumetrics on multiple planets at the same time it will still work
-                    camDistanceToPlanetOrigin = (cameraPosition - volumetricLayer.ParentTransform.position).magnitude;
-
-                    if (camDistanceToPlanetOrigin >= volumetricLayer.InnerSphereRadius && camDistanceToPlanetOrigin <= volumetricLayer.OuterSphereRadius)
-                    {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = 0f, layer = volumetricLayer, isSecondIntersect = false });
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = true });
-                    }
-                    else if (camDistanceToPlanetOrigin < volumetricLayer.InnerSphereRadius)
-                    {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = false });
-                    }
-                    else if (camDistanceToPlanetOrigin > volumetricLayer.OuterSphereRadius)
-                    {
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin - volumetricLayer.OuterSphereRadius, layer = volumetricLayer, isSecondIntersect = false });
-                        intersections.Add(new raymarchedLayerIntersection() { distance = camDistanceToPlanetOrigin + volumetricLayer.InnerSphereRadius, layer = volumetricLayer, isSecondIntersect = true });
-                    }
-
                     innerCloudsRadius = Mathf.Min(innerCloudsRadius, volumetricLayer.InnerSphereRadius);
                     outerCloudsRadius = Mathf.Max(outerCloudsRadius, volumetricLayer.OuterSphereRadius);
 
@@ -503,7 +510,7 @@ namespace Atmosphere
                     commandBuffer.ClearRenderTarget(false, true, Color.clear);
                 }
 
-                for (int i=0; i< renderingIterations; i++)
+                for (int i = 0; i < renderingIterations; i++)
                 {
                     HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, orbitMode, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, currentP, currentV, prevV, prevP);
                     frame++;
@@ -525,6 +532,78 @@ namespace Atmosphere
             }
         }
 
+        private void ResolveLayerIntersections(List<OverlapInterval> overlapIntervals, float camDistanceToPlanetOrigin, List<OverlapIntervalIntersection> intersections)
+        {
+            // calculate intersections and intersection distances for each layer/interval
+            // if we're inside layer -> 1 intersect with distance 0 and 1 intersect with distance camAltitude + 2 * planetRadius+innerLayerAlt
+            // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
+            // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
+            intersections.Clear();
+
+            foreach (OverlapInterval overlapInterval in overlapIntervals)
+            {
+                if (camDistanceToPlanetOrigin >= overlapInterval.InnerRadius && camDistanceToPlanetOrigin <= overlapInterval.OuterRadius)
+                {
+                    intersections.Add(new OverlapIntervalIntersection() { distance = 0f, overlapInterval = overlapInterval, isSecondIntersect = false });
+                    intersections.Add(new OverlapIntervalIntersection() { distance = camDistanceToPlanetOrigin + overlapInterval.InnerRadius, overlapInterval = overlapInterval, isSecondIntersect = true });
+                }
+                else if (camDistanceToPlanetOrigin < overlapInterval.InnerRadius)
+                {
+                    intersections.Add(new OverlapIntervalIntersection() { distance = camDistanceToPlanetOrigin + overlapInterval.InnerRadius, overlapInterval = overlapInterval, isSecondIntersect = false });
+                }
+                else if (camDistanceToPlanetOrigin > overlapInterval.OuterRadius)
+                {
+                    intersections.Add(new OverlapIntervalIntersection() { distance = camDistanceToPlanetOrigin - overlapInterval.OuterRadius, overlapInterval = overlapInterval, isSecondIntersect = false });
+                    intersections.Add(new OverlapIntervalIntersection() { distance = camDistanceToPlanetOrigin + overlapInterval.InnerRadius, overlapInterval = overlapInterval, isSecondIntersect = true });
+                }
+            }
+        }
+
+        // This method finds distinct intervals in which layers can overlap, or a single layer can render using the layer start and end altitudes
+        // This is essentially a classic "overlapping interval" search problem which can be solved using a sweep line algorithm
+        // The key is to sort the intervals by altitudes, and make sure to break ties by putting the end of the intervals before the start
+        private List<OverlapInterval> ResolveLayerOverlapIntervals(List<RaymarchedLayerBound> volumeBounds)
+        {
+            // Order by radius but also by nature, if radius is the same, closing/top comes first to break up ties when sorting
+            volumeBounds = volumeBounds.OrderBy(x => x.radius).ThenByDescending(x => x.nature).ToList();
+
+            HashSet<CloudsRaymarchedVolume> layersInCurrentInterval = new HashSet<CloudsRaymarchedVolume>();
+            float lastBoundCrossed = Mathf.NegativeInfinity;
+
+            List<OverlapInterval> overlapIntervals = new List<OverlapInterval>();
+
+            foreach (RaymarchedLayerBound bound in volumeBounds)
+            {
+                if (bound.nature == RaymarchedLayerBoundNature.Bottom)
+                {
+                    // Only write out a new interval if we are already inside some layers and the altitude is different from last one
+                    // So that if we are opening multiple layers at the same altitude we don't write out multiple intervals
+                    if (layersInCurrentInterval.Count > 0 && bound.radius != lastBoundCrossed)
+                    {
+                        overlapIntervals.Add(new OverlapInterval() { InnerRadius = lastBoundCrossed, OuterRadius = bound.radius, volumes = layersInCurrentInterval.ToList() });
+                    }
+
+                    // Add the new layer to the current list
+                    layersInCurrentInterval.Add(bound.layer);
+                }
+                else
+                {
+                    // Closing, remove layer from the current list, write out a new interval if it's a different bound from last one
+                    // So that if we are closing multiple layers at the same altitude, the first close takes care of the writing
+                    if (bound.radius != lastBoundCrossed)
+                    {
+                        overlapIntervals.Add(new OverlapInterval() { InnerRadius = lastBoundCrossed, OuterRadius = bound.radius, volumes = layersInCurrentInterval.ToList() });
+                    }
+
+                    layersInCurrentInterval.Remove(bound.layer);
+                }
+
+                lastBoundCrossed = bound.radius;
+            }
+
+            return overlapIntervals;
+        }
+
         private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool orbitMode, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP)
         {
             commandBuffer.SetGlobalFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
@@ -532,60 +611,71 @@ namespace Atmosphere
 
             foreach (var intersection in intersections)
             {
-                var cloudMaterial = intersection.layer.RaymarchedCloudMaterial;
+                bool renderOverlap = intersection.overlapInterval.volumes.Count > 1;
 
-                SetCombinedOpenGLDepthBufferKeywords(cloudMaterial);
+                // Note: need to order them by priority/overlap render order here
 
-                Lightning.SetShaderParams(cloudMaterial);
-
-                // set material properties
-                cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
-                cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
-                cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
-
-                cloudMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
-                cloudMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
-
-                cloudMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-                cloudMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
-
-                cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
-                cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
-
-                Matrix4x4 cloudPreviousV = prevV;
-
-                // inject upwards noise offset, but only at low timewarp values, otherwise the movement is too much and adds artifacts
-                if (TimeWarp.CurrentRate <= 2f)
+                foreach (var layer in intersection.overlapInterval.volumes)
                 {
-                    Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-intersection.layer.NoiseReprojectionOffset);
+                    var cloudMaterial = layer.RaymarchedCloudMaterial;
 
-                    cloudPreviousV.m03 += noiseReprojectionOffset.x;
-                    cloudPreviousV.m13 += noiseReprojectionOffset.y;
-                    cloudPreviousV.m23 += noiseReprojectionOffset.z;
+                    SetCombinedOpenGLDepthBufferKeywords(cloudMaterial);
+
+                    Lightning.SetShaderParams(cloudMaterial);
+
+                    // set material properties
+                    cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
+                    cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
+                    cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
+
+                    cloudMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
+                    cloudMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
+
+                    cloudMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+                    cloudMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
+
+                    cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
+                    cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
+
+                    Matrix4x4 cloudPreviousV = prevV;
+
+                    // inject upwards noise offset, but only at low timewarp values, otherwise the movement is too much and adds artifacts
+                    if (TimeWarp.CurrentRate <= 2f)
+                    {
+                        Vector3 noiseReprojectionOffset = currentV.MultiplyVector(-layer.NoiseReprojectionOffset);
+
+                        cloudPreviousV.m03 += noiseReprojectionOffset.x;
+                        cloudPreviousV.m13 += noiseReprojectionOffset.y;
+                        cloudPreviousV.m23 += noiseReprojectionOffset.z;
+                    }
+
+                    cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentP * currentV);
+                    cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * layer.WorldOppositeFrameDeltaRotationMatrix); // inject the rotation of the cloud layer itself
+
+                    // handle the actual rendering
+
+                    // here just need to set an additional rendertarget for rendering overlap and enable the associated keyword if (renderOverlap == true)
+
+
+                    commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysRT[true].depthBuffer);
+                    commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLayerRendered_PROPERTY, isFirstLayerRendered ? 1f : 0f);
+                    commandBuffer.SetGlobalFloat(ShaderProperties.renderSecondLayerIntersect_PROPERTY, intersection.isSecondIntersect ? 1f : 0f);
+                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
+                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
+                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMaxDepth_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
+
+                    commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, 0); // pass 0 render clouds
+
+                    if (Lightning.CurrentCount > 0)
+                    {
+                        commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
+                        commandBuffer.SetRenderTarget(useFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
+                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, 1); // pass 1 render lightning occlusion
+                    }
+
+                    isFirstLayerRendered = false;
+                    useFlipRaysBuffer = !useFlipRaysBuffer;
                 }
-
-                cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentP * currentV);
-                cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * intersection.layer.WorldOppositeFrameDeltaRotationMatrix);    // inject the rotation of the cloud layer itself
-
-                // handle the actual rendering
-                commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, newRaysRT[true].depthBuffer);
-                commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLayerRendered_PROPERTY, isFirstLayerRendered ? 1f : 0f);
-                commandBuffer.SetGlobalFloat(ShaderProperties.renderSecondLayerIntersect_PROPERTY, intersection.isSecondIntersect ? 1f : 0f);
-                commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, newRaysRT[!useFlipRaysBuffer]);
-                commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
-                commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMaxDepth_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
-
-                commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 0); // pass 0 render clouds
-
-                if (Lightning.CurrentCount > 0)
-                {
-                    commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
-                    commandBuffer.SetRenderTarget(useFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
-                    commandBuffer.DrawRenderer(intersection.layer.volumeMeshrenderer, cloudMaterial, 0, 1); // pass 1 render lightning occlusion
-                }
-
-                isFirstLayerRendered = false;
-                useFlipRaysBuffer = !useFlipRaysBuffer;
             }
 
             //reconstruct full frame from history and new rays texture
@@ -669,6 +759,7 @@ namespace Atmosphere
                         Shader.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, Texture2D.whiteTexture);                        
                         renderingEnabled = false;
                         volumesAdded.Clear();
+                        volumesBounds.Clear();
 
                         useFlipScreenBuffer = !useFlipScreenBuffer;
                     }
