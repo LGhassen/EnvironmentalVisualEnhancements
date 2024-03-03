@@ -17,10 +17,15 @@ namespace Atmosphere
         [ConfigItem]
         float maxStepSize = 180f;
 
+        [ConfigItem]
+        float overlapRenderOrder = 1f;
+
         public float LightMarchSteps { get => lightMarchSteps; }
         public float LightMarchDistance { get => lightMarchDistance; }
         public float BaseStepSize { get => baseStepSize; }
         public float AdaptiveStepSizeFactor { get => adaptiveStepSizeFactor; }
         public float MaxStepSize { get => maxStepSize; }
+
+        public float OverlapRenderOrder { get => overlapRenderOrder; }
     }
 }

@@ -297,6 +297,7 @@ namespace Atmosphere
 
         public float LinearSpeedMagnitude { get => linearSpeedMagnitude; }
         public LightVolumeUsage LightVolumeSettings { get => lightVolumeSettings; }
+        public RaymarchingSettings RaymarchingSettings { get => raymarchingSettings; }
 
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude)
         {
