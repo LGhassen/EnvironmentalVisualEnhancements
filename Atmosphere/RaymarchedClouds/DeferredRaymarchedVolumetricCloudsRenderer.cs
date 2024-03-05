@@ -682,7 +682,8 @@ namespace Atmosphere
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMotionVectors_PROPERTY, newMotionVectorsRT[!useFlipRaysBuffer]);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerMaxDepth_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
 
-                    // TODO: a step for setting interval altitudes, distinct from layer altitudes/radiuses
+                    commandBuffer.SetGlobalFloat("currentIntervalInnerRadius", intersection.overlapInterval.InnerRadius);
+                    commandBuffer.SetGlobalFloat("currentIntervalOuterRadius", intersection.overlapInterval.OuterRadius);
 
                     if (!renderOverlap)
                     {
