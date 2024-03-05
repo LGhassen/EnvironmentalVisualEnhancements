@@ -49,7 +49,11 @@ namespace Atmosphere
         [ConfigItem, Optional, Index(1), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper coverageMap;
 
+        TextureWrapper detailTex;
+        float detailScale = 0f;
+
         public TextureWrapper CoverageMap { get => coverageMap; }
+
 
         [ConfigItem, Optional]
         string sdfMap;
@@ -57,6 +61,8 @@ namespace Atmosphere
         Texture sdf;
 
         public Texture SDF { get => sdf; }
+
+        public TextureWrapper DetailTex { get => detailTex; }
 
         [ConfigItem, Optional, Index(2), ValueFilter("isClamped|format|type|alphaMask")]
         TextureWrapper cloudTypeMap;
@@ -117,6 +123,9 @@ namespace Atmosphere
 
         [ConfigItem]
         float scaledFadeEndAltitude = 55000.0f;
+
+        [ConfigItem]
+        bool useDetailTex = false;
 
         float volumetricLayerScaledFade = 1.0f;
 
@@ -192,10 +201,14 @@ namespace Atmosphere
 
         public void SetShadowCasterTextureParams(RenderTexture editorTexture = null, bool editorAlphamask = false)
         {
-            // On Mac we are still short of one texture slot if all features are enabled, disable 2d shadow caster in this case
-            // as it is the least impactful feature and mostly superseded by light volume
+            // On Mac we are still short 2 texture slots if all features are enabled.
+            // Disable 2d shadow caster in this case as it is the least impactful feature and mostly superseded by light volume.
+            // If we are still short another texture slot SDF is disabled too.
+            // Essentially if all features are enabled but SDF and Detailtex are disabled, keep this shadowcaster
+            // If all features are enabled but one of SDF and Detailtex are enabled, disable this shadowcaster
+            // If all features are enabled including SDF and Detailtex, disable shadowcaster + SDF
             bool skipShadowCaster = Tools.IsMac() && lightVolumeSettings.UseLightVolume && cloudColorMap != null
-                && curlNoise != null && curlNoiseRT != null && sdf != null
+                && curlNoise != null && curlNoiseRT != null && (sdf != null || detailTex != null)
                 && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas);
 
             if (!skipShadowCaster && shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
@@ -270,6 +283,7 @@ namespace Atmosphere
         public float VolumetricLayerScaledFade { get => volumetricLayerScaledFade; }
         public float CurrentTimeFadeDensity { get => currentTimeFadeDensity; }
         public float CurrentTimeFadeCoverage { get => currentTimeFadeCoverage; }
+        public float DetailScale { get => detailScale; }
 
         public MeshRenderer volumeMeshrenderer;
 
@@ -428,7 +442,17 @@ namespace Atmosphere
                 mat.EnableKeyword("MAP_TYPE_1");
             }
 
-            if (!string.IsNullOrEmpty(sdfMap) && sdf == null)
+            // On Mac we are still short 2 texture slots if all features are enabled.
+            // Disable 2d shadow caster in this case as it is the least impactful feature and mostly superseded by light volume.
+            // If we are still short another texture slot SDF is disabled too.
+            // Essentially if all features are enabled but SDF and Detailtex are disabled, keep this shadowcaster
+            // If all features are enabled but one of SDF and Detailtex are enabled, disable this shadowcaster
+            // If all features are enabled including SDF and Detailtex, disable shadowcaster + SDF
+            bool skipSDF = Tools.IsMac() && lightVolumeSettings.UseLightVolume && cloudColorMap != null
+                        && curlNoise != null && curlNoiseRT != null && detailTex != null
+                        && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas);
+
+            if (!skipSDF && !string.IsNullOrEmpty(sdfMap) && sdf == null)
             {
                 sdf = SDFTool.LoadSDFFromGameDataFile(sdfMap+".sdf"); // TODO: error handling here because it fails to load and borks everything
                                                         // also maybe indicate red in the UI?
@@ -494,6 +518,19 @@ namespace Atmosphere
 
             if (RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas))
                 noiseUntilingKeywordOn = true;
+
+            if (useDetailTex && CloudsPQSMaterial.DetailTex != null)
+            {
+                detailTex = CloudsPQSMaterial.DetailTex;
+                detailScale = CloudsPQSMaterial.DetailScale;
+                CloudsPQSMaterial.DetailTex.ApplyTexture(mat, "_DetailTex");
+                mat.SetFloat("_DetailScale", CloudsPQSMaterial.DetailScale);
+                mat.EnableKeyword("DETAILTEX_ON"); mat.DisableKeyword("DETAILTEX_OFF");
+            }
+            else
+            {
+                mat.EnableKeyword("DETAILTEX_OFF"); mat.DisableKeyword("DETAILTEX_ON");
+            }
 
             if (flowMap != null && flowMap.Texture != null)
             {
