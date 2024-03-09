@@ -98,7 +98,7 @@ namespace Atmosphere
         // these are indexed by [isRightEye][flip]
         private FlipFlop<FlipFlop<RenderTexture>> historyRT, historyMotionVectorsRT;
         // these are indexed by [flip]
-        private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT, overlapRaysRT, overlapMotionVectorsRT, overlapDepthRT;
+        private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT, overlapRaysRT, overlapMotionVectorsRT, overlapWeightedDepthRT, overlapMaxDepthRT;
 
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
@@ -227,9 +227,10 @@ namespace Atmosphere
                 RenderTextureUtils.ResizeFlipFlopRT(ref newMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeFlipFlopRT(ref maxDepthRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeFlipFlopRT(ref overlapRaysRT, newRaysRenderWidth, newRaysRenderHeight);
-                RenderTextureUtils.ResizeFlipFlopRT(ref overlapDepthRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeFlipFlopRT(ref overlapMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
-                
+                RenderTextureUtils.ResizeFlipFlopRT(ref overlapWeightedDepthRT, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeFlipFlopRT(ref overlapMaxDepthRT, newRaysRenderWidth, newRaysRenderHeight);
+
 
                 VRUtils.ResizeVRFlipFlopRT(ref historyRT, screenWidth, screenHeight);
                 VRUtils.ResizeVRFlipFlopRT(ref historyMotionVectorsRT, screenWidth, screenHeight);
@@ -309,8 +310,9 @@ namespace Atmosphere
             overlapRaysRT[true].name = "overlap flip";
             overlapRaysRT[false].name = "overlap flop";
 
-            overlapDepthRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, FilterMode.Point);
             overlapMotionVectorsRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, FilterMode.Point);
+            overlapWeightedDepthRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, FilterMode.Point);
+            overlapMaxDepthRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, FilterMode.Point);
 
             lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
         }
@@ -627,8 +629,8 @@ namespace Atmosphere
             bool isFirstLayerRendered = true;
 
             // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
-            RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(overlapRaysRT[true]), new RenderTargetIdentifier(overlapMotionVectorsRT[true]), new RenderTargetIdentifier(overlapDepthRT[true]) };
-            RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(overlapRaysRT[false]), new RenderTargetIdentifier(overlapMotionVectorsRT[false]), new RenderTargetIdentifier(overlapDepthRT[false]) };
+            RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(overlapRaysRT[true]), new RenderTargetIdentifier(overlapMotionVectorsRT[true]), new RenderTargetIdentifier(overlapMaxDepthRT[true]), new RenderTargetIdentifier(overlapWeightedDepthRT[true]) };
+            RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(overlapRaysRT[false]), new RenderTargetIdentifier(overlapMotionVectorsRT[false]), new RenderTargetIdentifier(overlapMaxDepthRT[false]), new RenderTargetIdentifier(overlapWeightedDepthRT[false]) };
 
             foreach (var intersection in intersections)
             {
@@ -709,8 +711,9 @@ namespace Atmosphere
                         commandBuffer.SetGlobalFloat("lastOverlapLayer", lastOverlapLayer ? 1f : 0f);
 
                         commandBuffer.SetGlobalTexture("PreviousLayerOverlapRays", overlapRaysRT[!useOverlapFlipRaysBuffer]);
-                        commandBuffer.SetGlobalTexture("PreviousLayerOverlapDepth", overlapDepthRT[!useOverlapFlipRaysBuffer]);
                         commandBuffer.SetGlobalTexture("PreviousLayerOverlapMotionVectors", overlapMotionVectorsRT[!useOverlapFlipRaysBuffer]);
+                        commandBuffer.SetGlobalTexture("PreviousLayerOverlapWeightedDepth", overlapWeightedDepthRT[!useOverlapFlipRaysBuffer]);
+                        commandBuffer.SetGlobalTexture("PreviousLayerOverlapMaxDepth", overlapMaxDepthRT[!useOverlapFlipRaysBuffer]);
 
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
 
@@ -856,8 +859,9 @@ namespace Atmosphere
             RenderTextureUtils.ReleaseFlipFlopRT(ref maxDepthRT);
 
             RenderTextureUtils.ReleaseFlipFlopRT(ref overlapRaysRT);
-            RenderTextureUtils.ReleaseFlipFlopRT(ref overlapDepthRT);
             RenderTextureUtils.ReleaseFlipFlopRT(ref overlapMotionVectorsRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref overlapWeightedDepthRT);
+            RenderTextureUtils.ReleaseFlipFlopRT(ref overlapMaxDepthRT);
         }
 
         public void OnDestroy()
