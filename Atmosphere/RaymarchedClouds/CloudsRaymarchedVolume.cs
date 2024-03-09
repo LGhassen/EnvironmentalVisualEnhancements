@@ -325,8 +325,11 @@ namespace Atmosphere
             volumeUpdater.mat = raymarchedCloudMaterial;
             volumeUpdater.parent = parentTransform;
 
-            var volumeNotifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
-            volumeNotifier.volume = this;
+            if (!raymarchingSettings.FxOnlyLayer)
+            { 
+                var volumeNotifier = volumeHolder.AddComponent<DeferredRaymarchedRendererNotifier>();
+                volumeNotifier.volume = this;
+            }
 
             volumeMeshrenderer = volumeHolder.GetComponent<MeshRenderer>();
             volumeMeshrenderer.material = new Material(InvisibleShader);
