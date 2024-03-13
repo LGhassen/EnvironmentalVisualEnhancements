@@ -515,6 +515,7 @@ namespace Atmosphere
                 int frame = Time.frameCount % ShaderLoader.ShaderLoaderClass.stbnDimensions.z;
 
                 bool useFlipRaysBuffer = true;
+                bool useLightningFlipRaysBuffer = true;
 
                 float renderingIterations = 1;
 
@@ -531,7 +532,7 @@ namespace Atmosphere
 
                 for (int i = 0; i < renderingIterations; i++)
                 {
-                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, orbitMode, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, currentP, currentV, prevV, prevP);
+                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, orbitMode, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, ref useLightningFlipRaysBuffer, currentP, currentV, prevV, prevP);
                     frame++;
                     frame = frame % ShaderLoader.ShaderLoaderClass.stbnDimensions.z;
                 }
@@ -541,7 +542,7 @@ namespace Atmosphere
                 // Set texture for scatterer sunflare: temporary
                 commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[isRightEye][useFlipScreenBuffer]);
 
-                commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
+                commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer]);
                 commandBuffer.SetGlobalTexture(ShaderProperties.maxDepthRT_PROPERTY, maxDepthRT[!useFlipRaysBuffer]);
 
                 //commandBuffer.SetGlobalVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
@@ -623,10 +624,11 @@ namespace Atmosphere
             return overlapIntervals;
         }
 
-        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool orbitMode, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP)
+        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool orbitMode, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, ref bool useLightningFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP)
         {
             commandBuffer.SetGlobalFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
             bool isFirstLayerRendered = true;
+            bool isFirstLightningLayerRendered = true;
 
             // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
             RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(overlapRaysRT[true]), new RenderTargetIdentifier(overlapMotionVectorsRT[true]), new RenderTargetIdentifier(overlapMaxDepthRT[true]), new RenderTargetIdentifier(overlapWeightedDepthRT[true]) };
@@ -723,9 +725,13 @@ namespace Atmosphere
 
                     if (Lightning.CurrentCount > 0)
                     {
-                        commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useFlipRaysBuffer]);
-                        commandBuffer.SetRenderTarget(useFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
+                        commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLightningLayerRendered_PROPERTY, isFirstLightningLayerRendered ? 1f : 0f);
+                        commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer]);
+                        commandBuffer.SetRenderTarget(useLightningFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderLightingOcclusionPass);
+
+                        isFirstLightningLayerRendered = false;
+                        useLightningFlipRaysBuffer = !useLightningFlipRaysBuffer;
                     }
                 }
 

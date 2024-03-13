@@ -123,6 +123,9 @@ namespace Utils
         public static int isFirstLayerRendered_PROPERTY { get { return isFirstLayerRendered; } }
         private static int isFirstLayerRendered;
 
+        public static int isFirstLightningLayerRendered_PROPERTY { get { return isFirstLightningLayerRendered; } }
+        private static int isFirstLightningLayerRendered;
+
         public static int renderSecondLayerIntersect_PROPERTY { get { return renderSecondLayerIntersect; } }
         private static int renderSecondLayerIntersect;
 
@@ -385,6 +388,7 @@ namespace Utils
             currentVP = Shader.PropertyToID("currentVP");
             previousVP = Shader.PropertyToID("previousVP");
             isFirstLayerRendered = Shader.PropertyToID("isFirstLayerRendered");
+            isFirstLightningLayerRendered = Shader.PropertyToID("isFirstLightningLayerRendered");
             renderSecondLayerIntersect = Shader.PropertyToID("renderSecondLayerIntersect");
             PreviousLayerRays = Shader.PropertyToID("PreviousLayerRays");
             PreviousLayerMotionVectors = Shader.PropertyToID("PreviousLayerMotionVectors");
