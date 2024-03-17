@@ -67,7 +67,7 @@
 				float4 color = tex2Dlod(colorBuffer, float4(uv, 0.0, 0.0));
 
 				// if transmittance is not zero discard
-				if (color.a > 0.0) discard;
+				if (color.a > 0.002) discard;
 
 				// else read depth from the max depth buffer thing and output it
 				float distance = unpackNewRaysMaxDepth(newRaysBuffer, uv) * 100.0; // multiply by 0.01 for storage because half tops out at ~65k, I think it's wrong though R16 seems to be 0-1 for some reason
