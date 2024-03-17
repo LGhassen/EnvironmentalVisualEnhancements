@@ -132,11 +132,6 @@ namespace Utils
         public static int PreviousLayerRays_PROPERTY { get { return PreviousLayerRays; } }
         private static int PreviousLayerRays;
 
-        public static int PreviousLayerMotionVectors_PROPERTY { get { return PreviousLayerMotionVectors; } }
-        private static int PreviousLayerMotionVectors;
-
-        public static int PreviousLayerMaxDepth_PROPERTY { get { return PreviousLayerMaxDepth; } }
-        private static int PreviousLayerMaxDepth;
         public static int PreviousLayerLightningOcclusion_PROPERTY { get { return PreviousLayerLightningOcclusion; } }
         private static int PreviousLayerLightningOcclusion;
 
@@ -259,9 +254,6 @@ namespace Utils
 
         public static int reprojectionCurrentPixel_PROPERTY { get { return reprojectionCurrentPixel; } }
         private static int reprojectionCurrentPixel;
-
-        public static int maxDepthRT_PROPERTY { get { return maxDepthRT; } }
-        private static int maxDepthRT;
 
         public static int lightVolumeDimensions_PROPERTY { get { return lightVolumeDimensions; } }
         private static int lightVolumeDimensions;
@@ -391,8 +383,6 @@ namespace Utils
             isFirstLightningLayerRendered = Shader.PropertyToID("isFirstLightningLayerRendered");
             renderSecondLayerIntersect = Shader.PropertyToID("renderSecondLayerIntersect");
             PreviousLayerRays = Shader.PropertyToID("PreviousLayerRays");
-            PreviousLayerMotionVectors = Shader.PropertyToID("PreviousLayerMotionVectors");
-            PreviousLayerMaxDepth = Shader.PropertyToID("PreviousLayerMaxDepth");
             PreviousLayerLightningOcclusion = Shader.PropertyToID("PreviousLayerLightningOcclusion");
             scattererReconstructedCloud = Shader.PropertyToID("scattererReconstructedCloud");
             scattererCloudLightVolumeEnabled = Shader.PropertyToID("scattererCloudLightVolumeEnabled");
@@ -435,7 +425,6 @@ namespace Utils
             cloudRotation = Shader.PropertyToID("cloudRotation");
             cloudDetailRotation = Shader.PropertyToID("cloudDetailRotation");
             reprojectionCurrentPixel = Shader.PropertyToID("reprojectionCurrentPixel");
-            maxDepthRT = Shader.PropertyToID("maxDepthRT");
 
             lightVolumeDimensions = Shader.PropertyToID("lightVolumeDimensions");
             paraboloidPosition = Shader.PropertyToID("paraboloidPosition");

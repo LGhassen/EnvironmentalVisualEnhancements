@@ -16,9 +16,9 @@
 			#pragma target 3.0
 			#include "UnityCG.cginc"
 			#include "RaymarchedCloudUtils.cginc"
-			#include "RaymarchedCloudShading.cginc"
+			#include "LayerInformation.cginc"
 
-			sampler2D maxDepthRT;
+			sampler2D newRaysBuffer;
 			sampler2D colorBuffer;
 			float rendererEnabled;
 			float cloudFade;
@@ -28,7 +28,6 @@
 			float4x4 CameraToWorld;
 
 			// TODO
-			sampler2D combinedOpenGLDistanceBuffer;
 			float useCombinedOpenGLDistanceBuffer;
 
 			struct v2f
@@ -71,7 +70,7 @@
 				if (color.a > 0.0) discard;
 
 				// else read depth from the max depth buffer thing and output it
-				float distance = tex2Dlod(maxDepthRT, float4(uv, 0.0, 0.0)).r * 100.0; // multiply by 0.01 for storage because half tops out at ~65k, I think it's wrong though R16 seems to be 0-1 for some reason
+				float distance = unpackNewRaysMaxDepth(newRaysBuffer, uv) * 100.0; // multiply by 0.01 for storage because half tops out at ~65k, I think it's wrong though R16 seems to be 0-1 for some reason
 
 				// calculate and output z
 				float3 worldPos = _WorldSpaceCameraPos + rayDir * distance;
