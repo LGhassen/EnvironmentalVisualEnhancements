@@ -720,10 +720,9 @@ namespace Atmosphere
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
 
                         if (packedTexturesDebugMode)
-                        { 
-                            commandBuffer.SetRenderTarget(debugRenderTextures, packedNewRaysRT[true].depthBuffer);
-                            commandBuffer.SetGlobalTexture("currentRaysTexture", (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures)[0]);
-                            commandBuffer.DrawRenderer(layer.volumeMeshrenderer, unpackRaysMaterial, 0, 0);
+                        {
+                            var textureToDebug = (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures)[0];
+                            DebugUnpack(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
                         }
                     }
                     else
@@ -746,6 +745,12 @@ namespace Atmosphere
                         commandBuffer.SetGlobalTexture("PreviousLayerOverlapRays", packedOverlapRaysRT[!useOverlapFlipRaysBuffer]);
 
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
+
+                        if (packedTexturesDebugMode)
+                        {
+                            var textureToDebug = (!lastOverlapLayer ? (useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures) : (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures))[0];
+                            DebugUnpack(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
+                        }
 
                         useOverlapFlipRaysBuffer = !useOverlapFlipRaysBuffer;
                         firstOverlapLayer = false;
@@ -796,6 +801,13 @@ namespace Atmosphere
 
             var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
             commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ? 1 : 0);
+        }
+
+        private void DebugUnpack(RenderTargetIdentifier inputTexture, CommandBuffer commandBuffer, RenderTargetIdentifier[] debugRenderTextures, MeshRenderer meshRenderer)
+        {
+            commandBuffer.SetRenderTarget(debugRenderTextures, packedNewRaysRT[true].depthBuffer);
+            commandBuffer.SetGlobalTexture("currentRaysTexture", inputTexture);
+            commandBuffer.DrawRenderer(meshRenderer, unpackRaysMaterial, 0, 0);
         }
 
         public void SetTemporalReprojectionParams(out Vector2 uvOffset)
