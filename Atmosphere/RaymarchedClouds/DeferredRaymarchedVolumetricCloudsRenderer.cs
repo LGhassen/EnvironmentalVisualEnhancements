@@ -539,8 +539,16 @@ namespace Atmosphere
 
                 var prevP = previousP[isRightEye];
 
+                commandBuffer.SetGlobalFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
+
                 if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
-                    commandBuffer.SetGlobalTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
+                {
+                    commandBuffer.SetGlobalTexture(ShaderProperties.cameraDepthBufferForClouds_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
+                }
+                else
+                {
+                    commandBuffer.SetGlobalTexture(ShaderProperties.cameraDepthBufferForClouds_PROPERTY, BuiltinRenderTextureType.Depth);
+                }
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
                 int frame = Time.frameCount % ShaderLoader.ShaderLoaderClass.stbnDimensions.z;
@@ -675,8 +683,6 @@ namespace Atmosphere
                 {
                     var layer = overlapLayers[i];
                     var cloudMaterial = layer.RaymarchedCloudMaterial;
-
-                    SetCombinedOpenGLDepthBufferKeywords(cloudMaterial);
 
                     Lightning.SetShaderParams(cloudMaterial);
 

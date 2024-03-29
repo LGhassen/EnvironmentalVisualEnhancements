@@ -336,6 +336,9 @@ namespace Utils
         public static int slicesToUpdate_PROPERTY { get { return slicesToUpdate; } }
         private static int slicesToUpdate;
 
+        public static int cameraDepthBufferForClouds_PROPERTY { get { return cameraDepthBufferForClouds; } }
+        private static int cameraDepthBufferForClouds;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -459,6 +462,7 @@ namespace Utils
             lightVolumeLightMarchSteps = Shader.PropertyToID("lightVolumeLightMarchSteps");
             startSlice = Shader.PropertyToID("startSlice");
             slicesToUpdate = Shader.PropertyToID("slicesToUpdate");
+            cameraDepthBufferForClouds = Shader.PropertyToID("cameraDepthBufferForClouds");
         }
     }
 }
