@@ -330,6 +330,12 @@ namespace Utils
         public static int lightVolumeLightMarchSteps_PROPERTY { get { return lightVolumeLightMarchSteps; } }
         private static int lightVolumeLightMarchSteps;
 
+        public static int startSlice_PROPERTY { get { return startSlice; } }
+        private static int startSlice;
+
+        public static int slicesToUpdate_PROPERTY { get { return slicesToUpdate; } }
+        private static int slicesToUpdate;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -451,6 +457,8 @@ namespace Utils
             PreviousLightVolume = Shader.PropertyToID("PreviousLightVolume");
             Result = Shader.PropertyToID("Result");
             lightVolumeLightMarchSteps = Shader.PropertyToID("lightVolumeLightMarchSteps");
+            startSlice = Shader.PropertyToID("startSlice");
+            slicesToUpdate = Shader.PropertyToID("slicesToUpdate");
         }
     }
 }
