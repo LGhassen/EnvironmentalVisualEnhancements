@@ -108,7 +108,7 @@ namespace Atmosphere
         
         private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedMaxDepthRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
         private RenderTexture weightedDepthRTDebug; // Debug textures to visualize the previous packed textures after each rendering step
-        private bool packedTexturesDebugMode = true;
+        private bool packedTexturesDebugMode = false;
 
         private FlipFlop<RenderTexture> lightningOcclusionRT;
 
@@ -719,8 +719,8 @@ namespace Atmosphere
                     commandBuffer.SetGlobalFloat(ShaderProperties.renderSecondLayerIntersect_PROPERTY, intersection.isSecondIntersect ? 1f : 0f);
                     commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, packedNewRaysRT[!useFlipRaysBuffer]);
 
-                    commandBuffer.SetGlobalFloat("currentIntervalInnerRadius", intersection.overlapInterval.InnerRadius);
-                    commandBuffer.SetGlobalFloat("currentIntervalOuterRadius", intersection.overlapInterval.OuterRadius);
+                    commandBuffer.SetGlobalFloat(ShaderProperties.currentIntervalInnerRadius_PROPERTY, intersection.overlapInterval.InnerRadius);
+                    commandBuffer.SetGlobalFloat(ShaderProperties.currentIntervalOuterRadius_PROPERTY, intersection.overlapInterval.OuterRadius);
 
                     if (!renderOverlap)
                     {
@@ -748,10 +748,10 @@ namespace Atmosphere
                         }
 
                         commandBuffer.EnableShaderKeyword("RENDER_OVERLAP_ON");
-                        commandBuffer.SetGlobalFloat("firstOverlapLayer", firstOverlapLayer ? 1f : 0f);
-                        commandBuffer.SetGlobalFloat("lastOverlapLayer", lastOverlapLayer ? 1f : 0f);
+                        commandBuffer.SetGlobalFloat(ShaderProperties.firstOverlapLayer_PROPERTY, firstOverlapLayer ? 1f : 0f);
+                        commandBuffer.SetGlobalFloat(ShaderProperties.lastOverlapLayer_PROPERTY, lastOverlapLayer ? 1f : 0f);
 
-                        commandBuffer.SetGlobalTexture("PreviousLayerOverlapRays", packedOverlapRaysRT[!useOverlapFlipRaysBuffer]);
+                        commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerOverlapRays_PROPERTY, packedOverlapRaysRT[!useOverlapFlipRaysBuffer]);
 
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
 

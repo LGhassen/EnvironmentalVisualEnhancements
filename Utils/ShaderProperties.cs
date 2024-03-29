@@ -342,6 +342,22 @@ namespace Utils
         public static int cameraDepthBufferForClouds_PROPERTY { get { return cameraDepthBufferForClouds; } }
         private static int cameraDepthBufferForClouds;
 
+        public static int currentIntervalInnerRadius_PROPERTY { get { return currentIntervalInnerRadius; } }
+        private static int currentIntervalInnerRadius;
+
+        public static int currentIntervalOuterRadius_PROPERTY { get { return currentIntervalOuterRadius; } }
+        private static int currentIntervalOuterRadius;
+
+        public static int firstOverlapLayer_PROPERTY { get { return firstOverlapLayer; } }
+        private static int firstOverlapLayer;
+
+        public static int lastOverlapLayer_PROPERTY { get { return lastOverlapLayer; } }
+        private static int lastOverlapLayer;
+
+        public static int PreviousLayerOverlapRays_PROPERTY { get { return PreviousLayerOverlapRays; } }
+        private static int PreviousLayerOverlapRays;
+
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -467,6 +483,12 @@ namespace Utils
             startSlice = Shader.PropertyToID("startSlice");
             slicesToUpdate = Shader.PropertyToID("slicesToUpdate");
             cameraDepthBufferForClouds = Shader.PropertyToID("cameraDepthBufferForClouds");
+
+            currentIntervalInnerRadius = Shader.PropertyToID("currentIntervalInnerRadius");
+            currentIntervalOuterRadius = Shader.PropertyToID("currentIntervalOuterRadius");
+            firstOverlapLayer = Shader.PropertyToID("firstOverlapLayer");
+            lastOverlapLayer = Shader.PropertyToID("lastOverlapLayer");
+            PreviousLayerOverlapRays = Shader.PropertyToID("PreviousLayerOverlapRays");
         }
     }
 }
