@@ -373,22 +373,24 @@ namespace Atmosphere
 
         private void ReprojectSlices(RenderTexture targetRT)
         {
-            for (int i = 0; i < volumeSlices; i += maxSlicesInOnePass)
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 0f);
+
+            for (int i = 0; i < volumeSlices; i++)
             {
-                int slicesToUpdateThisPass = Math.Min(volumeSlices - i, maxSlicesInOnePass);
+                float verticalUV = ((float)i + 0.5f) / (float)(volumeSlices);
+                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
 
-                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.startSlice_PROPERTY, i);
-                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
+                RenderTextureUtils.Blit3D(targetRT, i, mergedVolumeSlices, reprojectLightVolumeMaterial, 0);
+            }
 
-                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 0f);
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 1f);
 
-                Graphics.SetRenderTarget(targetRT, 0, CubemapFace.Unknown, -1);
-                Graphics.Blit(null, reprojectLightVolumeMaterial, 0, -1);
+            for (int i = 0; i < volumeSlices; i++)
+            {
+                float verticalUV = ((float)i + 0.5f) / (float)(volumeSlices);
+                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
 
-                reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientLightVolume_PROPERTY, 1f);
-
-                Graphics.SetRenderTarget(targetRT, 0, CubemapFace.Unknown, -1);
-                Graphics.Blit(null, reprojectLightVolumeMaterial, 0, -1);
+                RenderTextureUtils.Blit3D(targetRT, volumeSlices + i, mergedVolumeSlices, reprojectLightVolumeMaterial, 0);
             }
         }
     }
