@@ -106,9 +106,9 @@ namespace Atmosphere
                                                                               // We don't need bilinear interpolation for these so the packing works
 
         
-        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
-        private RenderTexture maxDepthRTDebug, weightedDepthRTDebug; // Debug textures to visualize the previous packed textures after each rendering step
-        private bool packedTexturesDebugMode = false;
+        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedMaxDepthRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
+        private RenderTexture weightedDepthRTDebug; // Debug textures to visualize the previous packed textures after each rendering step
+        private bool packedTexturesDebugMode = true;
 
         private FlipFlop<RenderTexture> lightningOcclusionRT;
 
@@ -253,10 +253,10 @@ namespace Atmosphere
 
                 RenderTextureUtils.ResizeRT(unpackedNewRaysRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeRT(unpackedMaxDepthRT, newRaysRenderWidth, newRaysRenderHeight);
 
                 if (packedTexturesDebugMode)
                 {
-                    RenderTextureUtils.ResizeRT(maxDepthRTDebug, newRaysRenderWidth, newRaysRenderHeight);
                     RenderTextureUtils.ResizeRT(weightedDepthRTDebug, newRaysRenderWidth, newRaysRenderHeight);
                 }
 
@@ -338,10 +338,10 @@ namespace Atmosphere
 
             unpackedNewRaysRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBHalf, false, FilterMode.Point);
             unpackedMotionVectorsRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+            unpackedMaxDepthRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
             if (packedTexturesDebugMode)
             { 
-                maxDepthRTDebug = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
                 weightedDepthRTDebug = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
             }
 
@@ -669,7 +669,7 @@ namespace Atmosphere
 
             RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[true]) };
             RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[false]) };
-            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(maxDepthRTDebug), new RenderTargetIdentifier(weightedDepthRTDebug) };
+            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedMaxDepthRT), new RenderTargetIdentifier(weightedDepthRTDebug) };
 
             foreach (var intersection in intersections)
             {
@@ -783,7 +783,7 @@ namespace Atmosphere
 
             // Unpack color and motion vectors textures to speed up reconstruction
             var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
-            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT) };
+            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedMaxDepthRT) };
             UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer], commandBuffer, unpackedRenderTextures, mr1);
 
             // reconstruct full frame from history and new rays texture
@@ -803,6 +803,7 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBuffer_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, unpackedMotionVectorsRT);
+            commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMaxDepthBuffer_PROPERTY, unpackedMaxDepthRT);
 
             reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
             reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
@@ -925,8 +926,8 @@ namespace Atmosphere
 
             if (packedTexturesDebugMode)
             {   
-                if (maxDepthRTDebug)
-                    maxDepthRTDebug.Release();
+                if (unpackedMaxDepthRT)
+                    unpackedMaxDepthRT.Release();
                 
                 if (weightedDepthRTDebug)
                     weightedDepthRTDebug.Release();

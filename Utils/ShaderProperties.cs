@@ -153,6 +153,9 @@ namespace Utils
         public static int newRaysBufferBilinear_PROPERTY { get { return newRaysBufferBilinear; } }
         private static int newRaysBufferBilinear;
 
+        public static int newRaysMaxDepthBuffer_PROPERTY { get { return newRaysMaxDepthBuffer; } }
+        private static int newRaysMaxDepthBuffer;
+
         public static int newRaysMotionVectors_PROPERTY { get { return newRaysMotionVectors; } }
         private static int newRaysMotionVectors;
 
@@ -399,6 +402,7 @@ namespace Utils
             historyMotionVectors = Shader.PropertyToID("historyMotionVectors");
             newRaysBuffer = Shader.PropertyToID("newRaysBuffer");
             newRaysBufferBilinear = Shader.PropertyToID("newRaysBufferBilinear");
+            newRaysMaxDepthBuffer = Shader.PropertyToID("newRaysMaxDepthBuffer");
             newRaysMotionVectors = Shader.PropertyToID("newRaysMotionVectors");
             innerSphereRadius = Shader.PropertyToID("innerSphereRadius");
             outerSphereRadius = Shader.PropertyToID("outerSphereRadius");
