@@ -66,6 +66,7 @@ namespace Atmosphere
 
         private bool updated = false;
         private bool released = false;
+        private bool useMultiSliceUpdate = false;
 
         public LightVolume()
         {
@@ -74,6 +75,8 @@ namespace Atmosphere
             mergedVolumeSlices = volumeSlices * 2;
             stepCount = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.StepCount;
             lightVolumeDimensions = new Vector3(volumeResolution, volumeResolution, volumeSlices);
+
+            useMultiSliceUpdate = SystemInfo.graphicsDeviceVersion.Contains("Direct3D");
 
             bool useComputeShader = SystemInfo.supportsComputeShaders;
 
@@ -122,33 +125,15 @@ namespace Atmosphere
                         volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.lightVolumeLightMarchSteps_PROPERTY, stepCount);
 
                         int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
-
-                        for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i+= maxSlicesInOnePass)
-                        {
-                            int slicesToUpdateThisPass = Math.Min(directLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
-
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.startSlice_PROPERTY, currentLayerDirectLightVolumeSliceToUpdate);
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
-
-                            Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
-                            Graphics.Blit(null, volumetricLayer.RaymarchedCloudMaterial, 2, -1);
-
-                            currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
-                        }
-
                         int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
 
-                        for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i += maxSlicesInOnePass)
+                        if (useMultiSliceUpdate)
                         {
-                            int slicesToUpdateThisPass = Math.Min(ambientLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
-
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.startSlice_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
-                            volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
-
-                            Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
-                            Graphics.Blit(null, volumetricLayer.RaymarchedCloudMaterial, 3, -1);
-
-                            currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
+                            UpdateLightVolumeWithMultiSliceSupport(volumetricLayer, ref currentLayerDirectLightVolumeSliceToUpdate, ref currentLayerAmbientLightVolumeSliceToUpdate);
+                        }
+                        else
+                        {
+                            UpdateLightVolumeWithoutMultiSliceSupport(volumetricLayer, ref currentLayerDirectLightVolumeSliceToUpdate, ref currentLayerAmbientLightVolumeSliceToUpdate);
                         }
 
                         volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.lightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
@@ -172,6 +157,60 @@ namespace Atmosphere
                 Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
 
                 updated = true;
+            }
+        }
+
+        private void UpdateLightVolumeWithoutMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, ref int currentLayerDirectLightVolumeSliceToUpdate, ref int currentLayerAmbientLightVolumeSliceToUpdate)
+        {
+            for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
+            {
+                float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
+                volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerDirectLightVolumeSliceToUpdate);
+
+                RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], currentLayerDirectLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 2);
+
+                currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
+            }
+
+            for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
+            {
+                float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
+                volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
+
+                RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
+
+                currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
+            }
+        }
+
+        private void UpdateLightVolumeWithMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, ref int currentLayerDirectLightVolumeSliceToUpdate, ref int currentLayerAmbientLightVolumeSliceToUpdate)
+        {
+            for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i += maxSlicesInOnePass)
+            {
+                int slicesToUpdateThisPass = Math.Min(directLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
+
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.startSlice_PROPERTY, currentLayerDirectLightVolumeSliceToUpdate);
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
+
+                Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
+                Graphics.Blit(null, volumetricLayer.RaymarchedCloudMaterial, 4, -1);
+
+                currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
+            }
+
+            for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i += maxSlicesInOnePass)
+            {
+                int slicesToUpdateThisPass = Math.Min(ambientLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
+
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.startSlice_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
+                volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
+
+                Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
+                Graphics.Blit(null, volumetricLayer.RaymarchedCloudMaterial, 5, -1);
+
+                currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
             }
         }
 
