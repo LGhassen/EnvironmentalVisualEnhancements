@@ -202,7 +202,6 @@ namespace Atmosphere
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
             unpackRaysMaterial = new Material(UnpackRaysShader);
-            SetCombinedOpenGLDepthBufferKeywords(reconstructCloudsMaterial);
 
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
@@ -301,20 +300,6 @@ namespace Atmosphere
 
             newRaysRenderWidth = paddedScreenWidth / reprojectionXfactor;
             newRaysRenderHeight = paddedScreenHeight / reprojectionYfactor;
-        }
-
-        private void SetCombinedOpenGLDepthBufferKeywords(Material material)
-        {
-            if (useCombinedOpenGLDistanceBuffer)
-            {
-                material.EnableKeyword("OPENGL_COMBINEDBUFFER_ON");
-                material.DisableKeyword("OPENGL_COMBINEDBUFFER_OFF");
-            }
-            else
-            {
-                material.DisableKeyword("OPENGL_COMBINEDBUFFER_ON");
-                material.EnableKeyword("OPENGL_COMBINEDBUFFER_OFF");
-            }
         }
 
         private void InitRenderTextures()
