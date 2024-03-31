@@ -114,8 +114,6 @@ namespace Atmosphere
 
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial, unpackRaysMaterial;
-        private ComputeShader reconstructCloudsComputeShader = null;
-        private int reconstructCloudsComputeShaderXThreads, reconstructCloudsComputeShaderYThreads;
 
         // indexed by [isRightEye]
         private FlipFlop<Matrix4x4> previousV;
@@ -201,48 +199,23 @@ namespace Atmosphere
             InitRenderTextures();
 
             screenshotModeIterations = RaymarchedCloudsQualityManager.ScreenShotModeDenoisingIterations;
+
+            reconstructCloudsMaterial = new Material(ReconstructionShader);
             unpackRaysMaterial = new Material(UnpackRaysShader);
 
-            if (SystemInfo.supportsComputeShaders)
-            {
-                reconstructCloudsComputeShader = Instantiate(ShaderLoaderClass.FindComputeShader("ReconstructRaymarchedClouds"));
-                uint x, y;
-                reconstructCloudsComputeShader.GetKernelThreadGroupSizes(0, out x, out y, out uint unusedZ);
-                reconstructCloudsComputeShaderXThreads = (int)x;
-                reconstructCloudsComputeShaderYThreads = (int)y;
+            reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
+            reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
 
-                // TODO: is there a way not to duplicate this code? idk maybe reflection?
-                reconstructCloudsComputeShader.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
-                reconstructCloudsComputeShader.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
+            reconstructCloudsMaterial.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
+            reconstructCloudsMaterial.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
 
-                reconstructCloudsComputeShader.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
-                reconstructCloudsComputeShader.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
+            reconstructCloudsMaterial.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
+            reconstructCloudsMaterial.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
 
-                reconstructCloudsComputeShader.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
-                reconstructCloudsComputeShader.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
+            reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
+            reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
 
-                reconstructCloudsComputeShader.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
-                reconstructCloudsComputeShader.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
-
-                reconstructCloudsComputeShader.SetFloat("screenshotModeIterations", screenshotModeIterations);
-            }
-            else
-            {
-                reconstructCloudsMaterial = new Material(ReconstructionShader);
-                reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
-                reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
-
-                reconstructCloudsMaterial.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
-                reconstructCloudsMaterial.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
-
-                reconstructCloudsMaterial.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
-                reconstructCloudsMaterial.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
-
-                reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
-                reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
-
-                reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
-            }
+            reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
 
             commandBuffer = new FlipFlop<CommandBuffer>(VRUtils.VREnabled() ? new CommandBuffer() : null, new CommandBuffer());
 
@@ -289,34 +262,17 @@ namespace Atmosphere
                 VRUtils.ResizeVRFlipFlopRT(ref historyRT, screenWidth, screenHeight);
                 VRUtils.ResizeVRFlipFlopRT(ref historyMotionVectorsRT, screenWidth, screenHeight);
 
-                if (reconstructCloudsComputeShader != null)
-                {
-                    reconstructCloudsComputeShader.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
-                    reconstructCloudsComputeShader.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
+                reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
+                reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
 
-                    reconstructCloudsComputeShader.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
-                    reconstructCloudsComputeShader.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
+                reconstructCloudsMaterial.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
+                reconstructCloudsMaterial.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
 
-                    reconstructCloudsComputeShader.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
-                    reconstructCloudsComputeShader.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
+                reconstructCloudsMaterial.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
+                reconstructCloudsMaterial.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
 
-                    reconstructCloudsComputeShader.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
-                    reconstructCloudsComputeShader.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
-                }
-                else
-                { 
-                    reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
-                    reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
-
-                    reconstructCloudsMaterial.SetVector("paddedReconstructedTextureResolution", new Vector2(paddedScreenWidth, paddedScreenHeight));
-                    reconstructCloudsMaterial.SetVector("invPaddedReconstructedTextureResolution", new Vector2(1.0f / (float)paddedScreenWidth, 1.0f / (float)paddedScreenHeight));
-
-                    reconstructCloudsMaterial.SetVector("newRaysRenderResolution", new Vector2(newRaysRenderWidth, newRaysRenderHeight));
-                    reconstructCloudsMaterial.SetVector("invNewRaysRenderResolution", new Vector2(1.0f / (float)newRaysRenderWidth, 1.0f / (float)newRaysRenderHeight));
-
-                    reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
-                    reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
-                }
+                reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
+                reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
             }
         }
 
@@ -353,8 +309,8 @@ namespace Atmosphere
 
             ReleaseRenderTextures();
 
-            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, colorFormat, FilterMode.Bilinear, TextureDimension.Tex2D, 0, SystemInfo.supportsComputeShaders);
-            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, RenderTextureFormat.RGHalf, FilterMode.Bilinear, TextureDimension.Tex2D, 0, SystemInfo.supportsComputeShaders);
+            historyRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, colorFormat, FilterMode.Bilinear);
+            historyMotionVectorsRT = VRUtils.CreateVRFlipFlopRT(supportVR, screenWidth, screenHeight, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
 
             packedNewRaysRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBFloat, FilterMode.Point);
             packedNewRaysRT[true].name = "newrays flip";
@@ -816,6 +772,14 @@ namespace Atmosphere
             UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer], commandBuffer, unpackedRenderTextures, mr1);
 
             // reconstruct full frame from history and new rays texture
+            RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
+            RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
+            RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
+
+            commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
+
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
+
             bool readFromFlip = !useFlipScreenBuffer; // "useFlipScreenBuffer" means the *target* is flip, and we should be reading from flop
 
             commandBuffer.SetGlobalTexture(ShaderProperties.historyBuffer_PROPERTY, historyRT[isRightEye][readFromFlip]);
@@ -826,38 +790,19 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, unpackedMotionVectorsRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMaxDepthBuffer_PROPERTY, unpackedMaxDepthRT);
 
-            RenderTargetIdentifier[] targetIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][useFlipScreenBuffer]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][useFlipScreenBuffer]) };
-            commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
+            reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
+            reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
+            reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
+            reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
-            if (reconstructCloudsComputeShader != null)
-            {
-                reconstructCloudsComputeShader.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
-                reconstructCloudsComputeShader.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
-                reconstructCloudsComputeShader.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
-                reconstructCloudsComputeShader.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
-                reconstructCloudsComputeShader.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
-                reconstructCloudsComputeShader.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-                reconstructCloudsComputeShader.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
 
-                int kernel = cloudsScreenshotModeEnabled ? 1 : 0;
+            reconstructCloudsMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
 
-                reconstructCloudsComputeShader.SetTexture(kernel, "outputColor", historyRT[isRightEye][useFlipScreenBuffer]);
-                reconstructCloudsComputeShader.SetTexture(kernel, "outputMotionVectors", historyMotionVectorsRT[isRightEye][useFlipScreenBuffer]);
+            if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
+                reconstructCloudsMaterial.SetTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
-                commandBuffer.DispatchCompute(reconstructCloudsComputeShader, kernel, screenWidth / reconstructCloudsComputeShaderXThreads, screenHeight / reconstructCloudsComputeShaderYThreads, 1);
-            }
-            else
-            {
-                reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
-                reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
-                reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-                reconstructCloudsMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
-
-                commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ? 1 : 0);
-            }
+            commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ? 1 : 0);
         }
 
         private void UnpackTextures(RenderTargetIdentifier inputTexture, CommandBuffer commandBuffer, RenderTargetIdentifier[] unpackedRenderTextures, MeshRenderer meshRenderer)
@@ -884,16 +829,8 @@ namespace Atmosphere
             Vector2 pixelOffset = currentPixel - centerPixel;
             uvOffset = pixelOffset / new Vector2(screenWidth, screenHeight);
 
-            if (reconstructCloudsComputeShader != null)
-            {
-                reconstructCloudsComputeShader.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
-                reconstructCloudsComputeShader.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
-            }
-            else
-            { 
-                reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
-                reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
-            }
+            reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
+            reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
         }
 
         void OnPostRender()
