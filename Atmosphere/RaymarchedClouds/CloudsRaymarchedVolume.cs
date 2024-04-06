@@ -585,7 +585,8 @@ namespace Atmosphere
 
             mat.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(parentCelestialBody) ? 1f : 0f);
 
-            mat.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbn);
+            mat.SetTexture("StbnBlueNoise", ShaderLoader.ShaderLoaderClass.stbnScalar);
+            mat.SetTexture("StbnUnitVec3", ShaderLoader.ShaderLoaderClass.stbnUnitVec3);
             mat.SetVector("stbnDimensions", new Vector3(ShaderLoader.ShaderLoaderClass.stbnDimensions.x, ShaderLoader.ShaderLoaderClass.stbnDimensions.y, ShaderLoader.ShaderLoaderClass.stbnDimensions.z));
 
             mat.SetColor("cloudColor", Tools.IsColorRGB(color) ? color / 255f : color);

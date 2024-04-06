@@ -17,7 +17,7 @@ namespace ShaderLoader
         static Dictionary<string, ComputeShader> computeShaderDictionary = null;
 
         public static Vector3Int stbnDimensions = new Vector3Int(128, 128, 64);
-        public static Texture2D stbn;
+        public static Texture2D stbnScalar, stbnUnitVec3;
 
         public static bool loaded = false;
 
@@ -71,15 +71,22 @@ namespace ShaderLoader
                 }
             }
 
-            if (stbn == null)
+            if (stbnScalar == null)
             {
-                stbn = new Texture2D((int)stbnDimensions.x, (int)(stbnDimensions.y * stbnDimensions.z), TextureFormat.R8, false);
-                stbn.filterMode = FilterMode.Point;
-                stbn.wrapMode = TextureWrapMode.Repeat;
-                stbn.LoadRawTextureData(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/EnvironmentalVisualEnhancements/stbn.R8"));
-                stbn.Apply();
+                stbnScalar = new Texture2D((int)stbnDimensions.x, (int)(stbnDimensions.y * stbnDimensions.z), TextureFormat.R8, false);
+                stbnScalar.filterMode = FilterMode.Point;
+                stbnScalar.wrapMode = TextureWrapMode.Repeat;
+                stbnScalar.LoadRawTextureData(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/EnvironmentalVisualEnhancements/stbn.R8"));
+                stbnScalar.Apply();
+            }
 
-                Debug.Log("Stbn loaded");
+            if (stbnUnitVec3 == null)
+            {
+                stbnUnitVec3 = new Texture2D((int)stbnDimensions.x, (int)(stbnDimensions.y * stbnDimensions.z), TextureFormat.ARGB32, false);
+                stbnUnitVec3.filterMode = FilterMode.Point;
+                stbnUnitVec3.wrapMode = TextureWrapMode.Repeat;
+                stbnUnitVec3.LoadRawTextureData(System.IO.File.ReadAllBytes(KSPUtil.ApplicationRootPath + "GameData/EnvironmentalVisualEnhancements/stbn_unitvec3.ARGB32"));
+                stbnUnitVec3.Apply();
             }
 
             loaded = true;

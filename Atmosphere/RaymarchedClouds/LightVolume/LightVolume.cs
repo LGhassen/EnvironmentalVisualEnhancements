@@ -37,10 +37,12 @@ namespace Atmosphere
         private FlipFlop<RenderTexture> lightVolume;
 
         private ComputeShader reprojectLightVolumeComputeShader = null;
+        private uint reprojectLightVolumeComputeShaderXThreads, reprojectLightVolumeComputeShaderYThreads, reprojectLightVolumeComputeShaderZThreads;
         private static Shader reprojectLightVolumeShader = null;
         private Material reprojectLightVolumeMaterial;
         private bool readFromFlipLightVolume = true;
         private int nextDirectSliceToUpdate = 0, nextAmbientSliceToUpdate = 0;
+        private int ambientUpdateCounter = 0;
 
         private Vector3 planetLightVolumePosition = Vector3.zero;
         private Vector3 worldLightVolumePosition = Vector3.zero;
@@ -78,11 +80,13 @@ namespace Atmosphere
 
             useMultiSliceUpdate = SystemInfo.graphicsDeviceVersion.Contains("Direct3D");
 
-            bool useComputeShader = SystemInfo.supportsComputeShaders;
+            bool useComputeShader = SystemInfo.supportsComputeShaders && SystemInfo.graphicsDeviceVersion.Contains("Direct3D");
 
             if (useComputeShader)
             { 
                 reprojectLightVolumeComputeShader = ShaderLoaderClass.FindComputeShader("ReprojectLightVolume");
+                reprojectLightVolumeComputeShader.GetKernelThreadGroupSizes(0, out reprojectLightVolumeComputeShaderXThreads, out reprojectLightVolumeComputeShaderYThreads, out reprojectLightVolumeComputeShaderZThreads);
+
                 reprojectLightVolumeComputeShader.SetVector("lightVolumeDimensions", lightVolumeDimensions);
             }
             else
@@ -124,17 +128,7 @@ namespace Atmosphere
 
                         volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.lightVolumeLightMarchSteps_PROPERTY, stepCount);
 
-                        int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
-                        int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
-
-                        if (useMultiSliceUpdate)
-                        {
-                            UpdateLightVolumeWithMultiSliceSupport(volumetricLayer, ref currentLayerDirectLightVolumeSliceToUpdate, ref currentLayerAmbientLightVolumeSliceToUpdate);
-                        }
-                        else
-                        {
-                            UpdateLightVolumeWithoutMultiSliceSupport(volumetricLayer, ref currentLayerDirectLightVolumeSliceToUpdate, ref currentLayerAmbientLightVolumeSliceToUpdate);
-                        }
+                        UpdateLightVolume(volumetricLayer, nextDirectSliceToUpdate, nextAmbientSliceToUpdate);
 
                         volumetricLayer.RaymarchedCloudMaterial.SetTexture(ShaderProperties.lightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
 
@@ -142,7 +136,9 @@ namespace Atmosphere
                     }
                 }
 
-                nextDirectSliceToUpdate  = (nextDirectSliceToUpdate + directLightSlicesToUpdateEveryFrame) % volumeSlices;
+                BlendNewAmbientRays(nextAmbientSliceToUpdate);
+
+                nextDirectSliceToUpdate = (nextDirectSliceToUpdate + directLightSlicesToUpdateEveryFrame) % volumeSlices;
                 nextAmbientSliceToUpdate = (nextAmbientSliceToUpdate + ambientLightSlicesToUpdateEveryFrame) % volumeSlices;
 
                 // temporary: set global params for scatterer for testing
@@ -160,8 +156,22 @@ namespace Atmosphere
             }
         }
 
-        private void UpdateLightVolumeWithoutMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, ref int currentLayerDirectLightVolumeSliceToUpdate, ref int currentLayerAmbientLightVolumeSliceToUpdate)
+        private void UpdateLightVolume(CloudsRaymarchedVolume volumetricLayer, int nextDirectSliceToUpdate, int nextAmbientSliceToUpdate)
         {
+            if (useMultiSliceUpdate)
+            {
+                UpdateLightVolumeWithMultiSliceSupport(volumetricLayer, nextDirectSliceToUpdate, nextAmbientSliceToUpdate);
+            }
+            else
+            {
+                UpdateLightVolumeWithoutMultiSliceSupport(volumetricLayer, nextDirectSliceToUpdate, nextAmbientSliceToUpdate);
+            }
+        }
+
+        private void UpdateLightVolumeWithoutMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, int nextDirectSliceToUpdate, int nextAmbientSliceToUpdate)
+        {
+            int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
+
             for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i++)
             {
                 float verticalUV = ((float)currentLayerDirectLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
@@ -173,20 +183,33 @@ namespace Atmosphere
                 currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + 1) % volumeSlices;
             }
 
+
+            int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
+
+            // For ambient, we first need to render out new rays which are stochastic/random and then blend them with the available history
+            // Therefore write to the other buffer as a "scratch" buffer then do the blending separately
+            bool ambientWriteToFlip = !readFromFlipLightVolume;
+
+            int ambientUpdateNumber = Time.frameCount / (volumeSlices / ambientLightSlicesToUpdateEveryFrame);
+
+            volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.ambientUpdateNumber_PROPERTY, ambientUpdateNumber);
+
             for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
             {
                 float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
                 volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.verticalUV_PROPERTY, verticalUV);
                 volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
 
-                RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
+                RenderTextureUtils.Blit3D(lightVolume[ambientWriteToFlip], volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate, mergedVolumeSlices, volumetricLayer.RaymarchedCloudMaterial, 3);
 
                 currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
             }
         }
 
-        private void UpdateLightVolumeWithMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, ref int currentLayerDirectLightVolumeSliceToUpdate, ref int currentLayerAmbientLightVolumeSliceToUpdate)
+        private void UpdateLightVolumeWithMultiSliceSupport(CloudsRaymarchedVolume volumetricLayer, int nextDirectSliceToUpdate, int nextAmbientSliceToUpdate)
         {
+            int currentLayerDirectLightVolumeSliceToUpdate = nextDirectSliceToUpdate;
+
             for (int i = 0; i < directLightSlicesToUpdateEveryFrame; i += maxSlicesInOnePass)
             {
                 int slicesToUpdateThisPass = Math.Min(directLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
@@ -200,6 +223,15 @@ namespace Atmosphere
                 currentLayerDirectLightVolumeSliceToUpdate = (currentLayerDirectLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
             }
 
+            int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
+            // For ambient, we first need to render out new rays which are stochastic/random and then blend them with the available history
+            // Therefore write to the other buffer as a "scratch" buffer then do the blending separately
+            bool ambientWriteToFlip = !readFromFlipLightVolume;
+
+            int ambientUpdateNumber = Time.frameCount / (volumeSlices / ambientLightSlicesToUpdateEveryFrame);
+
+            volumetricLayer.RaymarchedCloudMaterial.SetFloat(ShaderProperties.ambientUpdateNumber_PROPERTY, ambientUpdateNumber);
+
             for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i += maxSlicesInOnePass)
             {
                 int slicesToUpdateThisPass = Math.Min(ambientLightSlicesToUpdateEveryFrame - i, maxSlicesInOnePass);
@@ -207,10 +239,67 @@ namespace Atmosphere
                 volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.startSlice_PROPERTY, currentLayerAmbientLightVolumeSliceToUpdate);
                 volumetricLayer.RaymarchedCloudMaterial.SetInt(ShaderProperties.slicesToUpdate_PROPERTY, slicesToUpdateThisPass);
 
-                Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
+                Graphics.SetRenderTarget(lightVolume[ambientWriteToFlip], 0, CubemapFace.Unknown, -1);
                 Graphics.Blit(null, volumetricLayer.RaymarchedCloudMaterial, 5, -1);
 
                 currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + maxSlicesInOnePass) % volumeSlices;
+            }
+        }
+
+        // New ambient rays are stochastic/random, we now need to blend them with the history
+        private void BlendNewAmbientRays(int nextAmbientSliceToUpdate)
+        {
+            ambientUpdateCounter++;
+
+            int totalFullAmbientUpdatesDone = ambientUpdateCounter / (volumeSlices / ambientLightSlicesToUpdateEveryFrame);
+
+            float ambientBlendFactor = 1f / Mathf.Max(1f, totalFullAmbientUpdatesDone);
+            ambientBlendFactor = Mathf.Clamp(ambientBlendFactor, 0.01f, 0.1f);
+
+            if (reprojectLightVolumeComputeShader != null)
+            {
+                BlendNewAmbientRaysWithCompute(nextAmbientSliceToUpdate, ambientBlendFactor);
+            }
+            else
+            {
+                BlendNewAmbientRaysWithMaterial(nextAmbientSliceToUpdate, ambientBlendFactor);
+            }
+        }
+
+        private void BlendNewAmbientRaysWithCompute(int nextAmbientSliceToUpdate, float ambientBlendFactor)
+        {
+            reprojectLightVolumeComputeShader.SetInt(ShaderProperties.startSlice_PROPERTY, nextAmbientSliceToUpdate);
+            reprojectLightVolumeComputeShader.SetFloat(ShaderProperties.ambientBlendingFactor_PROPERTY, ambientBlendFactor);
+
+            // Switch the rendertarget otherwise we can't read from it
+            Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
+
+            reprojectLightVolumeComputeShader.SetTexture(1, ShaderProperties.NewAmbientVolumeRays_PROPERTY, lightVolume[!readFromFlipLightVolume]);
+            reprojectLightVolumeComputeShader.SetTexture(1, ShaderProperties.Result_PROPERTY, lightVolume[readFromFlipLightVolume]);
+
+            // z contains the number of slices to update
+            reprojectLightVolumeComputeShader.Dispatch(1, volumeResolution / (int)reprojectLightVolumeComputeShaderXThreads, volumeResolution / (int)reprojectLightVolumeComputeShaderYThreads, ambientLightSlicesToUpdateEveryFrame / (int)reprojectLightVolumeComputeShaderZThreads);
+        }
+
+        private void BlendNewAmbientRaysWithMaterial(int nextAmbientSliceToUpdate, float ambientBlendFactor)
+        {
+            int currentLayerAmbientLightVolumeSliceToUpdate = nextAmbientSliceToUpdate;
+
+            reprojectLightVolumeMaterial.SetFloat(ShaderProperties.ambientBlendingFactor_PROPERTY, ambientBlendFactor);
+
+            // Switch the rendertarget otherwise we can't read from it
+            Graphics.SetRenderTarget(lightVolume[readFromFlipLightVolume], 0, CubemapFace.Unknown, -1);
+
+            reprojectLightVolumeMaterial.SetTexture(ShaderProperties.NewAmbientVolumeRays_PROPERTY, lightVolume[!readFromFlipLightVolume]);
+
+            for (int i = 0; i < ambientLightSlicesToUpdateEveryFrame; i++)
+            {
+                float verticalUV = ((float)currentLayerAmbientLightVolumeSliceToUpdate + 0.5f) / (float)(volumeSlices);
+                reprojectLightVolumeMaterial.SetInt(ShaderProperties.verticalSliceId_PROPERTY, volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate);
+
+                RenderTextureUtils.Blit3D(lightVolume[readFromFlipLightVolume], volumeSlices + currentLayerAmbientLightVolumeSliceToUpdate, mergedVolumeSlices, reprojectLightVolumeMaterial, 1);
+
+                currentLayerAmbientLightVolumeSliceToUpdate = (currentLayerAmbientLightVolumeSliceToUpdate + 1) % volumeSlices;
             }
         }
 
@@ -338,7 +427,10 @@ namespace Atmosphere
 
                 ReprojectLightVolume(newWorldLightVolumePosition, newLightVolumeToWorld, innerCloudsRadius, outerCloudsRadius, planetPosition);
 
-                // set new matrices and position as current
+                // Reset ambient update counter to converge faster
+                ambientUpdateCounter = 0;
+
+                // Set new matrices and position as current
                 readFromFlipLightVolume = !readFromFlipLightVolume;
 
                 worldLightVolumePosition = newWorldLightVolumePosition;
@@ -367,9 +459,6 @@ namespace Atmosphere
 
         private void ReprojectWithCompute(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)
         {
-            uint xThreads, yThreads, zThreads; // TODO move these to init?
-            reprojectLightVolumeComputeShader.GetKernelThreadGroupSizes(0, out xThreads, out yThreads, out zThreads);
-
             reprojectLightVolumeComputeShader.SetVector(ShaderProperties.sphereCenter_PROPERTY, planetPosition);
 
             reprojectLightVolumeComputeShader.SetMatrix(ShaderProperties.worldToPreviousParaboloid_PROPERTY, worldToLightVolume);
@@ -387,7 +476,7 @@ namespace Atmosphere
             reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.PreviousLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
             reprojectLightVolumeComputeShader.SetTexture(0, ShaderProperties.Result_PROPERTY, lightVolume[!readFromFlipLightVolume]);
 
-            reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)xThreads, volumeResolution / (int)yThreads, mergedVolumeSlices / (int)zThreads);
+            reprojectLightVolumeComputeShader.Dispatch(0, volumeResolution / (int)reprojectLightVolumeComputeShaderXThreads, volumeResolution / (int)reprojectLightVolumeComputeShaderYThreads, mergedVolumeSlices / (int)reprojectLightVolumeComputeShaderZThreads);
         }
 
         private void ReprojectWithMaterial(Vector3 newLightVolumePosition, Matrix4x4 newLightVolumeToWorld, float innerCloudsRadius, float outerCloudsRadius, Vector3 planetPosition)

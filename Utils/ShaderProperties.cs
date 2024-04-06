@@ -333,6 +333,9 @@ namespace Utils
         public static int lightVolumeLightMarchSteps_PROPERTY { get { return lightVolumeLightMarchSteps; } }
         private static int lightVolumeLightMarchSteps;
 
+        public static int NewAmbientVolumeRays_PROPERTY { get { return NewAmbientVolumeRays; } }
+        private static int NewAmbientVolumeRays;
+   
         public static int startSlice_PROPERTY { get { return startSlice; } }
         private static int startSlice;
 
@@ -357,6 +360,11 @@ namespace Utils
         public static int PreviousLayerOverlapRays_PROPERTY { get { return PreviousLayerOverlapRays; } }
         private static int PreviousLayerOverlapRays;
 
+        public static int ambientBlendingFactor_PROPERTY { get { return ambientBlendingFactor; } }
+        private static int ambientBlendingFactor;
+
+        public static int ambientUpdateNumber_PROPERTY { get { return ambientUpdateNumber; } }
+        private static int ambientUpdateNumber;
 
         private void Awake()
         {
@@ -489,6 +497,9 @@ namespace Utils
             firstOverlapLayer = Shader.PropertyToID("firstOverlapLayer");
             lastOverlapLayer = Shader.PropertyToID("lastOverlapLayer");
             PreviousLayerOverlapRays = Shader.PropertyToID("PreviousLayerOverlapRays");
+            NewAmbientVolumeRays = Shader.PropertyToID("NewAmbientVolumeRays");
+            ambientBlendingFactor = Shader.PropertyToID("ambientBlendingFactor");
+            ambientUpdateNumber = Shader.PropertyToID("ambientUpdateNumber");
         }
     }
 }
