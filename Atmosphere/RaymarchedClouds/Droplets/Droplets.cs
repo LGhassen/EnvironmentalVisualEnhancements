@@ -21,7 +21,6 @@ namespace Atmosphere
 		CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
 		Transform parentTransform;
-		CelestialBody parentCelestialBody;
 
 		float currentCoverage = 0f;
 		float currentWetness  = 0f;
@@ -52,7 +51,7 @@ namespace Atmosphere
 			}
 		}
 
-		public bool Apply(Transform parent, CelestialBody celestialBody, CloudsRaymarchedVolume volume)
+		public bool Apply(Transform parent, CloudsRaymarchedVolume volume)
         {
 			dropletsConfigObject = DropletsManager.GetConfig(dropletsConfig);
 
@@ -60,7 +59,6 @@ namespace Atmosphere
 				return false;
 
 			cloudsRaymarchedVolume = volume;
-			parentCelestialBody = celestialBody;
 			parentTransform = parent;
 
 			InitMaterials();
@@ -92,6 +90,12 @@ namespace Atmosphere
 			}
 
 			GameEvents.OnCameraChange.Remove(CameraChanged);
+
+			if (internalCamera != null && commandBuffer != null)
+			{
+                var evt = internalCamera.actualRenderingPath == RenderingPath.DeferredShading ? CameraEvent.BeforeGBuffer : CameraEvent.BeforeForwardOpaque;
+                internalCamera.RemoveCommandBuffer(evt, commandBuffer);
+			}
 		}
 
 		public void Update()
@@ -290,7 +294,9 @@ namespace Atmosphere
 			dropletsIvaMaterial.SetFloat("lerp12", 0f);
 		}
 
-		
+
+		MeshRenderer mr;
+
 		void InitGameObjects(Transform parent)
 		{	
 			dropletsGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
@@ -299,7 +305,7 @@ namespace Atmosphere
 			var cl = dropletsGO.GetComponent<Collider>();
 			if (cl != null) GameObject.Destroy(cl);
 
-			var mr = dropletsGO.GetComponent<MeshRenderer>();
+			mr = dropletsGO.GetComponent<MeshRenderer>();
 			mr.material = dropletsIvaMaterial;
 
 			var mf = dropletsGO.GetComponent<MeshFilter>();
@@ -311,7 +317,10 @@ namespace Atmosphere
 			
 			dropletsGO.SetActive(false);
 		}
-		
+
+
+		CommandBuffer commandBuffer;
+		Camera internalCamera;
 
 		public void SetDropletsEnabled(bool value)
         {
@@ -319,14 +328,40 @@ namespace Atmosphere
 
 			bool finalEnabled = cloudLayerEnabled && ivaEnabled && currentWetness > 0f;
 
-			if (dropletsGO != null) dropletsGO.SetActive(finalEnabled);
+			if (finalEnabled && HighLogic.LoadedScene == GameScenes.FLIGHT)
+			{ 
+				PartsRenderer.EnableForFrame();
 
-			if (finalEnabled && HighLogic.LoadedScene == GameScenes.FLIGHT) PartsRenderer.EnableForFrame();
-		}
+				if (commandBuffer == null)
+				{
+					commandBuffer = new CommandBuffer();
+					commandBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
+                    commandBuffer.DrawRenderer(mr, dropletsIvaMaterial);
+				}
+            }
+			
+			if (internalCamera != null && commandBuffer != null)
+			{
+                var evt = internalCamera.actualRenderingPath == RenderingPath.DeferredShading ? CameraEvent.BeforeGBuffer : CameraEvent.BeforeForwardOpaque;
+
+                internalCamera.RemoveCommandBuffer(evt, commandBuffer);
+
+				if (finalEnabled)
+				{
+                    internalCamera.AddCommandBuffer(evt, commandBuffer);
+                }
+            }
+			
+        }
 
 		private void CameraChanged(CameraManager.CameraMode cameraMode)
 		{
 			ivaEnabled = cameraMode == CameraManager.CameraMode.IVA || cameraMode == CameraManager.CameraMode.Internal;
+
+			if (ivaEnabled && internalCamera == null)
+			{
+				internalCamera = InternalCamera.Instance.GetComponentInChildren<Camera>();
+            }
 		}
 
 		public class PartsRenderer : MonoBehaviour
@@ -424,7 +459,8 @@ namespace Atmosphere
 						CreateDepthRT();
 
 					partsCamera.CopyFrom(targetCamera);
-					partsCamera.depthTextureMode = DepthTextureMode.None;
+                    partsCamera.renderingPath = RenderingPath.Forward;
+                    partsCamera.depthTextureMode = DepthTextureMode.None;
 					partsCamera.clearFlags = CameraClearFlags.SolidColor;
 					partsCamera.enabled = false;
 					partsCamera.cullingMask = (int)Tools.Layer.Parts;
