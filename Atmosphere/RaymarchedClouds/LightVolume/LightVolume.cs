@@ -254,7 +254,7 @@ namespace Atmosphere
             int totalFullAmbientUpdatesDone = ambientUpdateCounter / (volumeSlices / ambientLightSlicesToUpdateEveryFrame);
 
             float ambientBlendFactor = 1f / Mathf.Max(1f, totalFullAmbientUpdatesDone);
-            ambientBlendFactor = Mathf.Clamp(ambientBlendFactor, 0.01f, 0.1f);
+            ambientBlendFactor = Mathf.Clamp(ambientBlendFactor, 0.01f, 0.07f);
 
             if (reprojectLightVolumeComputeShader != null)
             {
