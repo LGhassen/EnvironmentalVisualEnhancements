@@ -532,7 +532,8 @@ namespace Atmosphere
                 }
                 else
                 {
-                    commandBuffer.SetGlobalTexture(ShaderProperties.cameraDepthBufferForClouds_PROPERTY, BuiltinRenderTextureType.Depth);
+                    commandBuffer.SetGlobalTexture(ShaderProperties.cameraDepthBufferForClouds_PROPERTY,
+                        targetCamera.actualRenderingPath == RenderingPath.DeferredShading ? BuiltinRenderTextureType.ResolvedDepth : BuiltinRenderTextureType.Depth);
                 }
 
                 SetTemporalReprojectionParams(out Vector2 uvOffset);
@@ -570,7 +571,7 @@ namespace Atmosphere
 
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
 
-                targetCamera.AddCommandBuffer(CameraEvent.BeforeForwardOpaque, commandBuffer);
+                targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
             }
         }
 
@@ -850,7 +851,7 @@ namespace Atmosphere
                     bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
                     var commandBuffer = this.commandBuffer[isRightEye];
 
-                    targetCamera.RemoveCommandBuffer(CameraEvent.BeforeForwardOpaque, commandBuffer);
+                    targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
 
                     previousP[isRightEye] = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                     previousV[isRightEye] = VRUtils.GetViewMatrixForCamera(targetCamera);
@@ -883,9 +884,9 @@ namespace Atmosphere
             {
                 if (commandBuffer[true] != null)
                 {
-                    targetCamera.RemoveCommandBuffer(CameraEvent.BeforeForwardOpaque, commandBuffer[true]);
+                    targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer[true]);
                 }
-                targetCamera.RemoveCommandBuffer(CameraEvent.BeforeForwardOpaque, commandBuffer[false]);
+                targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer[false]);
                 volumesAdded.Clear();
             }
 
@@ -954,7 +955,7 @@ namespace Atmosphere
             compositeColorMaterial.renderQueue = 4000; //TODO: Fix, for some reason scatterer sky was drawing over it
 
             depthOcclusionMaterial = new Material(ShaderLoaderClass.FindShader("EVE/CloudDepthOcclusion"));
-            depthOcclusionMaterial.renderQueue = 1000; // before everything opaque
+            depthOcclusionMaterial.renderQueue = 1000; // before anything opaque
 
             Quad.Create(gameObject, 2, Color.white, Vector3.up, Mathf.Infinity);
 
@@ -962,11 +963,15 @@ namespace Atmosphere
             compositeColorMaterial.SetOverrideTag("IgnoreProjector", "True");
             depthOcclusionMaterial.SetOverrideTag("IgnoreProjector", "True");
 
+            // Depth occlusion doesn't work with deferred rendering because it doesn't have a depth prepass, just disable it entirely for now
+            // any speedups were negligible anyway
+            /*
             if (Tools.IsUnifiedCameraMode())
             {
                 compositeMR.materials = new List<Material>() { compositeColorMaterial, depthOcclusionMaterial }.ToArray();
             }
             else
+            */
             {
                 compositeMR.materials = new List<Material>() { compositeColorMaterial }.ToArray();
             }
