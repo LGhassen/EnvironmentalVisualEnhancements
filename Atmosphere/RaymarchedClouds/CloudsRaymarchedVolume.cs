@@ -362,7 +362,7 @@ namespace Atmosphere
 
             if (droplets != null)
             {
-                if (!droplets.Apply(parent, celestialBody, this))
+                if (!droplets.Apply(parent, this))
                 {
                     droplets.Remove();
                     droplets = null;
