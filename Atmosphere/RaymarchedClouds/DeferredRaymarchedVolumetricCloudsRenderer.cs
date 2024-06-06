@@ -183,6 +183,8 @@ namespace Atmosphere
         private const int renderCloudsPass = 0;
         private const int renderLightingOcclusionPass = 1;
 
+        private static CameraEvent CloudRenderingCameraEvent = CameraEvent.AfterForwardOpaque;
+
         public DeferredRaymarchedVolumetricCloudsRenderer()
         {
         }
@@ -571,7 +573,7 @@ namespace Atmosphere
 
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
 
-                targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
+                targetCamera.AddCommandBuffer(CloudRenderingCameraEvent, commandBuffer);
             }
         }
 
@@ -851,7 +853,7 @@ namespace Atmosphere
                     bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
                     var commandBuffer = this.commandBuffer[isRightEye];
 
-                    targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer);
+                    targetCamera.RemoveCommandBuffer(CloudRenderingCameraEvent, commandBuffer);
 
                     previousP[isRightEye] = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(targetCamera), false);
                     previousV[isRightEye] = VRUtils.GetViewMatrixForCamera(targetCamera);
@@ -884,9 +886,9 @@ namespace Atmosphere
             {
                 if (commandBuffer[true] != null)
                 {
-                    targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer[true]);
+                    targetCamera.RemoveCommandBuffer(CloudRenderingCameraEvent, commandBuffer[true]);
                 }
-                targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, commandBuffer[false]);
+                targetCamera.RemoveCommandBuffer(CloudRenderingCameraEvent, commandBuffer[false]);
                 volumesAdded.Clear();
             }
 

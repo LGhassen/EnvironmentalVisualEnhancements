@@ -55,6 +55,8 @@ namespace Atmosphere
         // pairs of volumetric clouds renderers and their materials, sorted by distance, for rendering farthest to closest        
         SortedList<float, Tuple<Renderer, Material>> renderersAdded = new SortedList<float, Tuple<Renderer, Material>>();
 
+        private static CameraEvent CloudRenderingCameraEvent = CameraEvent.AfterForwardOpaque;
+
         public DeferredVolumetricCloudsRenderer()
         {
         }
@@ -123,7 +125,7 @@ namespace Atmosphere
                     cb.DrawRenderer(elt.Value.Item1, elt.Value.Item2);
                 }
 
-                targetCamera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+                targetCamera.AddCommandBuffer(CloudRenderingCameraEvent, cb);
                 commandBuffersAdded.Add(cb);
             }
         }
@@ -140,7 +142,7 @@ namespace Atmosphere
                 {
                     foreach (var cb in commandBuffersAdded)
                     {
-                        targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+                        targetCamera.RemoveCommandBuffer(CloudRenderingCameraEvent, cb);
                     }
                     commandBuffersAdded.Clear();
 
@@ -164,7 +166,7 @@ namespace Atmosphere
 
                 foreach (var cb in commandBuffersAdded)
                 {
-                    targetCamera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, cb);
+                    targetCamera.RemoveCommandBuffer(CloudRenderingCameraEvent, cb);
                 }
                 commandBuffersAdded.Clear();
 
