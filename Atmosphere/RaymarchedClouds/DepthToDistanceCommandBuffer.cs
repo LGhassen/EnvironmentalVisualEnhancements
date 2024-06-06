@@ -42,7 +42,7 @@ namespace Atmosphere
 
 			buffer.Blit(null, renderTexture, material);
 
-			camera.AddCommandBuffer(CameraEvent.AfterDepthTexture, buffer);
+			camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, buffer);
 
 			initialized = true;
 		}
@@ -69,7 +69,7 @@ namespace Atmosphere
 
 		public void OnDestroy()
 		{
-			camera.RemoveCommandBuffer(CameraEvent.AfterDepthTexture, buffer);
+			camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, buffer);
 		}
 	}
 }
