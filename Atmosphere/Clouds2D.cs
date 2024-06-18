@@ -269,7 +269,11 @@ namespace Atmosphere
                 CloudMaterial.renderQueue = (int)Tools.Queue.Transparent -1;
             }
 
-            if(isMainMenu)
+            CloudMaterial.SetFloat("scaledCloudFade", 1f);
+            Shader.SetGlobalFloat("cloudTimeFadeCoverage", 1f);
+            Shader.SetGlobalFloat("cloudTimeFadeDensity", 1f);
+
+            if (isMainMenu)
             {
                 try
                 {
