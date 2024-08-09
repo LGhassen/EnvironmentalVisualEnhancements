@@ -119,9 +119,11 @@ namespace Atmosphere
 
         private void HandleCoverageAndWetness(float deltaTime, float currentSpeed)
         {
-            currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightGlobals.ActiveVessel.transform.position, out float cloudType); // should do this not on the camera position but on the vessel
+            currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightGlobals.ActiveVessel.transform.position, out float cloudType);
             currentCoverage = Mathf.Clamp01((currentCoverage - dropletsConfigObject.MinCoverageThreshold) / (dropletsConfigObject.MaxCoverageThreshold - dropletsConfigObject.MinCoverageThreshold));
-            currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeDropletsDensity(cloudType);
+
+            if (currentCoverage > 0f)
+                currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeDropletsDensity(cloudType);
 
             if (currentWetness > currentCoverage)
             {

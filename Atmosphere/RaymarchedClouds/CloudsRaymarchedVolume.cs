@@ -95,6 +95,9 @@ namespace Atmosphere
         Droplets droplets = null;
 
         [ConfigItem, Optional]
+        WetSurfaces wetSurfaces = null;
+
+        [ConfigItem, Optional]
         Lightning lightning = null;
 
         [ConfigItem, Optional]
@@ -181,6 +184,11 @@ namespace Atmosphere
                 if (droplets != null)
                 {
                     droplets.SetDropletsEnabled(value);
+                }
+
+                if (wetSurfaces != null)
+                {
+                    wetSurfaces.SetEnabled(value);
                 }
 
                 if (screenspaceShadowMaterial != null)
@@ -366,6 +374,15 @@ namespace Atmosphere
                 {
                     droplets.Remove();
                     droplets = null;
+                }
+            }
+
+            if (wetSurfaces != null)
+            {
+                if (!wetSurfaces.Apply(parent, this))
+                {
+                    wetSurfaces.Remove();
+                    wetSurfaces = null;
                 }
             }
 
@@ -862,6 +879,9 @@ namespace Atmosphere
             if (droplets != null)
                 droplets.Remove();
 
+            if (wetSurfaces != null)
+                wetSurfaces.Remove();
+
             if (ambientSound != null)
                 ambientSound.Remove();
 
@@ -924,11 +944,17 @@ namespace Atmosphere
                 Vector3 lastPosition = worldOppositeFrameDeltaRotationMatrix.MultiplyPoint(Vector3.zero);
                 tangentialMovementDirection = (-lastPosition).normalized;
 
-                if (particleField != null) particleField.Update();
+                if (particleField != null)
+                    particleField.Update();
 
-                if (droplets != null) droplets.Update();
+                if (droplets != null)
+                    droplets.Update();
 
-                if (lightning != null) lightning.Update();
+                if (wetSurfaces != null)
+                    wetSurfaces.Update();
+
+                if (lightning != null)
+                    lightning.Update();
 
                 if (ambientSound != null && FlightCamera.fetch != null)
                 {
@@ -994,6 +1020,14 @@ namespace Atmosphere
             float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
 
             return Mathf.Lerp(cloudTypes[currentCloudType].DropletsDensity, cloudTypes[nextCloudType].DropletsDensity, cloudFrac);
+        }
+
+        public float GetInterpolatedCloudTypeWetSurfacesDensity(float cloudType)
+        {
+            int currentCloudType, nextCloudType;
+            float cloudFrac = getCloudFrac(cloudType, out currentCloudType, out nextCloudType);
+
+            return Mathf.Lerp(cloudTypes[currentCloudType].WetSurfacesIntensity, cloudTypes[nextCloudType].WetSurfacesIntensity, cloudFrac);
         }
 
         public float GetInterpolatedCloudTypeLightningFrequency(float cloudType)
