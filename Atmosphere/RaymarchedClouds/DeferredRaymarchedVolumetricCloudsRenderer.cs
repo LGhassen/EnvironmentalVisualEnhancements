@@ -551,9 +551,9 @@ namespace Atmosphere
                     renderingIterations = screenshotModeIterations;
 
                     // In screenshot mode render multiple iterations additively to a single target without reprojection or neighborhood clipping, so clear targets in advance
-                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[isRightEye][true]), BuiltinRenderTextureType.None);
+                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[isRightEye][true]), historyRT[isRightEye][true].depthBuffer);
                     commandBuffer.ClearRenderTarget(false, true, Color.clear);
-                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[isRightEye][false]), BuiltinRenderTextureType.None);
+                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[isRightEye][false]), historyRT[isRightEye][false].depthBuffer);
                     commandBuffer.ClearRenderTarget(false, true, Color.clear);
                 }
 
@@ -712,7 +712,7 @@ namespace Atmosphere
 
                     if (!renderOverlap)
                     {
-                        commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, BuiltinRenderTextureType.None);
+                        commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true].depthBuffer);
                         commandBuffer.DisableShaderKeyword("RENDER_OVERLAP_ON");
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
 
@@ -728,11 +728,11 @@ namespace Atmosphere
 
                         if (!lastOverlapLayer)
                         {
-                            commandBuffer.SetRenderTarget(useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures, BuiltinRenderTextureType.None);
+                            commandBuffer.SetRenderTarget(useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures, packedOverlapRaysRT[true].depthBuffer);
                         }
                         else
                         { 
-                            commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, BuiltinRenderTextureType.None);
+                            commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true].depthBuffer);
                         }
 
                         commandBuffer.EnableShaderKeyword("RENDER_OVERLAP_ON");
@@ -757,7 +757,7 @@ namespace Atmosphere
                     {
                         commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLightningLayerRendered_PROPERTY, isFirstLightningLayerRendered ? 1f : 0f);
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer]);
-                        commandBuffer.SetRenderTarget(useLightningFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], BuiltinRenderTextureType.None);
+                        commandBuffer.SetRenderTarget(useLightningFlipRaysBuffer ? lightningOcclusionRT[true] : lightningOcclusionRT[false], lightningOcclusionRT[true].depthBuffer);
                         commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderLightingOcclusionPass);
 
                         isFirstLightningLayerRendered = false;
@@ -779,7 +779,7 @@ namespace Atmosphere
             RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
             RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
 
-            commandBuffer.SetRenderTarget(targetIdentifiers, BuiltinRenderTextureType.None);
+            commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
 
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
 
@@ -810,7 +810,7 @@ namespace Atmosphere
 
         private void UnpackTextures(RenderTargetIdentifier inputTexture, CommandBuffer commandBuffer, RenderTargetIdentifier[] unpackedRenderTextures, MeshRenderer meshRenderer)
         {
-            commandBuffer.SetRenderTarget(unpackedRenderTextures, BuiltinRenderTextureType.None);
+            commandBuffer.SetRenderTarget(unpackedRenderTextures, packedNewRaysRT[true].depthBuffer);
             commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, inputTexture);
             commandBuffer.DrawRenderer(meshRenderer, unpackRaysMaterial, 0, 0);
         }
