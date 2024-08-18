@@ -69,7 +69,7 @@ namespace Utils
             RenderTextureUtils.ResizeRT(flipFlop[true], newWidth, newHeight, newDepth);
         }
 
-        public static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool useMips, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Repeat)
+        public static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool useMips, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Repeat, bool autoGenerateMips = false)
         {
             var rt = new RenderTexture(width, height, 0, format);
             rt.anisoLevel = 1;
@@ -77,7 +77,7 @@ namespace Utils
             rt.dimension = dimension;
             rt.volumeDepth = depth;
             rt.useMipMap = useMips;
-            rt.autoGenerateMips = useMips;
+            rt.autoGenerateMips = autoGenerateMips;
             rt.filterMode = filterMode;
             rt.enableRandomWrite = randomReadWrite;
             rt.wrapMode = wrapMode;

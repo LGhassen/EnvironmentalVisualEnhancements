@@ -18,17 +18,14 @@ namespace Atmosphere
 
         Transform parentTransform;
 
-        //float currentCoverage = 0f;
-        //float currentWetness = 0f;
-
-        //bool cloudLayerEnabled = false;
-
         WetSurfacesRenderer nearCameraWetSurfacesRenderer, farCameraWetSurfacesRenderer;
         bool rendererAdded = false;
 
         float currentCoverage = 0f;
 
-        public Material wetEffectMaterial;
+        public Material wetEffectMaterial, ripplesLutMaterial;
+
+        public RenderTexture rippleGradientFlip, rippleGradientFlop, rippleNormals;
 
         static Shader wetEffectShader = null;
         static Shader WetEffectShader
@@ -37,6 +34,16 @@ namespace Atmosphere
             {
                 if (wetEffectShader == null) wetEffectShader = ShaderLoaderClass.FindShader("EVE/GBufferWetEffect");
                 return wetEffectShader;
+            }
+        }
+
+        static Shader ripplesLutShader = null;
+        static Shader RipplesLutShader
+        {
+            get
+            {
+                if (ripplesLutShader == null) ripplesLutShader = ShaderLoaderClass.FindShader("EVE/RipplesLut");
+                return ripplesLutShader;
             }
         }
 
@@ -63,6 +70,12 @@ namespace Atmosphere
                 return false;
             }
 
+            if (!WetEffectShader)
+            {
+                WetSurfacesManager.Log("[Error] Wet surfaces shader not found, wet surface effects won't be available");
+                return false;
+            }
+
             wetSurfacesConfigObject = WetSurfacesManager.GetConfig(wetSurfacesConfig);
 
             if (wetSurfacesConfigObject == null)
@@ -71,13 +84,9 @@ namespace Atmosphere
             cloudsRaymarchedVolume = volume;
             parentTransform = parent;
 
-            //InitMaterials();
-            //InitGameObjects(parent);
+            wetEffectMaterial = new Material(WetEffectShader);
+            ripplesLutMaterial = new Material(RipplesLutShader);
 
-            // Init material
-            wetEffectMaterial = new Material(wetEffectShader);
-
-            // assign texture
             if (wetSurfacesConfigObject.PuddlesTexture != null)
                 wetSurfacesConfigObject.PuddlesTexture.ApplyTexture(wetEffectMaterial, "_puddlesTexture");
 
@@ -87,6 +96,24 @@ namespace Atmosphere
             wetEffectMaterial.SetFloat("rainRipplesAmount", 1f); // to be overridden by coverage and stuff
 
             wetEffectMaterial.SetFloat("puddlesTiling", 1f / wetSurfacesConfigObject.PuddleTextureScale);
+            wetEffectMaterial.SetFloat("rippleTiling", 1f / wetSurfacesConfigObject.RippleScale);
+
+            ripplesLutMaterial.SetFloat("rainRipplesAmount", 1f); // to be overridden by coverage and stuff
+
+            if(rippleGradientFlip != null && rippleGradientFlip.IsCreated())
+                rippleGradientFlip.Release();
+
+            rippleGradientFlip = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
+
+            if (rippleGradientFlop != null && rippleGradientFlop.IsCreated())
+                rippleGradientFlop.Release();
+
+            rippleGradientFlop = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
+
+            if (rippleNormals != null && rippleNormals.IsCreated())
+                rippleNormals.Release();
+
+            rippleNormals = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.RG16, true, FilterMode.Bilinear);
 
             return true;
         }
@@ -94,30 +121,65 @@ namespace Atmosphere
         public void Remove()
         {
             RemoveRenderer();
+
+            if (rippleGradientFlip != null && rippleGradientFlip.IsCreated())
+                rippleGradientFlip.Release();
+
+            if (rippleGradientFlop != null && rippleGradientFlop.IsCreated())
+                rippleGradientFlop.Release();
+
+            if (rippleNormals != null && rippleNormals.IsCreated())
+                rippleNormals.Release();
         }
 
         public void Update()
         {
             // if enabled and wetness above zero, draw effect to gbuffer, no need to recreate the commandBuffer every frame maybe?
+            Vector3 positionToSample = Vector3.zero;
 
-            currentCoverage = cloudsRaymarchedVolume.SampleCoverage(FlightGlobals.ActiveVessel.transform.position, out float cloudType);
-            currentCoverage = Mathf.Clamp01((currentCoverage - wetSurfacesConfigObject.MinCoverageThreshold) / (wetSurfacesConfigObject.MaxCoverageThreshold - wetSurfacesConfigObject.MinCoverageThreshold));
+            if (FlightGlobals.ActiveVessel != null)
+                positionToSample = FlightGlobals.ActiveVessel.transform.position;
+
+            currentCoverage = cloudsRaymarchedVolume.SampleCoverage(positionToSample, out float cloudType);
+            //currentCoverage = Mathf.Clamp01((currentCoverage - wetSurfacesConfigObject.MinCoverageThreshold) / (wetSurfacesConfigObject.MaxCoverageThreshold - wetSurfacesConfigObject.MinCoverageThreshold));
 
             if (currentCoverage > 0f)
                 currentCoverage *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeWetSurfacesDensity(cloudType);
 
             // for now just traight up hook current coverage to wetness, just for testing
 
-            if (currentCoverage > 0f)
+            //if (currentCoverage > 0f)
             {
+                // update ripples lut
+
+                Graphics.Blit(null, rippleGradientFlip, ripplesLutMaterial, 0);
+
+                ripplesLutMaterial.SetTexture("ripplesInputTexture", rippleGradientFlip);
+                Graphics.Blit(null, rippleGradientFlop, ripplesLutMaterial, 1);
+
+                ripplesLutMaterial.SetTexture("ripplesInputTexture", rippleGradientFlop);
+                Graphics.Blit(null, rippleGradientFlip, ripplesLutMaterial, 2);
+
+                ripplesLutMaterial.SetTexture("ripplesInputTexture", rippleGradientFlip);
+                Graphics.Blit(null, rippleNormals, ripplesLutMaterial, 3);
+
+                rippleNormals.GenerateMips();
+                wetEffectMaterial.SetTexture("_ripplesLut", rippleNormals);
+
+
                 // Update material
 
-                wetEffectMaterial.SetFloat("puddlesAmount", Mathf.Clamp01(2f * (currentCoverage - 0.5f)));  // to be overridden by coverage and stuff
-                wetEffectMaterial.SetFloat("WetLevel", Mathf.Clamp01(2f * currentCoverage));                // to be overridden by coverage and stuff
+                //Debug.Log("WetSurface coverage " + currentCoverage.ToString());
+
+                //wetEffectMaterial.SetFloat("puddlesAmount", Mathf.Clamp01(2f * (currentCoverage - 0.5f)));  // to be overridden by coverage and stuff
+                //wetEffectMaterial.SetFloat("WetLevel", Mathf.Clamp01(2f * currentCoverage));                // to be overridden by coverage and stuff
+
+                wetEffectMaterial.SetFloat("puddlesAmount", wetSurfacesConfigObject.MaxCoverageThreshold);  // to be overridden by coverage and stuff
+                wetEffectMaterial.SetFloat("WetLevel", wetSurfacesConfigObject.MinCoverageThreshold);                // to be overridden by coverage and stuff
 
                 wetEffectMaterial.SetVector("upVector", -parentTransform.position.normalized);
 
-                if (!rendererAdded)
+                if (!rendererAdded || nearCameraWetSurfacesRenderer == null)
                 {
                     var nearCamera = Camera.allCameras.Where(x => x.name == "Camera 00").FirstOrDefault();
                     if (nearCamera != null)
@@ -126,9 +188,9 @@ namespace Atmosphere
                         nearCameraWetSurfacesRenderer.SetMaterial(wetEffectMaterial);
                     }
 
-                    if (Tools.IsUnifiedCameraMode())
+                    if (!Tools.IsUnifiedCameraMode() && farCameraWetSurfacesRenderer == null)
                     {
-                        var farCamera = Camera.allCameras.Where(x => x.name == "Camera 00").FirstOrDefault();
+                        var farCamera = Camera.allCameras.Where(x => x.name == "Camera 01").FirstOrDefault();
 
                         if (farCamera != null)
                         {
@@ -140,10 +202,12 @@ namespace Atmosphere
                     rendererAdded = true;
                 }
             }
+            /*
             else if (rendererAdded)
             {
                 RemoveRenderer();
             }
+            */
 
         }
 
@@ -151,11 +215,13 @@ namespace Atmosphere
         {
             if (nearCameraWetSurfacesRenderer != null)
             {
+                nearCameraWetSurfacesRenderer.Cleanup();
                 Component.Destroy(nearCameraWetSurfacesRenderer);
             }
 
             if (farCameraWetSurfacesRenderer != null)
             {
+                farCameraWetSurfacesRenderer.Cleanup();
                 Component.Destroy(farCameraWetSurfacesRenderer);
             }
 
@@ -225,7 +291,7 @@ namespace Atmosphere
             wetEffectCommandBuffer.GetTemporaryRT(tempRT1, screenWidth, screenHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32);
 
             int tempRT2 = Shader.PropertyToID("_TempRTGbuffer2");
-            wetEffectCommandBuffer.GetTemporaryRT(tempRT2, screenWidth, screenHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32);
+            wetEffectCommandBuffer.GetTemporaryRT(tempRT2, screenWidth, screenHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB2101010);
 
             // Copy GBuffers
             wetEffectCommandBuffer.Blit(BuiltinRenderTextureType.GBuffer1, tempRT1);
@@ -234,22 +300,46 @@ namespace Atmosphere
             wetEffectCommandBuffer.SetGlobalTexture("_originalGbuffer1Texture", tempRT1);
             wetEffectCommandBuffer.SetGlobalTexture("_originalGbuffer2Texture", tempRT2);
 
-            wetEffectCommandBuffer.SetGlobalMatrix("CameraToWorld", cam.cameraToWorldMatrix);
-
             RenderTargetIdentifier[] gbufferIdentifiers = { BuiltinRenderTextureType.GBuffer0, BuiltinRenderTextureType.GBuffer1, BuiltinRenderTextureType.GBuffer2 };
-            wetEffectCommandBuffer.SetRenderTarget(gbufferIdentifiers, BuiltinRenderTextureType.None);
+            wetEffectCommandBuffer.SetRenderTarget(gbufferIdentifiers, BuiltinRenderTextureType.CameraTarget);
 
-            wetEffectCommandBuffer.DrawMesh(quadMesh, Matrix4x4.identity, mat, 0, 0);
+            wetEffectCommandBuffer.DrawMesh(quadMesh, Matrix4x4.identity, mat, 0, 0); // Pass 0: Parts and Kerbals, wet effect only, no puddles
+
+            wetEffectCommandBuffer.DrawMesh(quadMesh, Matrix4x4.identity, mat, 0, 1); // Pass 1: Terrain and scenery, wet + puddles
+
+            //wetEffectCommandBuffer.DrawMesh(quadMesh, Matrix4x4.identity, mat, 0, 2); // Pass 2: Scenery with unreliable per-pixel normals like KSC runways (all normals point up so that different parts of runway connect seamlessly)
+                                                                                      // wet + puddles but puddles based on depth-based normals
+
+            wetEffectCommandBuffer.ReleaseTemporaryRT(tempRT1);
+            wetEffectCommandBuffer.ReleaseTemporaryRT(tempRT2);
 
             cam.AddCommandBuffer(CameraEvent.BeforeReflections, wetEffectCommandBuffer);
 
             isInitialized = true;
         }
 
-        void Remove()
+        public void Cleanup()
         {
-            if (wetEffectCommandBuffer != null)
+            if (cam != null && wetEffectCommandBuffer != null)
                 cam.RemoveCommandBuffer(CameraEvent.BeforeReflections, wetEffectCommandBuffer);
+        }
+
+        void OnDestroy()
+        {
+            Cleanup();
+        }
+
+        private void OnPreRender()
+        {
+
+            if (mat != null)
+            {
+                if (cam != null)
+                    mat.SetMatrix("CameraToWorld", cam.cameraToWorldMatrix);
+
+                mat.SetVector("floatingOriginOffset", new Vector3((float)FloatingOrigin.TerrainShaderOffset.x,
+                    (float)FloatingOrigin.TerrainShaderOffset.y, (float)FloatingOrigin.TerrainShaderOffset.z));
+            }
         }
 
         void OnPostRender()
