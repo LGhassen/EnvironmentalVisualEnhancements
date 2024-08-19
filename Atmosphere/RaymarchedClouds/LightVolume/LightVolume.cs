@@ -66,7 +66,7 @@ namespace Atmosphere
             }
         }
 
-        private bool updated = false;
+        private bool updatedThisFrame = false;
         private bool released = false;
         private bool useMultiSliceUpdate = false;
 
@@ -103,7 +103,7 @@ namespace Atmosphere
 
         public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix, float maxRadius)
         {
-            if (!updated && !released)
+            if (!updatedThisFrame && !released)
             {
                 UpdateSettings();
 
@@ -152,7 +152,7 @@ namespace Atmosphere
 
                 Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume]);
 
-                updated = true;
+                updatedThisFrame = true;
             }
         }
 
@@ -341,7 +341,7 @@ namespace Atmosphere
 
         public void NotifyRenderingEnded()
         {
-            updated = false;
+            updatedThisFrame = false;
         }
 
         public void Release()
