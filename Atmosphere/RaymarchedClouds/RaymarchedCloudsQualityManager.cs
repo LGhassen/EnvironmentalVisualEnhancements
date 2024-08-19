@@ -15,6 +15,8 @@ namespace Atmosphere
 
         static bool useOrbitMode = true;
 
+        static bool renderCloudsInReflectionProbes = true;
+
         static float screenShotModeDenoisingIterations = 8f;
 
         static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
@@ -27,6 +29,8 @@ namespace Atmosphere
         internal static bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal static bool UseOrbitMode { get => useOrbitMode; }
+
+        internal static bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
 
         internal static float ScreenShotModeDenoisingIterations { get => screenShotModeDenoisingIterations; }
 
@@ -73,6 +77,7 @@ namespace Atmosphere
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
                 useOrbitMode = ObjectList[0].UseOrbitMode;
+                renderCloudsInReflectionProbes = ObjectList[0].RenderCloudsInReflectionProbes;
 
                 screenShotModeDenoisingIterations = ObjectList[0].ScreenShotModeDenoisingIterations;
 

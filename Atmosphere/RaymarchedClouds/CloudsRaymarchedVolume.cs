@@ -151,9 +151,12 @@ namespace Atmosphere
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
+        private bool reflectionProbeMode = false;
 
         private float currentTimeFadeDensity = 1f;
         private float currentTimeFadeCoverage = 1f;
+
+        private float stepSizeLight = 0f;
 
         Light sunlight;
 
@@ -508,13 +511,13 @@ namespace Atmosphere
             }
         }
 
+        bool noiseKeywordOn = false;
+        bool curlNoiseKeywordOn = false;
+        bool flowmapKeywordOn = false;
+        bool noiseUntilingKeywordOn = false;
+
         private void SetNoisetextureParams(Material mat)
         {
-            bool noiseKeywordOn = false;
-            bool curlNoiseKeywordOn = false;
-            bool flowmapKeywordOn = false;
-            bool noiseUntilingKeywordOn = false;
-
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
             {
                 noiseKeywordOn = true;
@@ -569,10 +572,11 @@ namespace Atmosphere
         {
             if (!noiseKeywordOn)
             {
-                mat.EnableKeyword("NOISE_OFF"); mat.DisableKeyword("NOISE_ON");
+                mat.EnableKeyword("NOISE_OFF");
             }
             else
             {
+                mat.DisableKeyword("NOISE_OFF");
                 mat.EnableKeyword($"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}");
             }
         }
@@ -623,7 +627,9 @@ namespace Atmosphere
 
             mat.SetFloat("lightMarchDistance", raymarchingSettings.LightMarchDistance);
             mat.SetInt("lightMarchSteps", (int)raymarchingSettings.LightMarchSteps);
-            mat.SetFloat("stepSizeLight", raymarchingSettings.LightMarchDistance / (int)raymarchingSettings.LightMarchSteps);
+
+            stepSizeLight = raymarchingSettings.LightMarchDistance / (int)raymarchingSettings.LightMarchSteps;
+            mat.SetFloat("stepSizeLight", stepSizeLight);
 
             Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false); //TODO: remove/replace with lower res texture?
             mat.SetTexture("BlueNoise", tex);
@@ -639,6 +645,41 @@ namespace Atmosphere
 
             mat.SetFloat("timeFadeDensity", 1f);
             mat.SetFloat("timeFadeCoverage", 1f);
+        }
+
+        public void ToggleReflectionProbeSettings(bool enable)
+        {
+            if (reflectionProbeMode != enable)
+            { 
+                if (enable)
+                {
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize * 5f);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize * 5f);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor * 5f);
+
+                    raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, 0f);
+
+                    SetNoiseKeywords(raymarchedCloudMaterial, noiseKeywordOn, curlNoiseKeywordOn, false, false);
+
+                    // This will get reset by scatterer when the main camera renders
+                    var godrayStepCount = raymarchedCloudMaterial.GetFloat(ShaderProperties.godraysStepCount_PROPERTY);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.godraysStepCount_PROPERTY, godrayStepCount / 5f);
+                }
+                else
+                {
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor);
+
+                    raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int) raymarchingSettings.LightMarchSteps);
+                    raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, stepSizeLight);
+
+                    SetNoiseKeywords(raymarchedCloudMaterial, noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
+                }
+
+                reflectionProbeMode = enable;
+            }
         }
 
         private void ProcessCloudTypes()

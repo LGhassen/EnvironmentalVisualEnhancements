@@ -366,6 +366,24 @@ namespace Utils
         public static int ambientUpdateNumber_PROPERTY { get { return ambientUpdateNumber; } }
         private static int ambientUpdateNumber;
 
+        public static int baseStepSize_PROPERTY { get { return baseStepSize; } }
+        private static int baseStepSize;
+
+        public static int maxStepSize_PROPERTY { get { return maxStepSize; } }
+        private static int maxStepSize;
+
+        public static int adaptiveStepSizeFactor_PROPERTY { get { return adaptiveStepSizeFactor; } }
+        private static int adaptiveStepSizeFactor;
+
+        public static int lightMarchSteps_PROPERTY { get { return lightMarchSteps; } }
+        private static int lightMarchSteps;
+
+        public static int stepSizeLight_PROPERTY { get { return stepSizeLight; } }
+        private static int stepSizeLight;
+
+        public static int godraysStepCount_PROPERTY { get { return godraysStepCount; } }
+        private static int godraysStepCount;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -500,6 +518,13 @@ namespace Utils
             NewAmbientVolumeRays = Shader.PropertyToID("NewAmbientVolumeRays");
             ambientBlendingFactor = Shader.PropertyToID("ambientBlendingFactor");
             ambientUpdateNumber = Shader.PropertyToID("ambientUpdateNumber");
+
+            baseStepSize = Shader.PropertyToID("baseStepSize");
+            maxStepSize = Shader.PropertyToID("maxStepSize");
+            adaptiveStepSizeFactor = Shader.PropertyToID("adaptiveStepSizeFactor");
+            lightMarchSteps = Shader.PropertyToID("lightMarchSteps");
+            stepSizeLight = Shader.PropertyToID("stepSizeLight");
+            godraysStepCount = Shader.PropertyToID("godraysStepCount");
         }
     }
 }

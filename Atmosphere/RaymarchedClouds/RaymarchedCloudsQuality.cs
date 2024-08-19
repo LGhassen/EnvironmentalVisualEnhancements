@@ -33,6 +33,9 @@ namespace Atmosphere
         bool useOrbitMode = true;
 
         [ConfigItem]
+        bool renderCloudsInReflectionProbes = true;
+
+        [ConfigItem]
         float screenshotModeDenoisingIterations = 8f;
 
         [ConfigItem]
@@ -42,6 +45,8 @@ namespace Atmosphere
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal bool UseOrbitMode { get => useOrbitMode; }
+
+        internal bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
 
         internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 

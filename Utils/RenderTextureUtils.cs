@@ -1,54 +1,136 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 namespace Utils
 {
-    public struct FlipFlop<T>
+    public class HistoryManager<T>
     {
-        public FlipFlop(T flip, T flop)
+        private T[,,] array = null;
+
+        private bool flipFlop = false;
+        private bool vr = false;
+        private bool cubemap = false;
+
+        public bool FlipFlop { get => flipFlop; }
+        public bool VR { get => vr; }
+        public bool Cubemap { get => cubemap; }
+
+        public HistoryManager(bool flipFlop, bool VR, bool cubemap)
         {
-            this.flip = flip;
-            this.flop = flop;
+            this.flipFlop = flipFlop;
+            this.vr = VR;
+            this.cubemap = cubemap;
+
+            array = new T[flipFlop ? 2 : 1, VR ? 2 : 1, cubemap ? 6 : 1];
         }
 
-        public T this[bool useFlip]
+        public void GetDimensions(out int x, out int y, out int z)
         {
-            get => useFlip ? flip : flop;
+            x = array.GetLength(0);
+            y = array.GetLength(1);
+            z = array.GetLength(2);
+        }
+
+        private void CalculateIndices(bool flip, bool VRRightEye, int cubemapFace, out int x, out int y, out int z)
+        {
+            x = flipFlop && !flip ? 1 : 0;
+            y = vr && !VRRightEye ? 1 : 0;
+            z = Cubemap ? cubemapFace : 0;
+        }
+
+        public T this[bool flip, bool VRRightEye, int cubemapFace]
+        {
+            get
+            {
+                CalculateIndices(flip, VRRightEye, cubemapFace, out int x, out int y, out int z);
+                return array[x, y, z];
+            }
             set
             {
-                if (useFlip) flip = value;
-                else flop = value;
+                CalculateIndices(flip, VRRightEye, cubemapFace, out int x, out int y, out int z);
+                array[x, y, z] = value;
             }
         }
 
-        T flip;
-        T flop;
+        public T this[int x, int y, int z]
+        {
+            get
+            {
+                x = Math.Min(x, array.GetLength(0)); y = Math.Min(y, array.GetLength(1)); z = Math.Min(z, array.GetLength(2));
+                return array[x, y, z];
+            }
+            set
+            {
+                x = Math.Min(x, array.GetLength(0)); y = Math.Min(y, array.GetLength(1)); z = Math.Min(z, array.GetLength(2));
+                array[x, y, z] = value;
+            }
+        }
     }
 
     public static class RenderTextureUtils
 	{
-        public static FlipFlop<RenderTexture> CreateFlipFlopRT(int width, int height, RenderTextureFormat format, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Clamp)
+        public static HistoryManager<RenderTexture> CreateRTHistoryManager(bool flipFlop, bool VR, bool cubemap, int width,
+                                                                        int height, RenderTextureFormat format, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D,
+                                                                        int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Clamp)
         {
-            return new FlipFlop<RenderTexture>(
-                CreateRenderTexture(width, height, format, false, filterMode, dimension, depth, randomReadWrite, wrapMode),
-                CreateRenderTexture(width, height, format, false, filterMode, dimension, depth, randomReadWrite, wrapMode));
+            var historyManager = new HistoryManager<RenderTexture>(flipFlop, VR, cubemap);
+
+            historyManager.GetDimensions(out int x, out int y, out int z);
+
+            for (int i = 0; i < x; i++)
+            {
+                for (int j = 0; j < y; j++)
+                {
+                    for (int k = 0; k < z; k++)
+                    {
+                        historyManager[i, j, k] = CreateRenderTexture(width, height, format, false, filterMode, dimension, depth, randomReadWrite, wrapMode);
+                    }
+                }
+            }
+
+            return historyManager;
         }
 
-        public static void ReleaseFlipFlopRT(ref FlipFlop<RenderTexture> flipFlop)
+        public static void ReleaseRTHistoryManager(HistoryManager<RenderTexture> historyManager)
         {
-            RenderTexture rt;
+            if (historyManager != null)
+            { 
+                historyManager.GetDimensions(out int x, out int y, out int z);
 
-            rt = flipFlop[false];
-            if (rt != null) rt.Release();
-            rt = flipFlop[true];
-            if (rt != null) rt.Release();
+                for (int i = 0; i < x; i++)
+                {
+                    for (int j = 0; j < y; j++)
+                    {
+                        for (int k = 0; k < z; k++)
+                        {
+                            var rt = historyManager[i, j, k];
+                            if (rt != null)
+                            {
+                                rt.Release();
+                            }
 
-            flipFlop = new FlipFlop<RenderTexture>(null, null);
+                            historyManager[i, j, k] = null;
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void ResizeRTHistoryManager(HistoryManager<RenderTexture> historyManager, int newWidth, int newHeight, int newDepth = 0)
+        {
+            historyManager.GetDimensions(out int x, out int y, out int z);
+
+            for (int i = 0; i < x; i++)
+            {
+                for (int j = 0; j < y; j++)
+                {
+                    for (int k = 0; k < z; k++)
+                    {
+                        ResizeRT(historyManager[i, j, k], newWidth, newHeight, newDepth);
+                    }
+                }
+            }
         }
 
         public static void ResizeRT(RenderTexture rt, int newWidth, int newHeight, int newDepth = 0)
@@ -61,12 +143,6 @@ namespace Utils
                 rt.volumeDepth = newDepth;
                 rt.Create();
             }
-        }
-
-        public static void ResizeFlipFlopRT(ref FlipFlop<RenderTexture> flipFlop, int newWidth, int newHeight, int newDepth = 0)
-        {
-            RenderTextureUtils.ResizeRT(flipFlop[false], newWidth, newHeight, newDepth);
-            RenderTextureUtils.ResizeRT(flipFlop[true], newWidth, newHeight, newDepth);
         }
 
         public static RenderTexture CreateRenderTexture(int width, int height, RenderTextureFormat format, bool useMips, FilterMode filterMode, TextureDimension dimension = TextureDimension.Tex2D, int depth = 0, bool randomReadWrite = false, TextureWrapMode wrapMode = TextureWrapMode.Repeat, bool autoGenerateMips = false)
