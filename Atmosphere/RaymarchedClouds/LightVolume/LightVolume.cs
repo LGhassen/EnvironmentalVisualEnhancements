@@ -18,6 +18,7 @@ namespace Atmosphere
                 if (instance == null)
                 {
                     instance = new LightVolume();
+                    instance.Init();
                 }
                 return instance;
             }
@@ -39,7 +40,8 @@ namespace Atmosphere
         private ComputeShader reprojectLightVolumeComputeShader = null;
         private uint reprojectLightVolumeComputeShaderXThreads, reprojectLightVolumeComputeShaderYThreads, reprojectLightVolumeComputeShaderZThreads;
         private static Shader reprojectLightVolumeShader = null;
-        private Material reprojectLightVolumeMaterial;
+        private static Shader lightVolumeShadowShader = null;
+        private Material reprojectLightVolumeMaterial, lightVolumeShadowMaterial;
         private bool readFromFlipLightVolume = true;
         private int nextDirectSliceToUpdate = 0, nextAmbientSliceToUpdate = 0;
         private int ambientUpdateCounter = 0;
@@ -57,6 +59,8 @@ namespace Atmosphere
 
         private const float reprojectionThreshold = 0.03f;
         private const float radiusReprojectionThreshold = 1f + reprojectionThreshold;
+        private Light sunlight;
+
         private static Shader ReprojectLightVolumeShader
         {
             get
@@ -66,11 +70,24 @@ namespace Atmosphere
             }
         }
 
+        private static Shader LightVolumeShadowShader
+        {
+            get
+            {
+                if (lightVolumeShadowShader == null)
+                {
+                    lightVolumeShadowShader = ShaderLoaderClass.FindShader("EVE/LightVolumeShadow");
+                }
+
+                return lightVolumeShadowShader;
+            }
+        }
+
         private bool updatedThisFrame = false;
         private bool released = false;
         private bool useMultiSliceUpdate = false;
 
-        public LightVolume()
+        public void Init()
         {
             volumeResolution = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.HorizontalResolution;
             volumeSlices = (int)RaymarchedCloudsQualityManager.LightVolumeSettings.VerticalResolution;
@@ -99,6 +116,9 @@ namespace Atmosphere
             ambientLightSlicesToUpdateEveryFrame = Mathf.Max(volumeSlices / (int)RaymarchedCloudsQualityManager.LightVolumeSettings.AmbientLightTimeSlicing, 1);
 
             lightVolume = RenderTextureUtils.CreateRTHistoryManager(true, false, false, volumeResolution, volumeResolution, RenderTextureFormat.RHalf, FilterMode.Bilinear, TextureDimension.Tex3D, mergedVolumeSlices, useComputeShader, TextureWrapMode.Clamp);
+
+            lightVolumeShadowMaterial = new Material(LightVolumeShadowShader);
+            sunlight = Sun.Instance.GetComponent<Light>();
         }
 
         public void Update(List<CloudsRaymarchedVolume> volumes, Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, Matrix4x4 slowestLayerPlanetFrameDeltaRotationMatrix, float maxRadius)
@@ -151,6 +171,18 @@ namespace Atmosphere
                 Shader.SetGlobalFloat(ShaderProperties.scattererOuterLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
 
                 Shader.SetGlobalTexture(ShaderProperties.scattererDirectLightVolume_PROPERTY, lightVolume[readFromFlipLightVolume, false, 0]);
+
+                lightVolumeShadowMaterial.SetVector(ShaderProperties.lightVolumeDimensions_PROPERTY, lightVolumeDimensions);
+                lightVolumeShadowMaterial.SetVector(ShaderProperties.paraboloidPosition_PROPERTY, worldLightVolumePosition);
+                lightVolumeShadowMaterial.SetMatrix(ShaderProperties.worldToParaboloid_PROPERTY, worldToLightVolume);
+                lightVolumeShadowMaterial.SetFloat(ShaderProperties.innerLightVolumeRadius_PROPERTY, lightVolumeLowestAltitude);
+                lightVolumeShadowMaterial.SetFloat(ShaderProperties.outerLightVolumeRadius_PROPERTY, lightVolumeHighestAltitude);
+                lightVolumeShadowMaterial.SetTexture(ShaderProperties.lightVolume_PROPERTY, lightVolume[readFromFlipLightVolume, false, 0]);
+                lightVolumeShadowMaterial.SetVector(ShaderProperties.planetCenter_PROPERTY, planetPosition);
+                lightVolumeShadowMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, planetRadius);
+                lightVolumeShadowMaterial.SetVector(ShaderProperties.lightDirection_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
+
+                ScreenSpaceShadowsManager.Instance.UpdateLightVolumeShadowMaterial(lightVolumeShadowMaterial);
 
                 updatedThisFrame = true;
             }
@@ -372,9 +404,11 @@ namespace Atmosphere
             worldToLightVolume = Matrix4x4.Inverse(lightVolumeToWorld);
         }
 
+        Vector3 planetPosition;
+
         private void MoveLightVolumeIfNeeded(Vector3 cameraPosition, Transform planetTransform, float planetRadius, float innerCloudsRadius, float outerCloudsRadius, float maxRadius)
         {
-            Vector3 planetPosition = planetTransform.position;
+            planetPosition = planetTransform.position;
 
             Vector3 cameraUpVector = cameraPosition - planetPosition;
             float cameraAltitude = cameraUpVector.magnitude;

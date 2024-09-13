@@ -2,8 +2,10 @@
 
 // Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
 
-Shader "EVE/ScreenSpacePlanetLight" {
-	Properties{
+Shader "EVE/ScreenSpacePlanetLight"
+{
+	Properties
+	{
 		_Color("Color Tint", Color) = (1,1,1,1)
 			_SpecularColor("Specular tint", Color) = (1,1,1,1)
 			_SpecularPower("Shininess", Float) = 0.078125
@@ -13,40 +15,33 @@ Shader "EVE/ScreenSpacePlanetLight" {
 			_bPos("_bPos", Vector) = (0,0,0)
 			_bRadius("_bRadius", Float) = 1
 	}
-	Category{
-		Lighting On
+	Category
+	{	
 		ZWrite Off
-		Cull Back
-		Offset 0, 0
-		//Blend SrcAlpha OneMinusSrcAlpha
+		Cull Off
+		ZTest Off
+		
 		Blend Zero SrcColor //multiplicative
-		Tags{
-			"Queue" = "Geometry+2"
-				"RenderMode" = "Transparent"
-				"IgnoreProjector" = "True"
-		}
-		SubShader{
-			Pass{
 
-				Lighting On
-				Tags{ "LightMode" = "ForwardBase" }
+		Tags{ "Queue" = "Geometry+2" "RenderMode" = "Transparent" "IgnoreProjector" = "True" }
 
+		SubShader
+		{
+			Pass
+			{
 				CGPROGRAM
 
 				#include "EVEUtils.cginc"
 				#pragma target 3.0
-				#pragma glsl
 				#pragma vertex vert
 				#pragma fragment frag
 				#pragma fragmentoption ARB_precision_hint_fastest
-				#pragma multi_compile_fwdbase
-				#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1
 
 				fixed4 _Color;
 				float _SpecularPower;
 				half4 _SpecularColor;
 
-				uniform sampler2D _CameraDepthTexture;
+				uniform sampler2D EVEDownscaledDepth;
 				float4x4 CameraToWorld;
 
 				struct appdata_t {
@@ -63,11 +58,8 @@ Shader "EVE/ScreenSpacePlanetLight" {
 				v2f vert(appdata_t v)
 				{
 					v2f o;
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
-					o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, -1.0 , 1.0);
-#else
-					o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, 1.0 , 1.0);
-#endif
+					
+					o.pos = UnityObjectToClipPos(v.vertex);
 					o.uv = ComputeScreenPos(o.pos);
 
 					return o;
@@ -78,7 +70,7 @@ Shader "EVE/ScreenSpacePlanetLight" {
 				{
 					half4 color = half4(1.0,1.0,1.0,1.0);
 
-					float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
+					float zdepth = tex2Dlod(EVEDownscaledDepth, float4(IN.uv,0,0));
 
 				#if SHADER_API_D3D11
 					if (zdepth == 0.0) {discard;}
@@ -86,7 +78,7 @@ Shader "EVE/ScreenSpacePlanetLight" {
 					if (zdepth == 1.0) {discard;}
 				#endif
 
-					float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth, CameraToWorld);
+					float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth);
 
 					color.rgb = MultiBodyShadow(worldPos.xyz, _SunRadius, _SunPos, _ShadowBodies);
 

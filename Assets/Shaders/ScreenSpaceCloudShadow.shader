@@ -28,8 +28,11 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 		Tags{ "Queue" = "Geometry+500" "IgnoreProjector" = "True" "RenderType" = "Transparent" }
 		Pass {
 			Blend Zero SrcColor //multiplicative
+			
 			ZWrite Off
-			Offset 0, 0
+			ZTest Off
+			Cull Off
+
 			CGPROGRAM
 			#include "EVEUtils.cginc"
 			#pragma target 3.0
@@ -81,8 +84,12 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			float3 _PlanetOrigin;
 
 			uniform sampler2D scattererReconstructedCloud;
-			uniform sampler2D _CameraDepthTexture;
-			float4x4 CameraToWorld;
+			sampler2D EVEDownscaledDepth;
+
+			int BlendBetween2DShadowsAndLightVolume;
+
+			#define DISTANCE_BLEND_START_DISTANCE 1000.0
+			#define DISTANCE_BLEND_LENGTH 1500.0
 
 			struct appdata_t {
 				float4 vertex : POSITION;
@@ -97,11 +104,8 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 			v2f vert(appdata_t v)
 			{
 				v2f o;
-#if defined(SHADER_API_GLES) || defined(SHADER_API_GLES3) || defined(SHADER_API_GLCORE)
-				o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, -1.0 , 1.0);
-#else
-				o.pos = float4(v.vertex.x, v.vertex.y *_ProjectionParams.x, 1.0 , 1.0);
-#endif
+
+				o.pos = UnityObjectToClipPos(v.vertex);
 				o.uv = ComputeScreenPos(o.pos);
 
 				return o;
@@ -117,7 +121,7 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 					if (cloudTransmittance == 0.0) return 1.0.xxxx;
 				#endif
 
-				float zdepth = tex2Dlod(_CameraDepthTexture, float4(IN.uv,0,0));
+				float zdepth = tex2Dlod(EVEDownscaledDepth, float4(IN.uv,0,0));
 
 			#if SHADER_API_D3D11
 				if (zdepth == 0.0) {discard;}
@@ -125,7 +129,13 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				if (zdepth == 1.0) {discard;}
 			#endif
 
-				float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth, CameraToWorld);
+				float3 worldPos = getPreciseWorldPosFromDepth(IN.uv, zdepth);
+
+				float dist = distance(worldPos, _WorldSpaceCameraPos);
+
+				[branch]
+				if (dist < DISTANCE_BLEND_START_DISTANCE && BlendBetween2DShadowsAndLightVolume > 0)
+					return 1.0;
 
 				float4 vertexPos = float4(worldPos,1.0);
 				float3 worldOrigin = _PlanetOrigin;
@@ -178,12 +188,21 @@ Shader "EVE/ScreenSpaceCloudShadow" {
 				float3 localColor;
 				float cloudDensity = SampleCloudDensity(cloudPos.xyz, 1.0.xxxx, 0.0, localColor, unused);
 
+				/*
 				cloudDensity = saturate(cloudDensity * 4.0) * 0.65;
 
 				float4 color = 1.0.xxxx;
 
 				color.rgb = saturate(localColor.rgb * _Color.rgb * (1.0 - cloudDensity));
 				color.rgb = lerp(1, color.rgb, cloudDensity * _ShadowFactor * _Color.a);
+				*/
+
+				float finalCloudTransmittance = fakedMultiScatteringBeerAbsorption(cloudDensity * 20.0, 1);
+
+				float4 color = 1.0.xxxx;
+
+				color.rgb = saturate(localColor.rgb * _Color.rgb * finalCloudTransmittance);
+				color.rgb = lerp(1, color.rgb, (1.0 - finalCloudTransmittance) * _ShadowFactor * _Color.a);
 #endif
 
 				return lerp(1, color, shadowCheck*fadeout*cloudTimeFadeDensity);

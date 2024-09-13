@@ -94,14 +94,17 @@ namespace ShaderLoader
 
         public static Shader FindShader(string name)
         {
-            if (shaderDictionary == null) {
+            if (shaderDictionary == null)
+            {
                 KSPLog.print("[EVE] Trying to find shader before assets loaded");
                 return null;
             }
+
             if (shaderDictionary.ContainsKey(name))
             {
                 return shaderDictionary[name];
             }
+
             KSPLog.print("[EVE] Could not find shader " + name);
             return null;
         }

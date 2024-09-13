@@ -1,10 +1,5 @@
-﻿using EVEManager;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
-using System.Text;
 using ShaderLoader;
 using UnityEngine;
 using Utils;
@@ -42,13 +37,10 @@ namespace Atmosphere
     public class Clouds2D
     {
         GameObject CloudMesh;
-        Material CloudMaterial;
+        Material cloudMaterial, screenSpaceShadowMaterial;
         Projector ShadowProjector = null;
         GameObject ShadowProjectorGO = null;
         CloudsMaterial cloudsMat = null;
-
-        ScreenSpaceShadow screenSpaceShadow;
-        GameObject screenSpaceShadowGO = null;
 
         [ConfigItem]
         Clouds2DMaterial macroCloudMaterial = null;
@@ -168,17 +160,25 @@ namespace Atmosphere
                 {
                     ShadowProjector.enabled = value;
                 }
-                if (screenSpaceShadowGO != null)
+                
+                if (screenSpaceShadowMaterial != null)
                 {
-                    screenSpaceShadowGO.SetActive(value);
+                    if (value)
+                    {
+                        ScreenSpaceShadowsManager.Instance.RegisterCloudShadowMaterial(screenSpaceShadowMaterial);
+                    }
+                    else
+                    {
+                        ScreenSpaceShadowsManager.Instance.UnregisterCloudShadowMaterial(screenSpaceShadowMaterial);
+                    }
                 }
             }
         }
 
         public CloudsMaterial CloudsMat { get => cloudsMat; }
-        public Material CloudRenderingMaterial { get => CloudMaterial; }
+        public Material CloudRenderingMaterial { get => cloudMaterial; }
         public Matrix4x4 MainRotationMatrix { get => mainRotationMatrix; }
-        public ScreenSpaceShadow ScreenSpaceShadow { get => screenSpaceShadow; }
+        public Material ScreenSpaceShadowMaterial { get => screenSpaceShadowMaterial; }
 
         public void setCloudMeshEnabled(bool value)
         {
@@ -195,22 +195,23 @@ namespace Atmosphere
             this.celestialBody = celestialBody;
             this.scaledCelestialTransform = scaledCelestialTransform;
             if (arc == 360) {
-                HalfSphere hp = new HalfSphere(radius, ref CloudMaterial, CloudShader);
+                HalfSphere hp = new HalfSphere(radius, ref cloudMaterial, CloudShader);
                 CloudMesh = hp.GameObject;
             } else {
-                UVSphere hp = new UVSphere(radius, arc, ref CloudMaterial, CloudShader);
+                UVSphere hp = new UVSphere(radius, arc, ref cloudMaterial, CloudShader);
                 CloudMesh = hp.GameObject;
             }
             CloudMesh.name = name;
-            CloudMaterial.name = "Clouds2D";
+            cloudMaterial.name = "Clouds2D";
             this.radius = radius;
             this.arc = arc;
             macroCloudMaterial.Radius = radius;
             this.cloudsMat = cloudsMaterial;
             this.scaledLayer = layer;
 
-            CloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero);
+            cloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero);
 
+            
             if (shadowMaterial != null)
             {
                 ShadowProjectorGO = new GameObject("EVE ShadowProjector");
@@ -227,17 +228,9 @@ namespace Atmosphere
                 ShadowProjector.enabled = false;
                 ShadowProjector.enabled = true;
 
-                // Here create the screenSpaceShadowMaterialStuff
-                screenSpaceShadowGO = new GameObject("EVE ScreenSpaceShadow");
-                screenSpaceShadowGO.transform.parent = celestialBody.transform;
-                screenSpaceShadow = screenSpaceShadowGO.AddComponent<ScreenSpaceShadow>(); //can this be a single class that will handle the mesh, and meshrenderer and everything?
-                screenSpaceShadow.material = new Material(ScreenSpaceCloudShadowShader);
-                shadowMaterial.ApplyMaterialProperties(screenSpaceShadow.material); 
-                screenSpaceShadow.Init();
-                screenSpaceShadowGO.SetActive(false);
-                screenSpaceShadow.SetActive(false);
+                screenSpaceShadowMaterial = new Material(ScreenSpaceCloudShadowShader);
+                shadowMaterial.ApplyMaterialProperties(screenSpaceShadowMaterial); 
             }
-
 
             Scaled = true;
         }
@@ -264,17 +257,17 @@ namespace Atmosphere
             radiusScaleLocal = radius * localScale;
 
 
-            macroCloudMaterial.ApplyMaterialProperties(CloudMaterial, worldScale);
-            cloudsMat.ApplyMaterialProperties(CloudMaterial, worldScale);
+            macroCloudMaterial.ApplyMaterialProperties(cloudMaterial, worldScale);
+            cloudsMat.ApplyMaterialProperties(cloudMaterial, worldScale);
 
             if (layer == Tools.Layer.Local)
             {
                 Sunlight = Sun.Instance.GetComponent<Light>();
                 
-                CloudMaterial.SetFloat("_OceanRadius", (float)celestialBody.Radius * worldScale);
-                CloudMaterial.EnableKeyword("WORLD_SPACE_ON");
-                CloudMaterial.EnableKeyword("SOFT_DEPTH_ON");
-                CloudMaterial.renderQueue = (int)Tools.Queue.Transparent - 1;
+                cloudMaterial.SetFloat("_OceanRadius", (float)celestialBody.Radius * worldScale);
+                cloudMaterial.EnableKeyword("WORLD_SPACE_ON");
+                cloudMaterial.EnableKeyword("SOFT_DEPTH_ON");
+                cloudMaterial.renderQueue = (int)Tools.Queue.Transparent - 1;
             }
             else
             {
@@ -282,14 +275,14 @@ namespace Atmosphere
                 FieldInfo field = typeof(Sun).GetFields(BindingFlags.Instance | BindingFlags.NonPublic).First(
                     f => f.Name == "scaledSunLight" );
                 Sunlight = (Light)field.GetValue(Sun.Instance);
-                CloudMaterial.DisableKeyword("WORLD_SPACE_ON");
-                CloudMaterial.DisableKeyword("SOFT_DEPTH_ON");
-                CloudMaterial.renderQueue = (int)Tools.Queue.Transparent -1;
+                cloudMaterial.DisableKeyword("WORLD_SPACE_ON");
+                cloudMaterial.DisableKeyword("SOFT_DEPTH_ON");
+                cloudMaterial.renderQueue = (int)Tools.Queue.Transparent -1;
             }
 
-            CloudMaterial.SetFloat("scaledCloudFade", 1f);
-            CloudMaterial.SetFloat("cloudTimeFadeDensity", 1f);
-            CloudMaterial.SetFloat("cloudTimeFadeCoverage", 1f);
+            cloudMaterial.SetFloat("scaledCloudFade", 1f);
+            cloudMaterial.SetFloat("cloudTimeFadeDensity", 1f);
+            cloudMaterial.SetFloat("cloudTimeFadeCoverage", 1f);
 
             if (isMainMenu)
             {
@@ -316,8 +309,8 @@ namespace Atmosphere
 
                 ShadowProjector.material.SetFloat("cloudTimeFadeDensity", 1f);
                 ShadowProjector.material.SetFloat("cloudTimeFadeCoverage", 1f);
-                screenSpaceShadow.material.SetFloat("cloudTimeFadeDensity", 1f);
-                screenSpaceShadow.material.SetFloat("cloudTimeFadeCoverage", 1f);
+                ScreenSpaceShadowMaterial.SetFloat("cloudTimeFadeDensity", 1f);
+                ScreenSpaceShadowMaterial.SetFloat("cloudTimeFadeCoverage", 1f);
 
                 ShadowProjectorGO.layer = (int)Tools.Layer.Scaled; //move these to init since no longer need to change
                 if (layer == Tools.Layer.Scaled)
@@ -329,17 +322,25 @@ namespace Atmosphere
                 else
                     ShadowProjector.enabled = false;
 
-                if (screenSpaceShadowGO != null)
+                
+                if (screenSpaceShadowMaterial != null)
                 {
-                    macroCloudMaterial.ApplyMaterialProperties(screenSpaceShadow.material, worldScale);
-                    cloudsMat.ApplyMaterialProperties(screenSpaceShadow.material, worldScale);
+                    macroCloudMaterial.ApplyMaterialProperties(screenSpaceShadowMaterial, worldScale);
+                    cloudsMat.ApplyMaterialProperties(screenSpaceShadowMaterial, worldScale);
 
-                    screenSpaceShadow.material.SetFloat("_Radius", (float)radiusScaleLocal);
-                    screenSpaceShadow.material.SetFloat("_PlanetRadius", (float)celestialBody.Radius * worldScale);
+                    screenSpaceShadowMaterial.SetFloat("_Radius", (float)radiusScaleLocal);
+                    screenSpaceShadowMaterial.SetFloat("_PlanetRadius", (float)celestialBody.Radius * worldScale);
 
-                    screenSpaceShadowGO.SetActive(layer == Tools.Layer.Local);
-                    screenSpaceShadow.SetActive(layer == Tools.Layer.Local);
+                    if (layer == Tools.Layer.Local)
+                    {
+                        ScreenSpaceShadowsManager.Instance.RegisterCloudShadowMaterial(screenSpaceShadowMaterial);
+                    }
+                    else
+                    {
+                        ScreenSpaceShadowsManager.Instance.UnregisterCloudShadowMaterial(screenSpaceShadowMaterial);
+                    }
                 }
+                
             }
         }
 
@@ -360,13 +361,11 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(ShadowProjectorGO);
                 ShadowProjector = null;
                 ShadowProjectorGO = null;
-            }
 
-            if (screenSpaceShadowGO != null)
-            {
-                screenSpaceShadowGO.transform.parent = null;
-                GameObject.DestroyImmediate(screenSpaceShadowGO);
-                screenSpaceShadowGO = null;
+                if (screenSpaceShadowMaterial != null)
+                {
+                    ScreenSpaceShadowsManager.Instance.UnregisterCloudShadowMaterial(screenSpaceShadowMaterial);
+                }
             }
 
             if (shadowMaterial != null) shadowMaterial.Remove();
@@ -401,15 +400,15 @@ namespace Atmosphere
                     {
                         ShadowProjector.material.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunDirection); 
                     }
-                    else if (screenSpaceShadowGO != null)
+                    else if (screenSpaceShadowMaterial != null)
                     {
-                        screenSpaceShadow.material.SetVector(ShaderProperties.SUNDIR_PROPERTY, worldSunDir);
+                        screenSpaceShadowMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, worldSunDir);
                     }
 
                 }
             }
-            CloudMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, CloudMesh.transform.position);
-            CloudMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
+            cloudMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, CloudMesh.transform.position);
+            cloudMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
             
             SetRotations(World2Planet, mainRotationMatrix, detailRotationMatrix);
 
@@ -418,35 +417,35 @@ namespace Atmosphere
                 flowLoopTime += Tools.GetDeltaTime() * cloudsMat.FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
-                CloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
+                cloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
             }
         }
 
         internal void SetOrbitFade(float fade)
         {
-            CloudMaterial.SetFloat(ShaderProperties.scaledCloudFade_PROPERTY, fade);
+            cloudMaterial.SetFloat(ShaderProperties.scaledCloudFade_PROPERTY, fade);
         }
 
         internal void SetTimeFade(float fade, TimeFadeMode mode)
         {
             if (mode == TimeFadeMode.Density)
             { 
-                CloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
+                cloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
 
                 if (ShadowProjector != null)
                 {
                     ShadowProjector.material.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
-                    screenSpaceShadow.material.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
+                    screenSpaceShadowMaterial.SetFloat(ShaderProperties.cloudTimeFadeDensity_PROPERTY, fade);
                 }
             }
             if (mode == TimeFadeMode.Coverage)
             {
-                CloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
+                cloudMaterial.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
 
                 if (ShadowProjector != null)
                 {
                     ShadowProjector.material.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
-                    screenSpaceShadow.material.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
+                    screenSpaceShadowMaterial.SetFloat(ShaderProperties.cloudTimeFadeCoverage_PROPERTY, fade);
                 }
             }
         }
@@ -463,8 +462,8 @@ namespace Atmosphere
         {
             mainRotationMatrix = mainRotation;
             Matrix4x4 rotation = (mainRotation * World2Planet) * CloudMesh.transform.localToWorldMatrix;
-            CloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotation);
-            CloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
+            cloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotation);
+            cloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
 
             if (ShadowProjector != null)
             {
@@ -472,13 +471,13 @@ namespace Atmosphere
                 {
                     ShadowProjector.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation);
                 }
-                else if (screenSpaceShadowGO != null)
+                else if (screenSpaceShadowMaterial != null)
                 {
-                    screenSpaceShadow.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation * screenSpaceShadowGO.transform.parent.worldToLocalMatrix);
-                    screenSpaceShadow.material.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, screenSpaceShadowGO.transform.parent.position);
+                    screenSpaceShadowMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation * celestialBody.transform.worldToLocalMatrix);
+                    screenSpaceShadowMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, celestialBody.transform.position);
 
-                    screenSpaceShadow.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
-                    screenSpaceShadow.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
+                    screenSpaceShadowMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
+                    screenSpaceShadowMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
                 }
                 ShadowProjector.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
                 ShadowProjector.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);

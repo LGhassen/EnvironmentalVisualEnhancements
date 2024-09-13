@@ -2,16 +2,12 @@
 using ShaderLoader;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using UnityEngine;
 using Utils;
 
 namespace CelestialShadows
 {
-    
     public class ScaledShadowComponent : MonoBehaviour
     {
         Material shadowMat;
@@ -65,25 +61,22 @@ namespace CelestialShadows
 
     public class LocalShadowComponent : MonoBehaviour
     {
-        Material shadowMat;
+        Material shadowMaterial, screenSpaceShadowMaterial;
         CelestialBody body;
         List<CelestialBody> shadowList;
-        public String GUID { get { return shadowMat.name; } }
-        GameObject screenSpaceShadowGO;
-        ScreenSpaceShadow screenSpaceShadow;
+        public String GUID { get { return shadowMaterial.name; } }
 
-        internal void Apply(Material mat, CelestialBody cb, List<CelestialBody> list, GameObject go, ScreenSpaceShadow scShadow)
+        internal void Apply(Material mat, CelestialBody cb, List<CelestialBody> list, Material screenSpaceShadowMaterial)
         {
-            shadowMat = mat;
+            shadowMaterial = mat;
             body = cb;
             shadowList = list;
-            screenSpaceShadowGO = go;
-            screenSpaceShadow = scShadow;
+            this.screenSpaceShadowMaterial = screenSpaceShadowMaterial;
         }
 
         internal void OnPreCull()
         {
-            if (HighLogic.LoadedScene != GameScenes.MAINMENU && screenSpaceShadowGO != null && body.pqsController != null)
+            if (HighLogic.LoadedScene != GameScenes.MAINMENU && screenSpaceShadowMaterial != null && body.pqsController != null)
             {
                 if (body.pqsController.isActive && HighLogic.LoadedScene != GameScenes.SPACECENTER)
                 { 
@@ -101,19 +94,17 @@ namespace CelestialShadows
                         }
                     }
 
-                    if (shadowMat != null)
+                    if (shadowMaterial != null)
                     {
-                        shadowMat.SetVector(ShaderProperties._SunPos_PROPERTY, Sun.Instance.sun.transform.position);
-                        shadowMat.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, bodies);
+                        shadowMaterial.SetVector(ShaderProperties._SunPos_PROPERTY, Sun.Instance.sun.transform.position);
+                        shadowMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, bodies);
                     }
 
-                    screenSpaceShadowGO.SetActive(true);
-                    screenSpaceShadow.SetActive(true);
+                    Atmosphere.ScreenSpaceShadowsManager.Instance.RegisterEclipseMaterial(screenSpaceShadowMaterial);
                 }
                 else
                 {
-                    screenSpaceShadowGO.SetActive(false);
-                    screenSpaceShadow.SetActive(false);
+                    Atmosphere.ScreenSpaceShadowsManager.Instance.UnregisterEclipseMaterial(screenSpaceShadowMaterial);
                 }
             }
         }
@@ -131,19 +122,15 @@ namespace CelestialShadows
 #pragma warning disable 0649
         [ConfigItem, GUIHidden]
         private String body;
-        /* [ConfigItem]
-         ShadowMaterial shadowMaterial = null;
-         */
+
         [ConfigItem]
         List<String> caster = null;
         [ConfigItem]
         bool hasSurface = true;
 
         String materialName = Guid.NewGuid().ToString();
-        Material shadowMat;
-        Material localShadowMat;
-        ScreenSpaceShadow screenSpaceShadow;
-        GameObject screenSpaceShadowGO = null;
+        Material shadowMaterial;
+        Material localShadowMaterial;
 
         private static Shader shadowShader;
         private static Shader ShadowShader
@@ -188,30 +175,22 @@ namespace CelestialShadows
                 Renderer mr = transform.GetComponent<Renderer>();
                 if (mr != null && hasSurface)
                 {
-                    shadowMat = new Material(ShadowShader);
+                    shadowMaterial = new Material(ShadowShader);
                     GameObject go = new GameObject();
                     go.name = "EVE Shadows";
 
-                    localShadowMat = new Material(ScreenSpaceShadowShader);
+                    localShadowMaterial = new Material(ScreenSpaceShadowShader);
 
-                    screenSpaceShadowGO = new GameObject("EVE Celestial ScreenSpaceShadow");
-                    screenSpaceShadowGO.transform.parent = celestialBody.transform;
-                    screenSpaceShadow = screenSpaceShadowGO.AddComponent<ScreenSpaceShadow>();
-                    screenSpaceShadow.material = localShadowMat;
-                    screenSpaceShadow.Init();
-                    screenSpaceShadowGO.SetActive(false);
-                    screenSpaceShadow.SetActive(false);
+                    shadowMaterial.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(ScaledSpace.InverseScaleFactor * Sun.Instance.sun.Radius));
+                    localShadowMaterial.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(Sun.Instance.sun.Radius));
 
-                    shadowMat.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(ScaledSpace.InverseScaleFactor * Sun.Instance.sun.Radius));
-                    localShadowMat.SetFloat(ShaderProperties._SunRadius_PROPERTY, (float)(Sun.Instance.sun.Radius));
+                    shadowMaterial.name = materialName;
+                    shadowMaterial.renderQueue = (int)Tools.Queue.Geometry + 1;
 
-                    shadowMat.name = materialName;
-                    shadowMat.renderQueue = (int)Tools.Queue.Geometry + 1;
+                    localShadowMaterial.name = materialName;
+                    localShadowMaterial.renderQueue = (int)Tools.Queue.Geometry + 3;
 
-                    localShadowMat.name = materialName;
-                    localShadowMat.renderQueue = (int)Tools.Queue.Geometry + 3;
-
-                    DeferredRenderer.Add(mr.gameObject, shadowMat);
+                    DeferredRenderer.Add(mr.gameObject, shadowMaterial);
                 }
                 
                 ScaledShadowComponent sc = transform.gameObject.AddComponent<ScaledShadowComponent>();
@@ -225,8 +204,8 @@ namespace CelestialShadows
                         casters.Add(Tools.GetCelestialBody(b));
                     }
                 }
-                sc.Apply(shadowMat, celestialBody, casters);
-                lsc.Apply(localShadowMat, celestialBody, casters, screenSpaceShadowGO, screenSpaceShadow);
+                sc.Apply(shadowMaterial, celestialBody, casters);
+                lsc.Apply(localShadowMaterial, celestialBody, casters, localShadowMaterial);
             }
 
             ApplyToMainMenu();
@@ -282,10 +261,11 @@ namespace CelestialShadows
                     GameObject.DestroyImmediate(lc);
                 }
 
-                DeferredRenderer.Remove(transform.gameObject, shadowMat);
+                DeferredRenderer.Remove(transform.gameObject, shadowMaterial);
             }
 
-            GameObject.DestroyImmediate(screenSpaceShadowGO);
+            Atmosphere.ScreenSpaceShadowsManager.Instance.UnregisterEclipseMaterial(localShadowMaterial);
+
             GameEvents.onGameSceneLoadRequested.Remove(SceneLoaded);
         }
     }

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace Utils
 {
@@ -384,6 +380,12 @@ namespace Utils
         public static int godraysStepCount_PROPERTY { get { return godraysStepCount; } }
         private static int godraysStepCount;
 
+        public static int planetCenter_PROPERTY { get { return planetCenter; } }
+        private static int planetCenter;
+
+        public static int lightDirection_PROPERTY { get { return lightDirection; } }
+        private static int lightDirection;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -525,6 +527,9 @@ namespace Utils
             lightMarchSteps = Shader.PropertyToID("lightMarchSteps");
             stepSizeLight = Shader.PropertyToID("stepSizeLight");
             godraysStepCount = Shader.PropertyToID("godraysStepCount");
+
+            lightDirection = Shader.PropertyToID("lightDirection");
+            planetCenter = Shader.PropertyToID("planetCenter");
         }
     }
 }

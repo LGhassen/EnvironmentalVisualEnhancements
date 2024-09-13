@@ -7,7 +7,7 @@
 		Pass 
 		{
 			ZWrite Off
-			ZTest on
+			ZTest Off
 
 			Blend SrcAlpha OneMinusSrcAlpha
 

@@ -103,7 +103,6 @@
     <Compile Include="ClassExtensions.cs" />
     <Compile Include="ReflectionProbeUtils.cs" />
     <Compile Include="RenderTextureUtils.cs" />
-    <Compile Include="ScreenSpaceShadow.cs" />
     <Compile Include="ConfigHelper.cs" />
     <Compile Include="HalfSphere.cs" />
     <Compile Include="MaterialPQS.cs" />

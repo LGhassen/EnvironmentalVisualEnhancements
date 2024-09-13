@@ -319,7 +319,7 @@ namespace Atmosphere
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
-            screenspaceShadowMaterial = layer2d?.ScreenSpaceShadow?.material;
+            screenspaceShadowMaterial = layer2d?.ScreenSpaceShadowMaterial;
 
             RenderNoiseTextures();
             ProcessCloudTypes();

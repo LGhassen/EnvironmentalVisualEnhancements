@@ -232,7 +232,7 @@
 		float depth = Linear01Depth(zdepth);
 
 	#ifdef SHADER_API_D3D11
-	zdepth = 1 - zdepth;
+		zdepth = 1 - zdepth;
 	#endif
 
 		float4 clipPos = float4(uv, zdepth, 1.0);
@@ -248,6 +248,32 @@
 		camPos.xyz = rayDirection * depth/aa * _ProjectionParams.z;
 
 		float4 worldPos = mul(CameraToWorld,float4(camPos.xyz,1.0));
+		return (worldPos.xyz/worldPos.w);
+	}
+	
+	float3 getPreciseWorldPosFromDepth(float2 uv, float zdepth)
+	{
+		float depth = Linear01Depth(zdepth);
+
+	#if defined(UNITY_REVERSED_Z)
+		zdepth = 1 - zdepth;
+	#endif
+
+		float4 clipPos = float4(uv, zdepth, 1.0);
+		clipPos.xyz = 2.0f * clipPos.xyz - 1.0f;
+
+		float4 camPos = mul(unity_CameraInvProjection, clipPos);
+		camPos.xyz /= camPos.w;
+
+		float3 rayDirection = normalize(camPos.xyz);
+
+		float3 cameraForwardDir = float3(0.0, 0.0, -1.0);
+		float aa = dot(rayDirection, cameraForwardDir);
+
+		camPos.xyz = rayDirection * depth/aa * _ProjectionParams.z;
+		camPos.z = -camPos.z;
+
+		float4 worldPos = mul(unity_CameraToWorld,float4(camPos.xyz, 1.0));
 		return (worldPos.xyz/worldPos.w);
 	}
 
