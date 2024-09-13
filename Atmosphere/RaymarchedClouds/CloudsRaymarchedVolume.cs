@@ -194,6 +194,7 @@ namespace Atmosphere
                     wetSurfaces.SetEnabled(value);
                 }
 
+                // TODO: remove these from being done every frame
                 if (screenspaceShadowMaterial != null)
                 {
                     if (_enabled)
@@ -511,13 +512,15 @@ namespace Atmosphere
             }
         }
 
-        bool noiseKeywordOn = false;
-        bool curlNoiseKeywordOn = false;
-        bool flowmapKeywordOn = false;
-        bool noiseUntilingKeywordOn = false;
+        string mainCameraNoiseKeywords, reflectionProbeNoiseKeywords;
 
         private void SetNoisetextureParams(Material mat)
         {
+            bool noiseKeywordOn = false;
+            bool curlNoiseKeywordOn = false;
+            bool flowmapKeywordOn = false;
+            bool noiseUntilingKeywordOn = false;
+
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None && baseNoiseRT != null)
             {
                 noiseKeywordOn = true;
@@ -564,12 +567,6 @@ namespace Atmosphere
                 mat.SetFloat("_flowSpeed", flowMap.Speed);
             }
 
-            SetNoiseKeywords(mat, noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
-        }
-
-        // Manually combined keywords to cut down shader permutations
-        private static void SetNoiseKeywords(Material mat, bool noiseKeywordOn, bool curlNoiseKeywordOn, bool flowmapKeywordOn, bool noiseUntilingKeywordOn)
-        {
             if (!noiseKeywordOn)
             {
                 mat.EnableKeyword("NOISE_OFF");
@@ -577,7 +574,24 @@ namespace Atmosphere
             else
             {
                 mat.DisableKeyword("NOISE_OFF");
-                mat.EnableKeyword($"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}");
+            }
+
+            mainCameraNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
+            reflectionProbeNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, false, false);
+
+            mat.EnableKeyword(reflectionProbeNoiseKeywords);
+        }
+
+        // Manually combined keywords to cut down shader permutations
+        private static string GetNoiseKeywords(bool noiseKeywordOn, bool curlNoiseKeywordOn, bool flowmapKeywordOn, bool noiseUntilingKeywordOn)
+        {
+            if (!noiseKeywordOn)
+            { 
+                return "NOISE_OFF";
+            }
+            else
+            {
+                return $"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}";
             }
         }
 
@@ -660,7 +674,8 @@ namespace Atmosphere
                     raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
                     raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, 0f);
 
-                    SetNoiseKeywords(raymarchedCloudMaterial, noiseKeywordOn, curlNoiseKeywordOn, false, false);
+                    raymarchedCloudMaterial.DisableKeyword(mainCameraNoiseKeywords);
+                    raymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
 
                     // This will get reset by scatterer when the main camera renders
                     var godrayStepCount = raymarchedCloudMaterial.GetFloat(ShaderProperties.godraysStepCount_PROPERTY);
@@ -675,7 +690,8 @@ namespace Atmosphere
                     raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int) raymarchingSettings.LightMarchSteps);
                     raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, stepSizeLight);
 
-                    SetNoiseKeywords(raymarchedCloudMaterial, noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
+                    raymarchedCloudMaterial.DisableKeyword(reflectionProbeNoiseKeywords);
+                    raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
                 }
 
                 reflectionProbeMode = enable;
