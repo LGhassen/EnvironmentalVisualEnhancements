@@ -697,8 +697,6 @@ namespace Atmosphere
             RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[false, false, 0]) };
             RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedMaxDepthRT), new RenderTargetIdentifier(weightedDepthRTDebug) };
 
-            Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, useLightVolume ? 1f : 0f);
-
             foreach (var intersection in intersections)
             {
                 List<CloudsRaymarchedVolume> overlapLayers = intersection.overlapInterval.volumes;
@@ -892,7 +890,7 @@ namespace Atmosphere
             }
             else
             {
-                
+                Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, renderingEnabled && useLightVolume ? 1f : 0f);
 
                 bool doneRendering = targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
 
@@ -927,8 +925,6 @@ namespace Atmosphere
                         LightVolume.Instance.NotifyRenderingEnded();
 
                     renderingEnabled = false;
-
-                    Shader.SetGlobalFloat(ShaderProperties.scattererCloudLightVolumeEnabled_PROPERTY, 0f);
                 }
             }
         }
