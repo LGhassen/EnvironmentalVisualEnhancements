@@ -30,7 +30,7 @@
 
 			float4 frag(v2f IN) : COLOR
 			{
-				return float4(0.0,0.0,0.0,0.0);			
+				return float4(0.0,0.0,0.0,0.0);
 			}
 
 			ENDCG
@@ -39,16 +39,16 @@
 		Pass 
 		{
 			Tags { "LightMode" = "ShadowCaster" }
-			ZWrite On
+			
+			ZWrite Off
 			ZTest Off
+			Cull Off
 
 			CGPROGRAM
 			#include "UnityCG.cginc"
 			#pragma target 3.0
 			#pragma vertex vert
 			#pragma fragment frag
-
-			 #pragma multi_compile_shadowcaster
 
 			struct v2f 
 			{
@@ -64,7 +64,7 @@
 
 			float4 frag(v2f IN) : COLOR
 			{
-				return float4(0.0,0.0,0.0,0.0);			
+				return float4(0.0,0.0,0.0,0.0);
 			}
 
 			ENDCG

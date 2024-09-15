@@ -55,6 +55,7 @@ namespace Atmosphere
             
             if (FlightCamera.fetch != null)
             {
+                gameObject.transform.localScale = new Vector3(0.00000001f, 0.00000001f, 0.00000001f);
                 gameObject.transform.parent = FlightCamera.fetch.transform;
             }
 
@@ -66,7 +67,7 @@ namespace Atmosphere
 
             var mr = gameObject.GetComponent<MeshRenderer>();
             mr.material = new Material(ShaderLoaderClass.FindShader("EVE/InvisibleShadowCaster")); // Allows shadow commandBuffers to fire on reflection probe
-            mr.shadowCastingMode = ShadowCastingMode.TwoSided;
+            mr.shadowCastingMode = ShadowCastingMode.TwoSided;  // Won't actually cast shadows because zwrite is off, will just trigger the commandBuffer
 
             var mf = gameObject.GetComponent<MeshFilter>();
             mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
