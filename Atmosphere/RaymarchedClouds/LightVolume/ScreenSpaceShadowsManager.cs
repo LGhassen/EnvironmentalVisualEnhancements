@@ -55,7 +55,7 @@ namespace Atmosphere
             
             if (FlightCamera.fetch != null)
             {
-                gameObject.transform.localScale = new Vector3(0.00000001f, 0.00000001f, 0.00000001f);
+                gameObject.transform.localScale = new Vector3(0.0001f, 0.0001f, 0.0001f);
                 gameObject.transform.parent = FlightCamera.fetch.transform;
             }
 
@@ -71,6 +71,7 @@ namespace Atmosphere
 
             var mf = gameObject.GetComponent<MeshFilter>();
             mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
+            
         }
 
         void TweakReflectionProbe()
