@@ -119,18 +119,18 @@ namespace Atmosphere
 			Vector3d baseOffset = parentCelestialBody.position - (Vector3d)cam.transform.position - stereoOffset;
 
 			var offset = baseOffset + accumulatedTimeOffset;
-			offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
-			offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
-			offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
+			offset.x = RepeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+			offset.y = RepeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+			offset.z = RepeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 
 			particleFieldMaterial.SetVector(ShaderProperties.offset_PROPERTY, (Vector3)offset);
 
 			if (particleFieldSplashesMaterial != null)
 			{
 				offset = baseOffset + accumulatedSplashesTimeOffset;
-				offset.x = repeatDouble(offset.x, particleFieldConfigObject.FieldSize);
-				offset.y = repeatDouble(offset.y, particleFieldConfigObject.FieldSize);
-				offset.z = repeatDouble(offset.z, particleFieldConfigObject.FieldSize);
+				offset.x = RepeatDouble(offset.x, particleFieldConfigObject.FieldSize);
+				offset.y = RepeatDouble(offset.y, particleFieldConfigObject.FieldSize);
+				offset.z = RepeatDouble(offset.z, particleFieldConfigObject.FieldSize);
 
 				particleFieldSplashesMaterial.SetVector(ShaderProperties.offset_PROPERTY, (Vector3)offset);
 			}
@@ -176,7 +176,7 @@ namespace Atmosphere
 			}
 		}
 
-		double repeatDouble(double t, double length)
+		double RepeatDouble(double t, double length)
         {
 			return t - Math.Truncate(t / length) * length;
 		}

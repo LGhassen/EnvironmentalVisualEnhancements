@@ -71,7 +71,6 @@ namespace Atmosphere
 
             var mf = gameObject.GetComponent<MeshFilter>();
             mf.mesh.bounds = new Bounds(Vector3.zero, new Vector3(1e8f, 1e8f, 1e8f));
-            
         }
 
         void TweakReflectionProbe()
