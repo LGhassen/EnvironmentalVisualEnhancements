@@ -999,8 +999,8 @@ namespace Atmosphere
         public Material depthOcclusionMaterial;
 
         MeshRenderer compositeMR;
-        bool isActive = false;
         bool activationRequested = false;
+        int framesSinceLastActivationRequest = 0;
 
         public void Init()
         {
@@ -1038,24 +1038,43 @@ namespace Atmosphere
             gameObject.layer = (int)Tools.Layer.Local;
         }
 
-        public void SetActive(bool active)
+        public void SetActive(bool activate)
         {
-            compositeColorMaterial.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
-            depthOcclusionMaterial.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, active ? 1f : 0f);
+            compositeColorMaterial.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, activate ? 1f : 0f);
+            depthOcclusionMaterial.SetFloat(ShaderProperties.rendererEnabled_PROPERTY, activate ? 1f : 0f);
 
-            if (active)
+            if (activate)
             {
-                if (activationRequested && active)
-                {
-                    compositeMR.enabled = active;    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable (and enable) this after 2 frames
-                    isActive = true;
-                    activationRequested = false;
+                if (!compositeMR.enabled)
+                { 
+                    // we're late in the rendering process so re-enabling has a frame delay, if disabled every frame it won't re-enable so only disable this after a few frames
+                    if (activationRequested)
+                    {
+                        compositeMR.enabled = true;
+                        activationRequested = false;
+                        framesSinceLastActivationRequest = 0;
+                    }
+                    else
+                    {
+                        activationRequested = true;
+                    }
                 }
 
-                activationRequested = true;
+                framesSinceLastActivationRequest = 0;
             }
-            else
-                isActive = false;
+        }
+
+        public void Update()
+        {
+            if (compositeMR.enabled)
+            { 
+                framesSinceLastActivationRequest++;
+            }
+
+            if (framesSinceLastActivationRequest > 3)
+            {
+                compositeMR.enabled = false;
+            }
         }
 
         public void SetFade(float fade)
