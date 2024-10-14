@@ -93,14 +93,13 @@ namespace Atmosphere
             // assign properties?
             wetEffectMaterial.SetFloat("puddlesAmount", 1f); // to be overridden by coverage and stuff
             wetEffectMaterial.SetFloat("WetLevel", 1f); // to be overridden by coverage and stuff
-            wetEffectMaterial.SetFloat("rainRipplesAmount", 1f); // to be overridden by coverage and stuff
 
             wetEffectMaterial.SetFloat("puddlesTiling", 1f / wetSurfacesConfigObject.PuddleTextureScale);
             wetEffectMaterial.SetFloat("rippleTiling", 1f / wetSurfacesConfigObject.RippleScale);
 
             ripplesLutMaterial.SetFloat("rainRipplesAmount", 1f); // to be overridden by coverage and stuff
 
-            if(rippleGradientFlip != null && rippleGradientFlip.IsCreated())
+            if (rippleGradientFlip != null && rippleGradientFlip.IsCreated())
                 rippleGradientFlip.Release();
 
             rippleGradientFlip = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
