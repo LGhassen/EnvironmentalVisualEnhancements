@@ -107,6 +107,7 @@ namespace Atmosphere
             if (renderingEnabled)
             {
                 CommandBuffer cb = new CommandBuffer();
+                cb.name = "EVE Particle Volumetrics Renderer CommandBuffer";
 
                 DeferredRendererToScreen.SetActive(true);
                 DeferredRendererToScreen.SetRenderTexture(targetRT);

@@ -21,7 +21,7 @@ namespace Atmosphere
 			// after depth texture is rendered on far and near cameras, copy it and merge it as a single distance buffer
 			camera = gameObject.GetComponent<Camera>();
 			buffer = new CommandBuffer();
-			buffer.name = "EVEDepthToDistanceCommandBuffer";
+			buffer.name = "EVE DepthToDistance CommandBuffer";
 
 			if (!renderTexture)
 			{

@@ -337,6 +337,7 @@ namespace Atmosphere
                 if (commandBuffer == null)
                 {
                     commandBuffer = new CommandBuffer();
+                    commandBuffer.name = "EVE Droplets CommandBuffer";
                     commandBuffer.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
                     commandBuffer.DrawRenderer(mr, dropletsIvaMaterial);
                 }

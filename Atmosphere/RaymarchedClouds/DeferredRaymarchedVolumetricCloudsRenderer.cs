@@ -241,9 +241,12 @@ namespace Atmosphere
             commandBuffer = new HistoryManager<CommandBuffer>(false, vrEnabled, false);
 
             commandBuffer[false, true, 0] = new CommandBuffer();
+            commandBuffer[false, true, 0].name = "EVE Raymarched Volumetrics Renderer CommandBuffer";
+
             if (vrEnabled)
             { 
                 commandBuffer[false, false, 0] = new CommandBuffer();
+                commandBuffer[false, false, 0].name = "EVE Raymarched Volumetrics Renderer VR left eye CommandBuffer";
             }
 
 
