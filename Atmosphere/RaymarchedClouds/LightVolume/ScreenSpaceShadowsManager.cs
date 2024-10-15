@@ -259,8 +259,8 @@ namespace Atmosphere
         private bool isReflectionProbeCamera;
         private Camera camera;
 
-        private CommandBuffer renderingCommandBuffer = new CommandBuffer();
-        private CommandBuffer displayCommandBuffer = new CommandBuffer();
+        private CommandBuffer renderingCommandBuffer;
+        private CommandBuffer displayCommandBuffer;
 
         private int screenWidth, screenHeight;
 
@@ -274,6 +274,9 @@ namespace Atmosphere
             camera = gameObject.GetComponent<Camera>();
 
             SetRenderingResolution();
+
+            renderingCommandBuffer = new CommandBuffer();
+            displayCommandBuffer = new CommandBuffer();
 
             renderingCommandBuffer.name = $"EVE ScreenSpaceShadowsRenderer {camera.name} {light.name} rendering commandBuffer";
             displayCommandBuffer.name = $"EVE ScreenSpaceShadowsRenderer {camera.name} {light.name} display commandBuffer";
@@ -300,63 +303,81 @@ namespace Atmosphere
         public void OnPreCull()
         {
             // TODO: the right events and shit for the non-deferred case
-            light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
-            light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
+
+            if (renderingCommandBuffer != null)
+            { 
+                light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
+            }
+
+            if (displayCommandBuffer != null)
+            { 
+                light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
+            }
         }
 
         public void OnPostRender()
         {
-            light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
-            light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
+            if (renderingCommandBuffer != null)
+            {
+                light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
+            }
+
+            if (displayCommandBuffer != null)
+            {
+                light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
+            }
         }
 
         public void UpdateCommandBuffer(List<Material> cloud2DShadowMaterials, List<Material> eclipseMaterials, Material lightVolumeShadowMaterial)
         {
-            renderingCommandBuffer.Clear();
-            displayCommandBuffer.Clear();
+            if (renderingCommandBuffer != null && displayCommandBuffer != null)
+            { 
+                renderingCommandBuffer.Clear();
+                displayCommandBuffer.Clear();
 
-            if (lightVolumeShadowMaterial != null || cloud2DShadowMaterials.Count > 0 || eclipseMaterials.Count > 0)
-            {
-                int tempDownscaledDepthIdentifier = Shader.PropertyToID("Temp downscaled depth RT");
-                int tempShadowsRTIdentifier = Shader.PropertyToID("Temp screenspace shadows RT");
-
-                // Get temporary RTs
-                renderingCommandBuffer.GetTemporaryRT(tempDownscaledDepthIdentifier, screenWidth / 2, screenHeight / 2, 0, FilterMode.Point, RenderTextureFormat.RFloat);
-                renderingCommandBuffer.GetTemporaryRT(tempShadowsRTIdentifier, screenWidth / 2, screenHeight / 2, 0, FilterMode.Bilinear, RenderTextureFormat.R8);
-
-                // Downscale depth
-                renderingCommandBuffer.Blit(null, tempDownscaledDepthIdentifier, downscaleDepthMaterial, 0);
-                renderingCommandBuffer.SetGlobalTexture("EVEShadowsDownscaledDepth", tempDownscaledDepthIdentifier); // for shadows shader
-                renderingCommandBuffer.SetGlobalTexture("EVEDownscaledDepth", tempDownscaledDepthIdentifier);        // for upscaling/blending shader
-
-                // Clear shadows RT
-                renderingCommandBuffer.SetRenderTarget(tempShadowsRTIdentifier);
-                renderingCommandBuffer.ClearRenderTarget(false, true, Color.white);
-
-                // First render regular cloud shadows, then if lightVolumeShadowMaterial is present blend it in
-                bool blendBetween2DShadowsAndLightVolume = lightVolumeShadowMaterial != null && cloud2DShadowMaterials.Count > 0;
-
-                foreach (Material shadowMaterial in cloud2DShadowMaterials)
+                if (lightVolumeShadowMaterial != null || cloud2DShadowMaterials.Count > 0 || eclipseMaterials.Count > 0)
                 {
-                    shadowMaterial.SetInt("BlendBetween2DShadowsAndLightVolume", blendBetween2DShadowsAndLightVolume ? 1 : 0);
-                    renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, shadowMaterial);
-                }
+                    int tempDownscaledDepthIdentifier = Shader.PropertyToID("Temp downscaled depth RT");
+                    int tempShadowsRTIdentifier = Shader.PropertyToID("Temp screenspace shadows RT");
+
+                    // Get temporary RTs
+                    renderingCommandBuffer.GetTemporaryRT(tempDownscaledDepthIdentifier, screenWidth / 2, screenHeight / 2, 0, FilterMode.Point, RenderTextureFormat.RFloat);
+                    renderingCommandBuffer.GetTemporaryRT(tempShadowsRTIdentifier, screenWidth / 2, screenHeight / 2, 0, FilterMode.Bilinear, RenderTextureFormat.R8);
+
+                    // Downscale depth
+                    renderingCommandBuffer.Blit(null, tempDownscaledDepthIdentifier, downscaleDepthMaterial, 0);
+                    renderingCommandBuffer.SetGlobalTexture("EVEShadowsDownscaledDepth", tempDownscaledDepthIdentifier); // for shadows shader
+                    renderingCommandBuffer.SetGlobalTexture("EVEDownscaledDepth", tempDownscaledDepthIdentifier);        // for upscaling/blending shader
+
+                    // Clear shadows RT
+                    renderingCommandBuffer.SetRenderTarget(tempShadowsRTIdentifier);
+                    renderingCommandBuffer.ClearRenderTarget(false, true, Color.white);
+
+                    // First render regular cloud shadows, then if lightVolumeShadowMaterial is present blend it in
+                    bool blendBetween2DShadowsAndLightVolume = lightVolumeShadowMaterial != null && cloud2DShadowMaterials.Count > 0;
+
+                    foreach (Material shadowMaterial in cloud2DShadowMaterials)
+                    {
+                        shadowMaterial.SetInt("BlendBetween2DShadowsAndLightVolume", blendBetween2DShadowsAndLightVolume ? 1 : 0);
+                        renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, shadowMaterial);
+                    }
             
-                if (lightVolumeShadowMaterial != null)
-                {
-                    lightVolumeShadowMaterial.SetInt("BlendBetween2DShadowsAndLightVolume", blendBetween2DShadowsAndLightVolume ? 1 : 0);
-                    renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, lightVolumeShadowMaterial);
+                    if (lightVolumeShadowMaterial != null)
+                    {
+                        lightVolumeShadowMaterial.SetInt("BlendBetween2DShadowsAndLightVolume", blendBetween2DShadowsAndLightVolume ? 1 : 0);
+                        renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, lightVolumeShadowMaterial);
+                    }
+
+                    // Last render eclipses with multiplicative blending
+                    foreach (Material eclipseMaterial in eclipseMaterials)
+                    {
+                        renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, eclipseMaterial);
+                    }
+
+                    renderingCommandBuffer.SetGlobalTexture("EVEScreenSpaceShadows", tempShadowsRTIdentifier);
+
+                    displayCommandBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, blendScreenSpaceShadowsMaterial);
                 }
-
-                // Last render eclipses with multiplicative blending
-                foreach (Material eclipseMaterial in eclipseMaterials)
-                {
-                    renderingCommandBuffer.Blit(null, tempShadowsRTIdentifier, eclipseMaterial);
-                }
-
-                renderingCommandBuffer.SetGlobalTexture("EVEScreenSpaceShadows", tempShadowsRTIdentifier);
-
-                displayCommandBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, blendScreenSpaceShadowsMaterial);
             }
         }
     }

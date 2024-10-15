@@ -282,6 +282,7 @@ namespace Atmosphere
             GameObject.Destroy(go);
 
             wetEffectCommandBuffer = new CommandBuffer();
+            wetEffectCommandBuffer.name = "EVE Wet Effects CommandBuffer";
 
             // TODO: consolidate the two rendertextures by copying only what we need from Gbuffer
 

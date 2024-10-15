@@ -122,6 +122,7 @@ namespace Utils
                 buffers.Add(renderQueue, new CommandBuffer());
             }
             CommandBuffer cb = buffers[renderQueue];
+            cb.name = "EVE MaterialPQS CommandBuffer";
             cb.DrawRenderer(renderer, mat, i);
         }
     }

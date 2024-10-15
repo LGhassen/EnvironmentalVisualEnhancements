@@ -241,9 +241,12 @@ namespace Atmosphere
             commandBuffer = new HistoryManager<CommandBuffer>(false, vrEnabled, false);
 
             commandBuffer[false, true, 0] = new CommandBuffer();
+            commandBuffer[false, true, 0].name = "EVE Raymarched Volumetrics Renderer CommandBuffer";
+
             if (vrEnabled)
             { 
                 commandBuffer[false, false, 0] = new CommandBuffer();
+                commandBuffer[false, false, 0].name = "EVE Raymarched Volumetrics Renderer VR left eye CommandBuffer";
             }
 
 
@@ -703,7 +706,11 @@ namespace Atmosphere
 
                 bool renderOverlap = intersection.overlapInterval.volumes.Count > 1;
                 bool firstOverlapLayer = true, useOverlapFlipRaysBuffer = true;
-                if (renderOverlap) overlapLayers = overlapLayers.OrderBy(x => x.RaymarchingSettings.OverlapRenderOrder).ToList();
+
+                if (renderOverlap)
+                { 
+                    overlapLayers = overlapLayers.OrderBy(x => x.RaymarchingSettings.OverlapRenderOrder).ToList();
+                }
 
                 for (int i = 0; i < overlapLayers.Count; i++)
                 {
@@ -791,7 +798,9 @@ namespace Atmosphere
 
                         if (packedTexturesDebugMode)
                         {
-                            var textureToDebug = (!lastOverlapLayer ? (useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures) : (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures))[0];
+                            var textureToDebug = (!lastOverlapLayer ? (useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures)
+                                                                    : (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures))[0];
+
                             UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
                         }
 

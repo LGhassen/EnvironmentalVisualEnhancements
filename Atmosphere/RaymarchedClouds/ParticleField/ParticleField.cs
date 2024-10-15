@@ -490,6 +490,7 @@ namespace Atmosphere
 				if (targetCamera != null)
 				{
 					CommandBuffer cb = new CommandBuffer();
+                    cb.name = "EVE ParticleField CommandBuffer";
 
 					/*
 					int screenCopyID = Shader.PropertyToID("_ScreenCopyTexture");
