@@ -66,8 +66,6 @@ namespace Atmosphere
         {
 			if (currentCount > 0)
             {
-				mat.EnableKeyword("LIGHTNING_ON");
-				mat.DisableKeyword("LIGHTNING_OFF");
 				mat.SetInt(ShaderProperties.lightningCount_PROPERTY, currentCount);
 				mat.SetInt(ShaderProperties.maxConcurrentLightning_PROPERTY, maxConcurrent);
 				mat.SetVectorArray(ShaderProperties.lightningArray_PROPERTY, activeLightningShaderLights);
@@ -76,9 +74,8 @@ namespace Atmosphere
 			}
 			else
             {
-				mat.EnableKeyword("LIGHTNING_OFF");
-				mat.DisableKeyword("LIGHTNING_ON");
-			}
+                mat.SetInt(ShaderProperties.lightningCount_PROPERTY, 0);
+            }
         }
 
 		private static Shader lightningBoltShader = null;

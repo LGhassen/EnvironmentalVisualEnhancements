@@ -144,8 +144,10 @@ namespace Atmosphere
 
         private float flowLoopTime = 0f; 
 
-        protected Material raymarchedCloudMaterial;
+        protected Material raymarchedCloudMaterial, reflectionProbeRaymarchedCloudMaterial;
         public Material RaymarchedCloudMaterial { get => raymarchedCloudMaterial; }
+
+        public Material ReflectionProbeRaymarchedCloudMaterial { get => reflectionProbeRaymarchedCloudMaterial; }
 
         private Texture2D coverageCurvesTexture;
 
@@ -159,6 +161,8 @@ namespace Atmosphere
         private float stepSizeLight = 0f;
 
         Light sunlight;
+
+        private bool screenspaceShadowMaterialKeywordsEnabled = false;
 
         public bool enabled
         {
@@ -194,8 +198,7 @@ namespace Atmosphere
                     wetSurfaces.SetEnabled(value);
                 }
 
-                // TODO: remove these from being done every frame
-                if (screenspaceShadowMaterial != null)
+                if (screenspaceShadowMaterialKeywordsEnabled != _enabled && screenspaceShadowMaterial != null)
                 {
                     if (_enabled)
                     {
@@ -207,6 +210,8 @@ namespace Atmosphere
                         screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
                         screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
                     }
+
+                    screenspaceShadowMaterialKeywordsEnabled = _enabled;
                 }
             }
         }
@@ -225,15 +230,16 @@ namespace Atmosphere
 
             if (!skipShadowCaster && shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
-                setShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture, editorAlphamask);
+                SetShadowCasterMaterialParams(raymarchedCloudMaterial, editorTexture, editorAlphamask);
+                SetShadowCasterMaterialParams(reflectionProbeRaymarchedCloudMaterial, editorTexture, editorAlphamask);
 
                 if (particleField != null)
                 {
-                    setShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture, editorAlphamask);
+                    SetShadowCasterMaterialParams(particleField.particleFieldMaterial, editorTexture, editorAlphamask);
 
                     if (particleField.particleFieldSplashesMaterial != null)
                     { 
-                        setShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
+                        SetShadowCasterMaterialParams(particleField.particleFieldSplashesMaterial, editorTexture, editorAlphamask);
                     }
                 }
             }
@@ -241,7 +247,7 @@ namespace Atmosphere
             shadowCasterTextureSet = true;
         }
 
-        private void setShadowCasterMaterialParams(Material mat, RenderTexture editorTexture, bool editorAlphamask)
+        private void SetShadowCasterMaterialParams(Material mat, RenderTexture editorTexture, bool editorAlphamask)
         {
             shadowCasterLayerRaymarchedVolume.CoverageMap.ApplyTexture(mat, "ShadowCasterCloudCoverage", 3);
 
@@ -320,13 +326,16 @@ namespace Atmosphere
             parentTransform = parent;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
+            reflectionProbeRaymarchedCloudMaterial = new Material(RaymarchedCloudShader);
             screenspaceShadowMaterial = layer2d?.ScreenSpaceShadowMaterial;
 
             RenderNoiseTextures();
             ProcessCloudTypes();
 
             ApplyShaderParams();
+            
             raymarchedCloudMaterial.SetFloat("scattererEnabled", 0f); // should be done on init only
+            reflectionProbeRaymarchedCloudMaterial.SetFloat("scattererEnabled", 0f); // should be done on init only
 
             volumeHolder = GameObject.CreatePrimitive(PrimitiveType.Quad);
             volumeHolder.name = "CloudsRaymarchedVolume";
@@ -335,6 +344,7 @@ namespace Atmosphere
             var volumeUpdater = volumeHolder.AddComponent<Updater>();
             volumeUpdater.volume = this;
             volumeUpdater.mat = raymarchedCloudMaterial;
+            volumeUpdater.refProbeMat = reflectionProbeRaymarchedCloudMaterial;
             volumeUpdater.parent = parentTransform;
 
             if (!raymarchingSettings.FxOnlyLayer)
@@ -347,6 +357,7 @@ namespace Atmosphere
             volumeMeshrenderer.material = new Material(InvisibleShader);
 
             raymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO eclipses
+            reflectionProbeRaymarchedCloudMaterial.SetMatrix(ShaderProperties._ShadowBodies_PROPERTY, Matrix4x4.zero); // TODO eclipses
 
             volumeMeshrenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             volumeMeshrenderer.receiveShadows = false;
@@ -407,11 +418,33 @@ namespace Atmosphere
             sunlight = Sun.Instance.GetComponent<Light>();
 
             this.linearSpeedMagnitude = linearSpeedMagnitude;
+
+            raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
+            raymarchedCloudMaterial.DisableKeyword(reflectionProbeNoiseKeywords);
+
+            reflectionProbeRaymarchedCloudMaterial.DisableKeyword(mainCameraNoiseKeywords);
+            reflectionProbeRaymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
         }
 
         public void ApplyShaderParams()
         {
             SetShaderParams(raymarchedCloudMaterial);
+            SetShaderParams(reflectionProbeRaymarchedCloudMaterial);
+
+            raymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize);
+            raymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize);
+            raymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor);
+
+            raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
+            raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, stepSizeLight);
+
+            reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize * 5f);
+            reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize * 5f);
+            reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor * 5f);
+
+            reflectionProbeRaymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
+            reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, 0f);
+
             if (screenspaceShadowMaterial != null)
             {
                 SetShaderParams(screenspaceShadowMaterial);
@@ -424,11 +457,17 @@ namespace Atmosphere
             {
                 raymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_ON");
                 raymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_OFF");
+
+                reflectionProbeRaymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_ON");
+                reflectionProbeRaymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_OFF");
             }
             else
             {
                 raymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_OFF");
                 raymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_ON");
+
+                reflectionProbeRaymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_OFF");
+                reflectionProbeRaymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_ON");
             }
         }
 
@@ -661,43 +700,6 @@ namespace Atmosphere
             mat.SetFloat("timeFadeCoverage", 1f);
         }
 
-        public void ToggleReflectionProbeSettings(bool enable)
-        {
-            if (reflectionProbeMode != enable)
-            { 
-                if (enable)
-                {
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize * 5f);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize * 5f);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor * 5f);
-
-                    raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, 0f);
-
-                    raymarchedCloudMaterial.DisableKeyword(mainCameraNoiseKeywords);
-                    raymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
-
-                    // This will get reset by scatterer when the main camera renders
-                    var godrayStepCount = raymarchedCloudMaterial.GetFloat(ShaderProperties.godraysStepCount_PROPERTY);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.godraysStepCount_PROPERTY, godrayStepCount / 5f);
-                }
-                else
-                {
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.baseStepSize_PROPERTY, raymarchingSettings.BaseStepSize);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor);
-
-                    raymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int) raymarchingSettings.LightMarchSteps);
-                    raymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, stepSizeLight);
-
-                    raymarchedCloudMaterial.DisableKeyword(reflectionProbeNoiseKeywords);
-                    raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
-                }
-
-                reflectionProbeMode = enable;
-            }
-        }
-
         private void ProcessCloudTypes()
         {
             cloudMinAltitude = Mathf.Infinity;
@@ -822,6 +824,7 @@ namespace Atmosphere
             {
                 // these may be 1-2 frames behind
                 updateShadowCasterMaterialProperties(raymarchedCloudMaterial);
+                updateShadowCasterMaterialProperties(reflectionProbeRaymarchedCloudMaterial);
                 if (particleField != null)
                 {
                     updateShadowCasterMaterialProperties(particleField.particleFieldMaterial);
@@ -836,11 +839,13 @@ namespace Atmosphere
             {
                 float scaledDeltaTime = Tools.GetDeltaTime();
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.timeDelta_PROPERTY, scaledDeltaTime);
+                reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.timeDelta_PROPERTY, scaledDeltaTime);
 
                 flowLoopTime += scaledDeltaTime * FlowMap.Speed;
                 flowLoopTime = flowLoopTime % 1;
 
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
+                reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
 
                 if (screenspaceShadowMaterial != null) screenspaceShadowMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
             }
@@ -848,12 +853,17 @@ namespace Atmosphere
             if (sunlight!=null)
             {
                 raymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
+                reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
             }
 
             if (screenspaceShadowMaterial != null && coverageMap != null)
             {
                 coverageMap.SetAlphaMask(screenspaceShadowMaterial, 1); // this gets overwritten on scaled/local changes, TODO: change the calls in here to use properties
             }
+
+            // These are set by scatterer and can change at any moment
+            var godrayStepCount = raymarchedCloudMaterial.GetFloat(ShaderProperties.godraysStepCount_PROPERTY);
+            reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.godraysStepCount_PROPERTY, godrayStepCount / 5f);
         }
 
         private void UpdateNoiseOffsets()
@@ -880,9 +890,15 @@ namespace Atmosphere
             raymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
             raymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
 
+            reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
+            reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
+
             GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling, out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
             raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
             raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
+
+            reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
+            reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
 
             if (screenspaceShadowMaterial != null)
             {
@@ -896,6 +912,7 @@ namespace Atmosphere
             {
                 GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
                 raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
+                reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
                 if (screenspaceShadowMaterial != null) screenspaceShadowMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
             }
         }
@@ -982,10 +999,12 @@ namespace Atmosphere
                 Matrix4x4 mainDetailRotationMatrix = detailRotationMatrix * World2Planet;
 
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
+                reflectionProbeRaymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
 
                 // raymarchedCloudMaterial.SetMatrix("invCloudRotation", rotationMatrix.inverse); // for flowmaps reprojection but it's not really working
 
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);
+                reflectionProbeRaymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);
 
                 if (screenspaceShadowMaterial != null)
                 {
@@ -1028,11 +1047,13 @@ namespace Atmosphere
             {
                 currentTimeFadeDensity = currentTimeFade;
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeDensity_PROPERTY, currentTimeFade);
+                reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeDensity_PROPERTY, currentTimeFade);
             }
             else if (mode == TimeFadeMode.Coverage)
             {
                 currentTimeFadeCoverage = currentTimeFade;
                 raymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeCoverage_PROPERTY, currentTimeFade);
+                reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.timeFadeCoverage_PROPERTY, currentTimeFade);
             }
 
         }
@@ -1133,7 +1154,7 @@ namespace Atmosphere
 
         public class Updater : MonoBehaviour
         {
-            public Material mat;
+            public Material mat, refProbeMat;
             public Transform parent;
             public CloudsRaymarchedVolume volume;
 
@@ -1144,6 +1165,7 @@ namespace Atmosphere
                     return;
 
                 mat.SetVector(ShaderProperties.sphereCenter_PROPERTY, parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
+                refProbeMat.SetVector(ShaderProperties.sphereCenter_PROPERTY, parent.position); //this needs to be moved to deferred renderer because it's needed for reconstruction
             }
 
             public void Update()

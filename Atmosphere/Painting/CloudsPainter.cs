@@ -63,7 +63,7 @@ namespace Atmosphere
         List<EditingMode> editingModes = new List<EditingMode>();
 
         public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
-        Material cloudMaterial, scaledCloudMaterial, paintMaterial;
+        Material cloudMaterial, reflectionProbeCloudMaterial, scaledCloudMaterial, paintMaterial;
 
         Transform scaledTransform;
 
@@ -176,6 +176,7 @@ namespace Atmosphere
         private void SetTextureProperties()
         {
             cloudMaterial = layerRaymarchedVolume.RaymarchedCloudMaterial;
+            reflectionProbeCloudMaterial = layerRaymarchedVolume.ReflectionProbeRaymarchedCloudMaterial;
 
             if (cloudCoverage != null)
             {
@@ -183,6 +184,11 @@ namespace Atmosphere
                 cloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask1", 1f);
                 SetMaterialTexture(cloudMaterial, "CloudCoverage", cloudCoverage);
+
+                reflectionProbeCloudMaterial.EnableKeyword("ALPHAMAP_1");
+                reflectionProbeCloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
+                reflectionProbeCloudMaterial.SetFloat("useAlphaMask1", 1f);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudCoverage", cloudCoverage);
 
                 // find other layers which use this for shadows and apply it to them
                 var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
@@ -194,6 +200,9 @@ namespace Atmosphere
 
                 cloudMaterial.DisableKeyword("SDF_ON");
                 cloudMaterial.EnableKeyword("SDF_OFF");
+
+                reflectionProbeCloudMaterial.DisableKeyword("SDF_ON");
+                reflectionProbeCloudMaterial.EnableKeyword("SDF_OFF");
             }
 
             if (cloudType != null)
@@ -202,10 +211,23 @@ namespace Atmosphere
                 cloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask2", 1f);
                 SetMaterialTexture(cloudMaterial, "CloudType", cloudType);
-            }
-            if (cloudColorMap != null) SetMaterialTexture(cloudMaterial, "CloudColorMap", cloudColorMap);
 
-            if (cloudFlowMap != null) SetMaterialTexture(cloudMaterial, "_FlowMap", cloudFlowMap);
+                reflectionProbeCloudMaterial.EnableKeyword("ALPHAMAP_2");
+                reflectionProbeCloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
+                reflectionProbeCloudMaterial.SetFloat("useAlphaMask2", 1f);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudType", cloudType);
+            }
+            if (cloudColorMap != null)
+            { 
+                SetMaterialTexture(cloudMaterial, "CloudColorMap", cloudColorMap);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudColorMap", cloudColorMap);
+            }
+
+            if (cloudFlowMap != null)
+            { 
+                SetMaterialTexture(cloudMaterial, "_FlowMap", cloudFlowMap);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "_FlowMap", cloudFlowMap);
+            }
 
             scaledCloudMaterial = layer2D?.CloudRenderingMaterial;
 

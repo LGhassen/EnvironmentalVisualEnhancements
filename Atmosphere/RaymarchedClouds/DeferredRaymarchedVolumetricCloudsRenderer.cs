@@ -84,6 +84,17 @@ namespace Atmosphere
             CameraToDeferredRaymarchedVolumetricCloudsRenderer.Clear();
         }
 
+        public static class RaymarchedCloudShaderPassName
+        {
+            public const int RaymarchClouds = 0;
+            public const int RaymarchCloudsOverlap = 1;
+            public const int LightningOcclusion = 2;
+            public const int UpdateLightVolumeDirectSingleSlice = 3;
+            public const int UpdateLightVolumeAmbientSingleSlice = 4;
+            public const int UpdateLightVolumeDirectMultiSlice = 5;
+            public const int UpdateLightVolumeAmbientMultiSlice = 6;
+        }
+
         bool renderingEnabled = false;
         bool isInitialized = false;
         bool useLightVolume = false;
@@ -191,9 +202,6 @@ namespace Atmosphere
         private bool useCombinedOpenGLDistanceBuffer = false;
 
         private bool cloudsScreenshotModeEnabled = false;
-
-        private const int renderCloudsPass = 0;
-        private const int renderLightingOcclusionPass = 1;
 
         private static CameraEvent CloudRenderingCameraEvent = CameraEvent.AfterForwardOpaque;
 
@@ -504,8 +512,6 @@ namespace Atmosphere
 
                         lightVolumeMaxRadius = Mathf.Min(lightVolumeMaxRadius, volumetricLayer.LightVolumeSettings.MaxLightVolumeRadius);
                     }
-
-                    volumetricLayer.ToggleReflectionProbeSettings(reflectionProbeCamera);
                 }
 
                 float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
@@ -703,8 +709,7 @@ namespace Atmosphere
             foreach (var intersection in intersections)
             {
                 List<CloudsRaymarchedVolume> overlapLayers = intersection.overlapInterval.volumes;
-
-                bool renderOverlap = intersection.overlapInterval.volumes.Count > 1;
+                bool renderOverlap = overlapLayers.Count > 1;
                 bool firstOverlapLayer = true, useOverlapFlipRaysBuffer = true;
 
                 if (renderOverlap)
@@ -715,19 +720,18 @@ namespace Atmosphere
                 for (int i = 0; i < overlapLayers.Count; i++)
                 {
                     var layer = overlapLayers[i];
-                    var cloudMaterial = layer.RaymarchedCloudMaterial;
+                    var cloudMaterial = reflectionProbeCamera ? layer.ReflectionProbeRaymarchedCloudMaterial : layer.RaymarchedCloudMaterial;
 
-                    if (reflectionProbeCamera)
+                    if (!reflectionProbeCamera)
                     {
-                        cloudMaterial.EnableKeyword("LIGHTNING_OFF");
-                        cloudMaterial.DisableKeyword("LIGHTNING_ON");
-                    }
-                    else
-                    { 
                         Lightning.SetShaderParams(cloudMaterial);
                     }
+                    else
+                    {
+                        cloudMaterial.SetInt(ShaderProperties.lightningCount_PROPERTY, 0);
+                    }
 
-                    // set material properties
+                    // Set material properties
                     cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
@@ -766,8 +770,7 @@ namespace Atmosphere
                     if (!renderOverlap)
                     {
                         commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true, false, 0].depthBuffer);
-                        commandBuffer.DisableShaderKeyword("RENDER_OVERLAP_ON");
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
+                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchClouds);
 
                         if (packedTexturesDebugMode)
                         {
@@ -788,13 +791,12 @@ namespace Atmosphere
                             commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true, false, 0].depthBuffer);
                         }
 
-                        commandBuffer.EnableShaderKeyword("RENDER_OVERLAP_ON");
+                        //commandBuffer.EnableShaderKeyword("RENDER_OVERLAP_ON");
                         commandBuffer.SetGlobalFloat(ShaderProperties.firstOverlapLayer_PROPERTY, firstOverlapLayer ? 1f : 0f);
                         commandBuffer.SetGlobalFloat(ShaderProperties.lastOverlapLayer_PROPERTY, lastOverlapLayer ? 1f : 0f);
 
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerOverlapRays_PROPERTY, packedOverlapRaysRT[!useOverlapFlipRaysBuffer, false, 0]);
-
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderCloudsPass);
+                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchCloudsOverlap);
 
                         if (packedTexturesDebugMode)
                         {
@@ -813,7 +815,7 @@ namespace Atmosphere
                         commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLightningLayerRendered_PROPERTY, isFirstLightningLayerRendered ? 1f : 0f);
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
                         commandBuffer.SetRenderTarget(useLightningFlipRaysBuffer ? lightningOcclusionRT[true, false, 0] : lightningOcclusionRT[false, false, 0], lightningOcclusionRT[true, false, 0].depthBuffer);
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, renderLightingOcclusionPass);
+                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.LightningOcclusion);
 
                         isFirstLightningLayerRendered = false;
                         useLightningFlipRaysBuffer = !useLightningFlipRaysBuffer;
