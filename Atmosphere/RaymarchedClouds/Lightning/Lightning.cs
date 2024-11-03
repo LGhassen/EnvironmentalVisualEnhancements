@@ -190,9 +190,12 @@ namespace Atmosphere
 
         private bool ShouldSpawn(float time, int nextIndex)
         {
-			if (time < lastSpawnTime) time += 100f;
+			if (time < lastSpawnTime)
+			{ 
+				time += 100f;
+            }
 
-			return nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex];
+            return nextIndex < spawnTimesList.Count && time > spawnTimesList[nextIndex];
         }
 
         void Spawn()

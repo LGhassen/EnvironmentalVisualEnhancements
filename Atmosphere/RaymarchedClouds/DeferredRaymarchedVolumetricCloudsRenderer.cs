@@ -125,7 +125,7 @@ namespace Atmosphere
                                                                                     // A encodes 16-bit per channel max depth and weighted depth
                                                                                     // We don't need bilinear interpolation for these so the packing works
 
-        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedMaxDepthRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
+        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
         private RenderTexture weightedDepthRTDebug; // Debug textures to visualize the previous packed textures after each rendering step
         private bool packedTexturesDebugMode = false;
 
@@ -291,7 +291,6 @@ namespace Atmosphere
 
                 RenderTextureUtils.ResizeRT(unpackedNewRaysRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
-                RenderTextureUtils.ResizeRT(unpackedMaxDepthRT, newRaysRenderWidth, newRaysRenderHeight);
 
                 if (packedTexturesDebugMode)
                 {
@@ -360,7 +359,6 @@ namespace Atmosphere
 
             unpackedNewRaysRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBHalf, false, FilterMode.Point);
             unpackedMotionVectorsRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-            unpackedMaxDepthRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
             if (packedTexturesDebugMode)
             { 
@@ -704,7 +702,7 @@ namespace Atmosphere
 
             RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[true, false, 0]) };
             RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[false, false, 0]) };
-            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedMaxDepthRT), new RenderTargetIdentifier(weightedDepthRTDebug) };
+            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(weightedDepthRTDebug) };
 
             foreach (var intersection in intersections)
             {
@@ -713,7 +711,7 @@ namespace Atmosphere
                 bool firstOverlapLayer = true, useOverlapFlipRaysBuffer = true;
 
                 if (renderOverlap)
-                { 
+                {
                     overlapLayers = overlapLayers.OrderBy(x => x.RaymarchingSettings.OverlapRenderOrder).ToList();
                 }
 
@@ -724,7 +722,7 @@ namespace Atmosphere
 
                     if (!reflectionProbeCamera)
                     {
-                        Lightning.SetShaderParams(cloudMaterial);
+                        Lightning.SetShaderParams(cloudMaterial); // This potentially duplicates work per material
                     }
                     else
                     {
@@ -776,8 +774,11 @@ namespace Atmosphere
                         {
                             var textureToDebug = (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures)[0];
                             UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
+
+                            commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, packedNewRaysRT[!useFlipRaysBuffer, false, 0]); // unpacking has bug that overrides this property, maybe just make it a blit or compute
                         }
                     }
+                    
                     else
                     {
                         bool lastOverlapLayer = i == overlapLayers.Count - 1;
@@ -791,7 +792,6 @@ namespace Atmosphere
                             commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true, false, 0].depthBuffer);
                         }
 
-                        //commandBuffer.EnableShaderKeyword("RENDER_OVERLAP_ON");
                         commandBuffer.SetGlobalFloat(ShaderProperties.firstOverlapLayer_PROPERTY, firstOverlapLayer ? 1f : 0f);
                         commandBuffer.SetGlobalFloat(ShaderProperties.lastOverlapLayer_PROPERTY, lastOverlapLayer ? 1f : 0f);
 
@@ -804,12 +804,16 @@ namespace Atmosphere
                                                                     : (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures))[0];
 
                             UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
+
+                            // unpacking has bug that overrides this property, maybe just make it a blit or compute
+                            commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, packedNewRaysRT[!useFlipRaysBuffer, false, 0]);
                         }
 
                         useOverlapFlipRaysBuffer = !useOverlapFlipRaysBuffer;
                         firstOverlapLayer = false;
                     }
-
+                    
+                    
                     if (Lightning.CurrentCount > 0 && !reflectionProbeCamera)
                     {
                         commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLightningLayerRendered_PROPERTY, isFirstLightningLayerRendered ? 1f : 0f);
@@ -828,7 +832,7 @@ namespace Atmosphere
 
             // Unpack color and motion vectors textures to speed up reconstruction
             var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
-            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedMaxDepthRT) };
+            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT)};
             UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer, false, 0], commandBuffer, unpackedRenderTextures, mr1);
 
             RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, cubemapFace]), new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, cubemapFace]) };
@@ -848,7 +852,6 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBuffer_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, unpackedMotionVectorsRT);
-            commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMaxDepthBuffer_PROPERTY, unpackedMaxDepthRT);
 
             reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
             reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
@@ -975,10 +978,7 @@ namespace Atmosphere
                 unpackedMotionVectorsRT.Release();
 
             if (packedTexturesDebugMode)
-            {   
-                if (unpackedMaxDepthRT)
-                    unpackedMaxDepthRT.Release();
-                
+            {
                 if (weightedDepthRTDebug)
                     weightedDepthRTDebug.Release();
             }

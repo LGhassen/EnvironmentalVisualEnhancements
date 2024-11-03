@@ -6,6 +6,7 @@ using UnityEngine.Rendering;
 using Utils;
 using System.Linq;
 using PQSManager;
+using UnityEngine.Experimental.Rendering;
 
 namespace Atmosphere
 {
