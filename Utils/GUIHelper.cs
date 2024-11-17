@@ -308,7 +308,7 @@ namespace Utils
             else
             {
                 listEditRect.width += listAddRect.width;
-                GUI.Label(listEditRect, "Invalid Name!");
+                GUI.Label(listEditRect, "Enter unique name to add new element");
             }
             if (nodeList.Count > 0 && GUI.Button(listRemoveRect, "-"))
             {
