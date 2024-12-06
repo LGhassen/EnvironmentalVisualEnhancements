@@ -4,9 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
-using System.Linq;
 using PQSManager;
-using UnityEngine.Experimental.Rendering;
 
 namespace Atmosphere
 {
@@ -150,7 +148,7 @@ namespace Atmosphere
 
         public Material ReflectionProbeRaymarchedCloudMaterial { get => reflectionProbeRaymarchedCloudMaterial; }
 
-        private Texture2D coverageCurvesTexture;
+        private Texture2D coverageCurvesTexture, accumulatedVerticalCoverageTexture;
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
@@ -452,6 +450,7 @@ namespace Atmosphere
                 screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
                 screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
                 screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
+                screenspaceShadowMaterial.SetTexture("AccumulatedVerticalCoverageTexture", accumulatedVerticalCoverageTexture);
             }
 
             if (lightVolumeSettings.UseLightVolume)
@@ -715,7 +714,13 @@ namespace Atmosphere
             innerSphereRadius = planetRadius + cloudMinAltitude;
             outerSphereRadius = planetRadius + cloudMaxAltitude;
 
-            coverageCurvesTexture = BakeCoverageCurvesTexture();
+            if (coverageCurvesTexture != null)
+                GameObject.Destroy(coverageCurvesTexture);
+
+            if (accumulatedVerticalCoverageTexture != null)
+                GameObject.Destroy(accumulatedVerticalCoverageTexture);
+
+            coverageCurvesTexture = BakeCoverageCurvesTexture(out accumulatedVerticalCoverageTexture);
         }
 
         private void SetCloudTypesShaderParams(Material mat)
@@ -751,19 +756,28 @@ namespace Atmosphere
             mat.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
-        private Texture2D BakeCoverageCurvesTexture()
+        private Texture2D BakeCoverageCurvesTexture(out Texture2D accumulatedVerticalCoverageTexture)
         {
             int resolution = 128;
 
+
             if (cloudTypes.Count == 0)
-                return Texture2D.whiteTexture;
+            {
+                accumulatedVerticalCoverageTexture = Texture2D.Instantiate(Texture2D.blackTexture);
+                return Texture2D.Instantiate(Texture2D.whiteTexture);
+            }
 
-            Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
+            Texture2D coverageCurvesTexture = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
+            coverageCurvesTexture.filterMode = FilterMode.Bilinear;
+            coverageCurvesTexture.wrapMode = TextureWrapMode.Clamp;
 
-            tex.filterMode = FilterMode.Bilinear;
-            tex.wrapMode = TextureWrapMode.Clamp;
+            accumulatedVerticalCoverageTexture = new Texture2D(resolution, 1, TextureFormat.RHalf, false);
+            accumulatedVerticalCoverageTexture.filterMode = FilterMode.Bilinear;
+            accumulatedVerticalCoverageTexture.wrapMode = TextureWrapMode.Clamp;
+            float layerHeight = cloudMaxAltitude - cloudMinAltitude;
 
-            Color[] colors = new Color[resolution * resolution];
+            Color[] coverageCurvesColors = new Color[resolution * resolution];
+            Color[] accumulatedVerticalCoverageColors = new Color[resolution];
 
             for (int x = 0; x < resolution; x++)
             {
@@ -777,6 +791,8 @@ namespace Atmosphere
                 float interpolatedMinAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MinAltitude, cloudTypes[nextCloudType].MinAltitude, cloudFrac);
                 float interpolatedMaxAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MaxAltitude, cloudTypes[nextCloudType].MaxAltitude, cloudFrac);
 
+                float accumulatedVerticalCoverage = 0f;
+
                 for (int y = 0; y < resolution; y++)
                 {
                     float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / (float)(resolution-1));
@@ -785,20 +801,29 @@ namespace Atmosphere
                                                 cloudFrac);
                     
                     // We want to compress to BC4 which doesn't work unless we compress to BC3 and extract the alpha channel, and that also doesn't work unless you set both alpha and another channel
-                    colors[x + y * resolution].r = result;
-                    colors[x + y * resolution].a = result;
+                    coverageCurvesColors[x + y * resolution].r = result;
+                    coverageCurvesColors[x + y * resolution].a = result;
+
+                    accumulatedVerticalCoverage += result;
                 }
+
+                accumulatedVerticalCoverage /= resolution;
+                accumulatedVerticalCoverage *= layerHeight;
+                accumulatedVerticalCoverageColors[x] = new Color(accumulatedVerticalCoverage, accumulatedVerticalCoverage, accumulatedVerticalCoverage, accumulatedVerticalCoverage);
 
             }
 
-            tex.SetPixels(colors);
-            tex.Apply(false);
+            coverageCurvesTexture.SetPixels(coverageCurvesColors);
+            coverageCurvesTexture.Apply(false);
 
-            tex.Compress(true); // this compresses a color image to BC3, compressing R8 directly to BC4 doesn't work
+            coverageCurvesTexture.Compress(true); // this compresses a color image to BC3, compressing R8 directly to BC4 doesn't work
 
-            var texBC4 = TextureConverter.ExtractBC4TextureFromBC3Alpha(tex);
+            var texBC4 = TextureConverter.ExtractBC4TextureFromBC3Alpha(coverageCurvesTexture);
 
-            GameObject.Destroy(tex);
+            GameObject.Destroy(coverageCurvesTexture);
+
+            accumulatedVerticalCoverageTexture.SetPixels(accumulatedVerticalCoverageColors);
+            accumulatedVerticalCoverageTexture.Apply(false);
 
             return texBC4;
         }
@@ -971,6 +996,12 @@ namespace Atmosphere
 
             if (flowMap != null)
                 flowMap.Remove();
+
+            if (coverageCurvesTexture != null)
+                GameObject.Destroy(coverageCurvesTexture);
+
+            if (accumulatedVerticalCoverageTexture != null)
+                GameObject.Destroy(accumulatedVerticalCoverageTexture);
         }
 
         internal bool checkVisible (Vector3 camPos, out float scaledLayerFade)

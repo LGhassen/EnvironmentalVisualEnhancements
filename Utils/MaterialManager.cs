@@ -111,13 +111,17 @@ namespace Utils
             foreach (KeyValuePair<object,object> field in cache)
             {
                 object obj = field.Value;
+
+                if (obj == null)
+                    continue;
+
                 float scaleValue = 1f;
-                if (obj != null && obj.GetType() == typeof(ScaledValue))
+                if (obj.GetType() == typeof(ScaledValue))
                 {
                     obj = ((ScaledValue)obj).obj;
                     scaleValue = scale;
                 }
-                else if (obj != null && obj.GetType() == typeof(InverseScaledValue))
+                else if (obj.GetType() == typeof(InverseScaledValue))
                 {
                     obj = ((InverseScaledValue)obj).obj;
                     scaleValue = 1 / scale;
