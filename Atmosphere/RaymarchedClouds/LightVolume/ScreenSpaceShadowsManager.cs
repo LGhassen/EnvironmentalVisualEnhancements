@@ -255,12 +255,13 @@ namespace Atmosphere
     class ScreenSpaceShadowsRenderer : MonoBehaviour
     {
         private Light light;
-        private bool isIvaLight;
+        private bool isIvaLight; // What's this for? Check This works in IVA
         private bool isReflectionProbeCamera;
         private Camera camera;
 
-        private CommandBuffer renderingCommandBuffer;
-        private CommandBuffer displayCommandBuffer;
+        // In forward the built-in shaders only the shadow mask up to the max shadow distance
+        // So beyond the max shadow distance we have to manually fall back on the old method of darkening the screen
+        private CommandBuffer renderingCommandBuffer, displayCommandBuffer, forwardRenderingCommandBuffer;
 
         private int screenWidth, screenHeight;
 
@@ -283,6 +284,12 @@ namespace Atmosphere
 
             blendScreenSpaceShadowsMaterial = new Material(ShaderLoaderClass.FindShader("EVE/BlendScreenSpaceShadows"));
             downscaleDepthMaterial = new Material(ShaderLoaderClass.FindShader("EVE/DownscaleDepth"));
+
+            if (camera != null && !isReflectionProbeCamera && camera.actualRenderingPath == RenderingPath.Forward)
+            {
+                forwardRenderingCommandBuffer = new CommandBuffer();
+                forwardRenderingCommandBuffer.name = $"EVE ScreenSpaceShadowsRenderer {camera.name} {light.name} forward commandBuffer";
+            }
         }
 
         private void SetRenderingResolution()
@@ -302,8 +309,6 @@ namespace Atmosphere
 
         public void OnPreCull()
         {
-            // TODO: the right events and shit for the non-deferred case
-
             if (renderingCommandBuffer != null)
             { 
                 light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
@@ -313,10 +318,21 @@ namespace Atmosphere
             { 
                 light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
             }
+
+            if (forwardRenderingCommandBuffer != null)
+            {
+                camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, forwardRenderingCommandBuffer);
+            }
         }
 
         public void OnPostRender()
         {
+            // TODO: VR rendering finished checks?
+            bool doneRendering = camera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
+
+            if (!doneRendering)
+                return;
+
             if (renderingCommandBuffer != null)
             {
                 light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
@@ -325,6 +341,11 @@ namespace Atmosphere
             if (displayCommandBuffer != null)
             {
                 light.RemoveCommandBuffer(LightEvent.AfterScreenspaceMask, displayCommandBuffer);
+            }
+
+            if (forwardRenderingCommandBuffer != null)
+            {
+                camera.RemoveCommandBuffer(CameraEvent.AfterForwardOpaque, forwardRenderingCommandBuffer);
             }
         }
 
@@ -376,7 +397,13 @@ namespace Atmosphere
 
                     renderingCommandBuffer.SetGlobalTexture("EVEScreenSpaceShadows", tempShadowsRTIdentifier);
 
-                    displayCommandBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, blendScreenSpaceShadowsMaterial);
+                    displayCommandBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, blendScreenSpaceShadowsMaterial, 0);
+                }
+
+                if (forwardRenderingCommandBuffer != null)
+                {
+                    forwardRenderingCommandBuffer.Clear();
+                    forwardRenderingCommandBuffer.Blit(null, BuiltinRenderTextureType.CurrentActive, blendScreenSpaceShadowsMaterial, 1);
                 }
             }
         }
