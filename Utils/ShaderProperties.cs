@@ -386,6 +386,12 @@ namespace Utils
         public static int lightDirection_PROPERTY { get { return lightDirection; } }
         private static int lightDirection;
 
+        public static int planetPosition_PROPERTY { get { return planetPosition; } }
+        private static int planetPosition;
+
+        public static int upVector_PROPERTY { get { return upVector; } }
+        private static int upVector;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -530,6 +536,8 @@ namespace Utils
 
             lightDirection = Shader.PropertyToID("lightDirection");
             planetCenter = Shader.PropertyToID("planetCenter");
+            planetPosition = Shader.PropertyToID("planetPosition");
+            upVector = Shader.PropertyToID("upVector");
         }
     }
 }

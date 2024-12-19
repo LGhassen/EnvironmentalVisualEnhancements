@@ -5,6 +5,7 @@ using ShaderLoader;
 using System;
 using System.Collections.Generic;
 using Random = UnityEngine.Random;
+using System.Linq;
 
 namespace Atmosphere
 {
@@ -30,8 +31,17 @@ namespace Atmosphere
 			}
 		}
 
+        static Shader particleFieldLightingShader = null;
+        static Shader ParticleFieldlightingShader
+        {
+            get
+            {
+                if (particleFieldLightingShader == null) particleFieldLightingShader = ShaderLoaderClass.FindShader("EVE/ParticleFieldLighting");
+                return particleFieldLightingShader;
+            }
+        }
 
-		static Shader invisibleShader = null;
+        static Shader invisibleShader = null;
 
 		private static Shader InvisibleShader
 		{
@@ -42,7 +52,9 @@ namespace Atmosphere
 			}
 		}
 
-		[ConfigItem]
+        public CelestialBody ParentCelestialBody { get => parentCelestialBody; }
+
+        [ConfigItem]
 		string particleFieldConfig = "";
 
 		ParticleFieldConfig particleFieldConfigObject = null;
@@ -476,30 +488,35 @@ namespace Atmosphere
 			private List<CommandBuffer> commandBuffersAdded = new List<CommandBuffer>();
 			private HashSet<ParticleField> particleFields = new HashSet<ParticleField>();
 
-			public ParticleFieldRenderer()
+			static RenderTexture ambientLightRT = null;
+
+			Material particleFieldLightingMaterial;
+
+            public ParticleFieldRenderer()
 			{
 			}
 
 			public void Start()
 			{
 				targetCamera = GetComponent<Camera>();
-			}
+
+                ambientLightRT = new RenderTexture(1, 1, 0, RenderTextureFormat.ARGBHalf, 0); // RGB ambient color, A direct light cloud shadow
+				ambientLightRT.name = "ParticleFieldAmbientLight";
+                ambientLightRT.Create();
+
+				particleFieldLightingMaterial = new Material(ParticleFieldlightingShader);
+            }
 
 			public void AddRenderer(MeshRenderer mr, Material mat, ParticleField particleField)
 			{
-				if (targetCamera != null)
+                if (targetCamera != null)
 				{
-					CommandBuffer cb = new CommandBuffer();
+					mat.SetTexture("ambientLightRT", ambientLightRT);
+
+                    CommandBuffer cb = new CommandBuffer();
                     cb.name = "EVE ParticleField CommandBuffer";
 
-					/*
-					int screenCopyID = Shader.PropertyToID("_ScreenCopyTexture");
-					cb.GetTemporaryRT(screenCopyID, -1, -1, 0, FilterMode.Bilinear);
-					cb.Blit(BuiltinRenderTextureType.CurrentActive, screenCopyID);
-					*/
-
 					cb.SetRenderTarget(BuiltinRenderTextureType.CameraTarget);
-					//cb.SetGlobalTexture("backgroundTexture", screenCopyID);
 					cb.DrawRenderer(mr, mat, 0, 0);
 
 					commandBuffersAdded.Add(cb);
@@ -514,7 +531,15 @@ namespace Atmosphere
             {
 				if (renderingEnabled)
                 {
-					foreach (var particleField in particleFields)
+					var parentCelestialBody = particleFields.ElementAt(0).ParentCelestialBody;
+
+                    Vector3 upVector = (targetCamera.transform.position - parentCelestialBody.transform.position).normalized;
+					particleFieldLightingMaterial.SetVector(ShaderProperties.upVector_PROPERTY, upVector);
+                    particleFieldLightingMaterial.SetVector(ShaderProperties.planetPosition_PROPERTY, parentCelestialBody.transform.position);
+
+                    Graphics.Blit(null, ambientLightRT, particleFieldLightingMaterial, 0);
+
+                    foreach (var particleField in particleFields)
 					{
 						particleField.UpdateMaterialProperties(targetCamera);
 					}
@@ -540,7 +565,13 @@ namespace Atmosphere
 
 			public void OnDestroy()
 			{
-				if (targetCamera != null)
+				if (ambientLightRT != null)
+				{ 
+                    ambientLightRT.Release();
+                }
+
+
+                if (targetCamera != null)
 				{
 					foreach (var cb in commandBuffersAdded)
 					{
