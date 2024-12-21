@@ -120,7 +120,8 @@ namespace Atmosphere
             {
                 for (int i = 0; i < RT.volumeDepth; i++)
                 {
-                    NoiseMaterial.SetFloat("_Slice", (float)(i) / (float)(RT.volumeDepth));
+                    float zUV = (i + 0.5f) / RT.volumeDepth;
+                    NoiseMaterial.SetFloat("_Slice", zUV);
                     Graphics.Blit(null, RT, NoiseMaterial, 0, i);
                 }
             }
@@ -147,7 +148,8 @@ namespace Atmosphere
             {
                 for (int i = 0; i < RT.volumeDepth; i++)
                 {
-                    NoiseMaterial.SetFloat("_Slice", (float)(i) / (float)(RT.volumeDepth));
+                    float zUV = (i + 0.5f) / RT.volumeDepth;
+                    NoiseMaterial.SetFloat("_Slice", zUV);
                     Graphics.Blit(null, RT, NoiseMaterial, 1, i);
                 }
             }
