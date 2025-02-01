@@ -102,7 +102,7 @@ namespace Atmosphere
                 bool isReflectionProbeCamera = camera.name == "Reflection Probes Camera";
 
                 cameraToShadowsRenderer[camera] = camera.gameObject.AddComponent<ScreenSpaceShadowsRenderer>();
-                cameraToShadowsRenderer[camera].Init(isIvaCamera ? ivaLight : sunLight, isIvaCamera, isReflectionProbeCamera);
+                cameraToShadowsRenderer[camera].Init(isIvaCamera ? ivaLight : sunLight, isReflectionProbeCamera);
 
                 UpdateRenderers();
             }
@@ -255,7 +255,6 @@ namespace Atmosphere
     class ScreenSpaceShadowsRenderer : MonoBehaviour
     {
         private Light light;
-        private bool isIvaLight; // What's this for? Check This works in IVA
         private bool isReflectionProbeCamera;
         private Camera camera;
 
@@ -267,9 +266,8 @@ namespace Atmosphere
 
         private Material blendScreenSpaceShadowsMaterial, downscaleDepthMaterial;
 
-        public void Init(Light light, bool isIvaLight, bool isReflectionProbeCamera)
+        public void Init(Light light, bool isReflectionProbeCamera)
         {
-            this.isIvaLight = isIvaLight;
             this.light = light;
             this.isReflectionProbeCamera = isReflectionProbeCamera;
             camera = gameObject.GetComponent<Camera>();
