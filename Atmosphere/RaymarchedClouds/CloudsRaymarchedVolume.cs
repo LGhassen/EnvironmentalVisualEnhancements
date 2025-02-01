@@ -411,9 +411,6 @@ namespace Atmosphere
             this.linearSpeedMagnitude = linearSpeedMagnitude;
 
             raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
-            raymarchedCloudMaterial.DisableKeyword(reflectionProbeNoiseKeywords);
-
-            reflectionProbeRaymarchedCloudMaterial.DisableKeyword(mainCameraNoiseKeywords);
             reflectionProbeRaymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
         }
 
@@ -594,8 +591,6 @@ namespace Atmosphere
 
             mainCameraNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
             reflectionProbeNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, false, false);
-
-            mat.EnableKeyword(reflectionProbeNoiseKeywords);
         }
 
         // Manually combined keywords to cut down shader permutations
