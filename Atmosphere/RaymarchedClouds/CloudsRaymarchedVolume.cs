@@ -32,15 +32,12 @@ namespace Atmosphere
         }
 
         private int baseNoiseDimension = 128;
-        private RenderTexture baseNoiseRT, detailNoiseRT, curlNoiseRT;
+        private RenderTexture baseNoiseRT, curlNoiseRT;
 
         private float deTilifyBaseNoise = 1f;
 
         [ConfigItem]
         NoiseWrapper noise;
-
-        [ConfigItem]
-        NoiseWrapper detailNoise;
 
         [ConfigItem, Optional]
         CurlNoise curlNoise;
@@ -130,9 +127,6 @@ namespace Atmosphere
         bool useDetailTex = false;
 
         float volumetricLayerScaledFade = 1.0f;
-
-        [ConfigItem]
-        float detailNoiseTiling = 1f;
 
         [ConfigItem]
         List<CloudType> cloudTypes = new List<CloudType> { };
@@ -477,12 +471,6 @@ namespace Atmosphere
             {
                 baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
                 CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
-
-                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None)
-                {
-                    detailNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
-                    CloudNoiseGen.RenderNoiseToTexture(detailNoiseRT, detailNoise);
-                }
             }
 
             if (curlNoise != null)
@@ -564,15 +552,6 @@ namespace Atmosphere
             {
                 noiseKeywordOn = true;
                 mat.SetTexture("BaseNoiseTexture", baseNoiseRT);
-
-                if (detailNoise != null && detailNoise.GetNoiseMode() != NoiseMode.None && detailNoiseRT != null)
-                {
-                    mat.SetTexture("DetailNoiseTexture", detailNoiseRT);
-                }
-                else
-                {
-                    mat.SetTexture("DetailNoiseTexture", baseNoiseRT);
-                }
             }
 
             if (curlNoise != null && curlNoiseRT != null)
@@ -665,7 +644,6 @@ namespace Atmosphere
 
             mat.SetColor("cloudColor", Tools.IsColorRGB(color) ? color / 255f : color);
 
-            mat.SetFloat("detailTiling", 1f / detailNoiseTiling);
             mat.SetFloat("lightMarchAttenuationMultiplier", 1.0f);
 
             if (curlNoise != null)
@@ -735,11 +713,11 @@ namespace Atmosphere
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
 
-            Vector2 minMaxNoiseTilings = new Vector2(1f / detailNoiseTiling, 1f / detailNoiseTiling);
+            Vector2 minMaxNoiseTilings = new Vector2(1e9f, 0f);
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, cloudTypes[i].DetailNoiseStrength, 0f);
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, 0f, 0f);
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
@@ -919,19 +897,10 @@ namespace Atmosphere
             reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
             reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
 
-            GetNoiseOffsets(xOffset, yOffset, zOffset, detailNoiseTiling, out Vector4 detailOffset, out Vector4 noTileNoiseDetailOffset);
-            raymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
-            raymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
-
-            reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
-            reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
-
             if (screenspaceShadowMaterial != null)
             {
                 screenspaceShadowMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
                 screenspaceShadowMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
-                screenspaceShadowMaterial.SetVector(ShaderProperties.detailOffset_PROPERTY, detailOffset);
-                screenspaceShadowMaterial.SetVector(ShaderProperties.noTileNoiseDetailOffset_PROPERTY, noTileNoiseDetailOffset);
             }
 
             if (curlNoise != null)

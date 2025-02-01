@@ -19,9 +19,6 @@ namespace Atmosphere
         float baseNoiseTiling = 1000f;
 
         [ConfigItem]
-        float detailNoiseStrength = 0.5f;
-
-        [ConfigItem]
         float particleFieldDensity = 1f;
 
         [ConfigItem]
@@ -47,7 +44,6 @@ namespace Atmosphere
         public float MaxAltitude { get => maxAltitude; }
         public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
         public float BaseNoiseTiling { get => baseNoiseTiling; }
-        public float DetailNoiseStrength { get => detailNoiseStrength; }
 
         public float Density { get => density; }
 

@@ -236,12 +236,6 @@ namespace Utils
         public static int noTileNoiseOffsets_PROPERTY { get { return noTileNoiseOffsets; } }
         private static int noTileNoiseOffsets;
 
-        public static int detailOffset_PROPERTY { get { return detailOffset; } }
-        private static int detailOffset;
-
-        public static int noTileNoiseDetailOffset_PROPERTY { get { return noTileNoiseDetailOffset; } }
-        private static int noTileNoiseDetailOffset;
-
         public static int curlNoiseOffset_PROPERTY { get { return curlNoiseOffset; } }
         private static int curlNoiseOffset;
 
@@ -482,8 +476,6 @@ namespace Utils
 
             baseNoiseOffsets = Shader.PropertyToID("baseNoiseOffsets");
             noTileNoiseOffsets = Shader.PropertyToID("noTileNoiseOffsets");
-            detailOffset = Shader.PropertyToID("detailOffset");
-            noTileNoiseDetailOffset = Shader.PropertyToID("noTileNoiseDetailOffset");
             curlNoiseOffset = Shader.PropertyToID("curlNoiseOffset");
             cloudRotation = Shader.PropertyToID("cloudRotation");
             cloudDetailRotation = Shader.PropertyToID("cloudDetailRotation");
