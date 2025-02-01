@@ -34,8 +34,6 @@ namespace Atmosphere
         private int baseNoiseDimension = 128;
         private RenderTexture baseNoiseRT, curlNoiseRT;
 
-        private float deTilifyBaseNoise = 1f;
-
         [ConfigItem]
         NoiseWrapper noise;
 
@@ -662,9 +660,6 @@ namespace Atmosphere
             stepSizeLight = raymarchingSettings.LightMarchDistance / (int)raymarchingSettings.LightMarchSteps;
             mat.SetFloat("stepSizeLight", stepSizeLight);
 
-            Texture2D tex = GameDatabase.Instance.GetTexture("EnvironmentalVisualEnhancements/Blue16b", false); //TODO: remove/replace with lower res texture?
-            mat.SetTexture("BlueNoise", tex);
-            mat.SetFloat("deTilifyBaseNoise", deTilifyBaseNoise * 0.01f);
             mat.SetFloat("skylightMultiplier", skylightMultiplier);
             mat.SetFloat("skylightTintMultiplier", skylightTintMultiplier);
             mat.SetFloat("shadowCasterDensity", receivedShadowsDensity);
@@ -886,43 +881,32 @@ namespace Atmosphere
             xOffset += timeXoffset; yOffset += timeYoffset; zOffset += timeZoffset;
 
             Vector4[] baseNoiseOffsets = new Vector4[cloudTypes.Count];
-            Vector4[] noTileNoiseOffsets = new Vector4[cloudTypes.Count];
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i], out noTileNoiseOffsets[i]);
+                GetNoiseOffsets(xOffset, yOffset, zOffset, cloudTypes[i].BaseNoiseTiling, out baseNoiseOffsets[i]);
             }
             raymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
-            raymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
-
             reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
-            reflectionProbeRaymarchedCloudMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
 
             if (screenspaceShadowMaterial != null)
             {
                 screenspaceShadowMaterial.SetVectorArray(ShaderProperties.baseNoiseOffsets_PROPERTY, baseNoiseOffsets);
-                screenspaceShadowMaterial.SetVectorArray(ShaderProperties.noTileNoiseOffsets_PROPERTY, noTileNoiseOffsets);
             }
 
             if (curlNoise != null)
             {
-                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset, out Vector4 noTileCurlNoiseOffset);
+                GetNoiseOffsets(xOffset, yOffset, zOffset, curlNoise.Tiling, out Vector4 curlNoiseOffset);
                 raymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
                 reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
                 if (screenspaceShadowMaterial != null) screenspaceShadowMaterial.SetVector(ShaderProperties.curlNoiseOffset_PROPERTY, curlNoiseOffset);
             }
         }
 
-        private void GetNoiseOffsets(double xOffset, double yOffset, double zOffset, double noiseTiling, out Vector4 offset, out Vector4 noTileOffset)
+        private void GetNoiseOffsets(double xOffset, double yOffset, double zOffset, double noiseTiling, out Vector4 offset)
         {
             double noiseXOffset = xOffset / noiseTiling, noiseYOffset = yOffset / noiseTiling, noiseZOffset = zOffset / noiseTiling;
 
             offset = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float)(noiseYOffset - Math.Truncate(noiseYOffset)), (float)(noiseZOffset - Math.Truncate(noiseZOffset)));
-
-            noiseXOffset = (xOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
-            noiseYOffset = (yOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
-            noiseZOffset = (zOffset * deTilifyBaseNoise * 0.01) / ((double)noiseTiling);
-
-            noTileOffset = new Vector4((float)(noiseXOffset - Math.Truncate(noiseXOffset)), (float)(noiseYOffset - Math.Truncate(noiseYOffset)), (float)(noiseZOffset - Math.Truncate(noiseZOffset)));
         }
 
         private void updateShadowCasterMaterialProperties(Material mat)
