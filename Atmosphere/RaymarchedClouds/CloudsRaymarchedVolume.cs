@@ -707,7 +707,8 @@ namespace Atmosphere
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, 0f, 0f);
+                // TODO: we have 1 free property here
+                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, Mathf.Clamp01(Mathf.Max(1f - cloudTypes[i].NoiseEdgeHardness, 1e-10f)), 0f);
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
