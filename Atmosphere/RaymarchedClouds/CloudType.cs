@@ -1,4 +1,5 @@
-﻿using Utils;
+﻿using UnityEngine;
+using Utils;
 
 namespace Atmosphere
 {
@@ -36,10 +37,15 @@ namespace Atmosphere
         [ConfigItem]
         bool interpolateCloudHeights = true;
 
+
         [ConfigItem]
         FloatCurve coverageCurve;
 
+        [ConfigItem]
+        FloatCurve densityCurve;
+        
         public FloatCurve CoverageCurve { get => coverageCurve; }
+        public FloatCurve DensityCurve { get => densityCurve; }
         public float MinAltitude { get => minAltitude; }
         public float MaxAltitude { get => maxAltitude; }
         public bool InterpolateCloudHeights { get => interpolateCloudHeights; }

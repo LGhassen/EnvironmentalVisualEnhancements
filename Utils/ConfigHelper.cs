@@ -502,10 +502,11 @@ namespace Utils
             }
             else if (field.FieldType == typeof(FloatCurve))
             {
-                var nodeToLoad = node != null ? node : ConfigNode.Parse(value[0]).GetNodes()[0];
-
-                obj = new FloatCurve();
-                ((FloatCurve)obj).Load(nodeToLoad);
+                if (node != null)
+                { 
+                    obj = new FloatCurve();
+                    ((FloatCurve)obj).Load(node);
+                }
 
                 return true;
             }

@@ -140,7 +140,7 @@ namespace Atmosphere
 
         public Material ReflectionProbeRaymarchedCloudMaterial { get => reflectionProbeRaymarchedCloudMaterial; }
 
-        private Texture2D coverageCurvesTexture, accumulatedVerticalCoverageTexture;
+        private Texture2D curvesTexture, accumulatedVerticalCoverageTexture;
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
@@ -682,13 +682,13 @@ namespace Atmosphere
             innerSphereRadius = planetRadius + cloudMinAltitude;
             outerSphereRadius = planetRadius + cloudMaxAltitude;
 
-            if (coverageCurvesTexture != null)
-                GameObject.Destroy(coverageCurvesTexture);
+            if (curvesTexture != null)
+                GameObject.Destroy(curvesTexture);
 
             if (accumulatedVerticalCoverageTexture != null)
                 GameObject.Destroy(accumulatedVerticalCoverageTexture);
 
-            coverageCurvesTexture = BakeCoverageCurvesTexture(out accumulatedVerticalCoverageTexture);
+            curvesTexture = BakeCurvesTexture(out accumulatedVerticalCoverageTexture);
         }
 
         private void SetCloudTypesShaderParams(Material mat)
@@ -699,7 +699,7 @@ namespace Atmosphere
             mat.SetFloat("layerHeight", outerSphereRadius - innerSphereRadius);
             mat.SetFloat("invLayerHeight", 1f / (outerSphereRadius - innerSphereRadius));
 
-            mat.SetTexture("DensityCurve", coverageCurvesTexture);
+            mat.SetTexture("DensityCurve", curvesTexture);
 
             Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
 
@@ -724,7 +724,7 @@ namespace Atmosphere
             mat.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
-        private Texture2D BakeCoverageCurvesTexture(out Texture2D accumulatedVerticalCoverageTexture)
+        private Texture2D BakeCurvesTexture(out Texture2D accumulatedVerticalCoverageTexture)
         {
             int resolution = 128;
 
@@ -735,16 +735,16 @@ namespace Atmosphere
                 return Texture2D.Instantiate(Texture2D.whiteTexture);
             }
 
-            Texture2D coverageCurvesTexture = new Texture2D(resolution, resolution, TextureFormat.ARGB32, false);
-            coverageCurvesTexture.filterMode = FilterMode.Bilinear;
-            coverageCurvesTexture.wrapMode = TextureWrapMode.Clamp;
+            Texture2D curvesTexture = new Texture2D(resolution, resolution, TextureFormat.RG16, false);
+            curvesTexture.filterMode = FilterMode.Bilinear;
+            curvesTexture.wrapMode = TextureWrapMode.Clamp;
 
             accumulatedVerticalCoverageTexture = new Texture2D(resolution, 1, TextureFormat.RHalf, false);
             accumulatedVerticalCoverageTexture.filterMode = FilterMode.Bilinear;
             accumulatedVerticalCoverageTexture.wrapMode = TextureWrapMode.Clamp;
             float layerHeight = cloudMaxAltitude - cloudMinAltitude;
 
-            Color[] coverageCurvesColors = new Color[resolution * resolution];
+            Color[] curvesColors = new Color[resolution * resolution];
             Color[] accumulatedVerticalCoverageColors = new Color[resolution];
 
             for (int x = 0; x < resolution; x++)
@@ -764,15 +764,19 @@ namespace Atmosphere
                 for (int y = 0; y < resolution; y++)
                 {
                     float currentAltitude = Mathf.Lerp(cloudMinAltitude, cloudMaxAltitude, (float)y / (float)(resolution-1));
-                    float result = Mathf.Lerp(EvaluateCloudValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
-                                                EvaluateCloudValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
-                                                cloudFrac);
-                    
-                    // We want to compress to BC4 which doesn't work unless we compress to BC3 and extract the alpha channel, and that also doesn't work unless you set both alpha and another channel
-                    coverageCurvesColors[x + y * resolution].r = result;
-                    coverageCurvesColors[x + y * resolution].a = result;
 
-                    accumulatedVerticalCoverage += result;
+                    float coverageValue = Mathf.Lerp(EvaluateCoverageValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                EvaluateCoverageValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                cloudFrac);
+
+                    float densityValue = Mathf.Lerp(EvaluateDensityValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                EvaluateDensityValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
+                                                cloudFrac);
+
+                    curvesColors[x + y * resolution].r = coverageValue;
+                    curvesColors[x + y * resolution].g = densityValue;
+
+                    accumulatedVerticalCoverage += coverageValue;
                 }
 
                 accumulatedVerticalCoverage /= resolution;
@@ -781,22 +785,13 @@ namespace Atmosphere
 
             }
 
-            coverageCurvesTexture.SetPixels(coverageCurvesColors);
-            coverageCurvesTexture.Apply(false);
+            curvesTexture.SetPixels(curvesColors);
+            curvesTexture.Apply(false);
 
-            coverageCurvesTexture.Compress(true); // this compresses a color image to BC3, compressing R8 directly to BC4 doesn't work
-
-            var texBC4 = TextureConverter.ExtractBC4TextureFromBC3Alpha(coverageCurvesTexture);
-
-            GameObject.Destroy(coverageCurvesTexture);
-
-            accumulatedVerticalCoverageTexture.SetPixels(accumulatedVerticalCoverageColors);
-            accumulatedVerticalCoverageTexture.Apply(false);
-
-            return texBC4;
+            return curvesTexture;
         }
 
-        private float EvaluateCloudValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
+        private float EvaluateCoverageValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
         {
             float minAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMinAltitude : cloudTypes[cloudIndex].MinAltitude;
             float maxAltitude = cloudTypes[cloudIndex].InterpolateCloudHeights ? interpolatedMaxAltitude : cloudTypes[cloudIndex].MaxAltitude;
@@ -808,6 +803,23 @@ namespace Atmosphere
             }
 
             return 0f;
+        }
+        
+        private float EvaluateDensityValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
+        {
+            if (cloudTypes[cloudIndex].DensityCurve == null)
+                return 1f;
+
+            float minAltitude = interpolatedMinAltitude;
+            float maxAltitude = interpolatedMaxAltitude;
+
+            if (currentAltitude <= maxAltitude && currentAltitude >= minAltitude)
+            {
+                float t = (currentAltitude - minAltitude) / (maxAltitude - minAltitude);
+                return cloudTypes[cloudIndex].DensityCurve.Evaluate(t);
+            }
+
+            return 1f;
         }
 
         public void UpdateShaderParams()
@@ -945,8 +957,8 @@ namespace Atmosphere
             if (flowMap != null)
                 flowMap.Remove();
 
-            if (coverageCurvesTexture != null)
-                GameObject.Destroy(coverageCurvesTexture);
+            if (curvesTexture != null)
+                GameObject.Destroy(curvesTexture);
 
             if (accumulatedVerticalCoverageTexture != null)
                 GameObject.Destroy(accumulatedVerticalCoverageTexture);
@@ -1059,7 +1071,7 @@ namespace Atmosphere
             if (cloudTypeMap != null)
                 cloudType = cloudTypeMap.Sample(sphereVector).r;
 
-            result *= coverageCurvesTexture.GetPixelBilinear(cloudType, heightFraction).r;
+            result *= curvesTexture.GetPixelBilinear(cloudType, heightFraction).r;
 
             return result * currentTimeFadeCoverage * currentTimeFadeDensity;
         }
