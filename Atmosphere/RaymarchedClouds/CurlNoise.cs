@@ -16,6 +16,12 @@ namespace Atmosphere
         float periods = 0f;
 
         [ConfigItem]
+        float persistence = 0f;
+
+        [ConfigItem]
+        float lacunarity = 0f;
+
+        [ConfigItem]
         bool smooth = false;
 
         [ConfigItem]
@@ -33,7 +39,7 @@ namespace Atmosphere
 
         public NoiseSettings ToNoiseSettings()
         {
-            return new NoiseSettings(octaves, periods, 1f, 1f, 0f);
+            return new NoiseSettings(octaves, periods, persistence, lacunarity);
         }
     }
 }

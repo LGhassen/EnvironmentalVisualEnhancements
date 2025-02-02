@@ -21,36 +21,34 @@ namespace Atmosphere
         float octaves = 0f;
         [ConfigItem]
         float periods = 0f;
+
         [ConfigItem]
-        float brightness = 0f;
+        float persistence = 0f;
         [ConfigItem]
-        float contrast = 0f;
-        [ConfigItem]
-        float lift = 0f;
+        float lacunarity = 0f;
 
         public float Octaves { get => octaves; }
         public float Periods { get => periods; }
-        public float Brightness { get => brightness; }
-        public float Contrast { get => contrast; }
-        public float Lift { get => lift; }
+
+        public float Persistence { get => persistence; }
+        public float Lacunarity { get => lacunarity; }
 
         public NoiseSettings()
         {
 
         }
 
-        public NoiseSettings(float octaves, float periods, float brightness, float contrast, float lift)
+        public NoiseSettings(float octaves, float periods, float persistence, float lacunarity)
         {
             this.octaves = octaves;
             this.periods = periods;
-            this.brightness = brightness;
-            this.contrast = contrast;
-            this.lift = lift;
+            this.persistence = persistence;
+            this.lacunarity = lacunarity;
         }
 
         public Vector4 GetParams()
         {
-            return new Vector4(octaves, periods, brightness, contrast);
+            return new Vector4(octaves, periods, persistence, lacunarity);
         }
     }
 
@@ -101,13 +99,11 @@ namespace Atmosphere
             if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.PerlinOnly)
             { 
                 NoiseMaterial.SetVector("_PerlinParams", settings.PerlinNoiseSettings.GetParams());
-                NoiseMaterial.SetFloat("_PerlinLift", settings.PerlinNoiseSettings.Lift);
             }
 
             if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.WorleyOnly)
             { 
                 NoiseMaterial.SetVector("_WorleyParams", settings.WorleyNoiseSettings.GetParams());
-                NoiseMaterial.SetFloat("_WorleyLift", settings.WorleyNoiseSettings.Lift);
             }
 
             NoiseMaterial.SetInt("_Mode", (int)settings.GetNoiseMode());
