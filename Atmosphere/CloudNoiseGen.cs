@@ -107,24 +107,112 @@ namespace Atmosphere
             }
 
             NoiseMaterial.SetInt("_Mode", (int)settings.GetNoiseMode());
-            NoiseMaterial.SetInt("_TargetChannel", 0);
-            NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
 
             var active = RenderTexture.active;
+
+            // Create two float textures to render the noise to then normalize the values by finding the min and max
+
+            var halfRTFlip = RenderTextureUtils.CreateRenderTexture(RT.width, RT.height, RenderTextureFormat.RGFloat, true,
+                            FilterMode.Bilinear, RT.dimension, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1);
+            halfRTFlip.name = "halfRTFlip";
+
+            var halfRTFlop = RenderTextureUtils.CreateRenderTexture(RT.width, RT.height, RenderTextureFormat.RGFloat, true,
+                            FilterMode.Bilinear, RT.dimension, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1);
+            halfRTFlop.name = "halfRTFlop";
+
+            // Start by rendering normally to the first texture
+            if (RT.dimension == TextureDimension.Tex3D)
+            {
+                for (int i = 0; i < RT.volumeDepth; i++)
+                {
+                    float zUV = (i + 0.5f) / RT.volumeDepth;
+                    noiseMaterial.SetFloat("_Slice", zUV);
+
+                    Graphics.Blit(null, halfRTFlip, noiseMaterial, 0, i);
+                }
+            }
+            else
+            {
+                Graphics.Blit(null, halfRTFlip, noiseMaterial, 0);
+            }
+
+            // Compute min and max values by doing 4 elements at once and writing to mip levels
+            // Has to be a CB to write to mips
+            CommandBuffer cb = new CommandBuffer();
+            cb.name = "Normalize noise texture CB";
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var quadMesh = Mesh.Instantiate(go.GetComponent<MeshFilter>().sharedMesh);
+            GameObject.Destroy(go);
+
+            bool renderToFlip = false;
+
+            Vector3 currentMipLevelDimensions = new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1);
+            Vector3 previousMipLevelDimensions = currentMipLevelDimensions;
+
+            // First this will find the min and max values and write min to R and max to G of the highest mip level
+            for (int currentMipLevelToRead = 0; currentMipLevelToRead < halfRTFlip.mipmapCount - 1; currentMipLevelToRead++)
+            {
+                previousMipLevelDimensions = currentMipLevelDimensions;
+                currentMipLevelDimensions = new Vector3((int)(currentMipLevelDimensions.x / 2f),
+                                                        (int)(currentMipLevelDimensions.y / 2f),
+                                                        (int)(currentMipLevelDimensions.z / 2f));
+
+                cb.SetGlobalVector("previousNoiseMipLevelDimensions", previousMipLevelDimensions);
+                cb.SetGlobalVector("currentNoiseMipLevelDimensions", currentMipLevelDimensions);
+
+                cb.SetGlobalTexture("previousNoiseTexture", renderToFlip ? halfRTFlop : halfRTFlip);
+                cb.SetGlobalInt("currentMipLevelToRead", currentMipLevelToRead);
+
+                // Iterate over all the slices if 3D tex
+                if (RT.dimension == TextureDimension.Tex3D)
+                {
+                    for (int i = 0; i < currentMipLevelDimensions.z; i++)
+                    {
+                        float zUV = (i + 0.5f) / currentMipLevelDimensions.z;
+                        cb.SetGlobalFloat("_Slice", zUV);
+
+                        cb.SetRenderTarget(renderToFlip ? halfRTFlip : halfRTFlop, currentMipLevelToRead + 1, CubemapFace.Unknown, i);
+                        cb.DrawMesh(quadMesh, Matrix4x4.identity, noiseMaterial, 0, 2);
+                    }
+                }
+                else
+                {
+                    cb.SetRenderTarget(renderToFlip ? halfRTFlip : halfRTFlop, currentMipLevelToRead + 1);
+                    cb.DrawMesh(quadMesh, Matrix4x4.identity, noiseMaterial, 0, 2);
+                }
+
+                renderToFlip = !renderToFlip;
+            }
+
+            Graphics.ExecuteCommandBuffer(cb);
+            cb.Release();
+
+            // Once we have the min and max, perform the normalization and write to the 8-bit RT
+            noiseMaterial.SetTexture("NonNormalizedNoiseTexture", halfRTFlip);
+            noiseMaterial.SetTexture("MinMaxNoiseTexture", renderToFlip ? halfRTFlop : halfRTFlip);
+            noiseMaterial.SetInt("MinMaxMipLevel", halfRTFlip.mipmapCount - 1);
 
             if (RT.dimension == TextureDimension.Tex3D)
             {
                 for (int i = 0; i < RT.volumeDepth; i++)
                 {
                     float zUV = (i + 0.5f) / RT.volumeDepth;
-                    NoiseMaterial.SetFloat("_Slice", zUV);
-                    Graphics.Blit(null, RT, NoiseMaterial, 0, i);
+                    noiseMaterial.SetFloat("_Slice", zUV);
+
+                    Graphics.Blit(null, RT, noiseMaterial, 3, i);
                 }
             }
             else
             {
-                Graphics.Blit(null, RT, NoiseMaterial, 0);
+                Graphics.Blit(null, RT, noiseMaterial, 3);
             }
+
+            // Then destroy the old textures
+            halfRTFlip.Release();
+            halfRTFlop.Release();
+            GameObject.Destroy(halfRTFlip);
+            GameObject.Destroy(halfRTFlop);
+            GameObject.Destroy(quadMesh);
 
             RT.GenerateMips();
 
