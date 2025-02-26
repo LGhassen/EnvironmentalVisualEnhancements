@@ -547,6 +547,7 @@ namespace Atmosphere
             {
                 noiseKeywordOn = true;
                 mat.SetTexture("BaseNoiseTexture", baseNoiseRT);
+                mat.SetFloat("noiseErosionDepth", noise.ErosionDepth);
             }
 
             if (curlNoise != null && curlNoiseRT != null)

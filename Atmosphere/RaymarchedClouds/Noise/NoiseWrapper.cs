@@ -66,6 +66,9 @@ namespace Atmosphere
     [System.Serializable]
     public class NoiseWrapper
     {
+        [ConfigItem]
+        float erosionDepth = 0.7f;
+
         [ConfigItem, Optional]
         WorleyNoiseSettings worley;
 
@@ -74,6 +77,8 @@ namespace Atmosphere
 
         public NoiseSettings PerlinNoiseSettings { get => perlin; }
         public WorleyNoiseSettings WorleyNoiseSettings { get => worley; }
+
+        public float ErosionDepth { get => erosionDepth; }
 
         public NoiseMode GetNoiseMode()
         {
