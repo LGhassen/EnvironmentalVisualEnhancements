@@ -10,16 +10,16 @@ namespace Atmosphere
     public class CurlNoise
     {
         [ConfigItem]
-        float octaves = 0f;
+        float octaves = 8f;
 
         [ConfigItem]
-        float periods = 0f;
+        float periods = 1f;
 
         [ConfigItem]
-        float persistence = 0f;
+        float persistence = 0.5f;
 
         [ConfigItem]
-        float lacunarity = 0f;
+        float lacunarity = 2f;
 
         [ConfigItem]
         bool smooth = false;

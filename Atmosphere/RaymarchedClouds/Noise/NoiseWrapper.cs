@@ -20,14 +20,14 @@ namespace Atmosphere
     public class NoiseSettings
     {
         [ConfigItem]
-        float octaves = 0f;
+        float octaves = 8f;
         [ConfigItem]
-        float periods = 0f;
+        float periods = 1f;
 
         [ConfigItem]
-        float persistence = 0f;
+        float persistence = 0.57f;
         [ConfigItem]
-        float lacunarity = 0f;
+        float lacunarity = 2f;
 
         public float Octaves { get => octaves; }
         public float Periods { get => periods; }
@@ -55,8 +55,42 @@ namespace Atmosphere
     }
 
     [System.Serializable]
-    public class WorleyNoiseSettings : NoiseSettings
+    public class WorleyNoiseSettings
     {
+        [ConfigItem]
+        float octaves = 8f;
+        [ConfigItem]
+        float periods = 1f;
+
+        [ConfigItem]
+        float persistence = 0.57f;
+        [ConfigItem]
+        float lacunarity = 2f;
+
+        public float Octaves { get => octaves; }
+        public float Periods { get => periods; }
+
+        public float Persistence { get => persistence; }
+        public float Lacunarity { get => lacunarity; }
+
+        public WorleyNoiseSettings()
+        {
+
+        }
+
+        public WorleyNoiseSettings(float octaves, float periods, float persistence, float lacunarity)
+        {
+            this.octaves = octaves;
+            this.periods = periods;
+            this.persistence = persistence;
+            this.lacunarity = lacunarity;
+        }
+
+        public Vector4 GetParams()
+        {
+            return new Vector4(octaves, periods, persistence, lacunarity);
+        }
+
         [ConfigItem]
         float spherical = 0f;
 

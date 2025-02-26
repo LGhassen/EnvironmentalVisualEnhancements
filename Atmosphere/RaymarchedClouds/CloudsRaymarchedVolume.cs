@@ -809,7 +809,7 @@ namespace Atmosphere
         
         private float EvaluateDensityValue(int cloudIndex, float currentAltitude, float interpolatedMinAltitude, float interpolatedMaxAltitude)
         {
-            if (cloudTypes[cloudIndex].DensityCurve == null)
+            if (cloudTypes[cloudIndex].DensityCurve == null || cloudTypes[cloudIndex].DensityCurve.Curve.keys.Length == 0)
                 return 1f;
 
             float minAltitude = interpolatedMinAltitude;
