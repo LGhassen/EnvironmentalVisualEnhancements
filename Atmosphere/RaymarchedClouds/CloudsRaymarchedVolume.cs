@@ -465,13 +465,13 @@ namespace Atmosphere
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None)
             {
                 baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
-                CloudNoiseGen.RenderNoiseToTexture(baseNoiseRT, noise);
+                NoiseGenerator.RenderNoiseToTexture(baseNoiseRT, noise);
             }
 
             if (curlNoise != null)
             {
                 curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
-                CloudNoiseGen.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise.ToNoiseSettings());
+                NoiseGenerator.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise.ToNoiseSettings());
             }
         }
 
