@@ -30,7 +30,7 @@ namespace Atmosphere
         bool nonTiling3DNoise = true;
 
         [ConfigItem]
-        bool useOrbitMode = true;
+        float continuousAccumulationDistance = 100000f;
 
         [ConfigItem]
         bool renderCloudsInReflectionProbes = true;
@@ -44,9 +44,9 @@ namespace Atmosphere
         internal TemporalUpscaling TemporalUpscaling { get => temporalUpscaling; }
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
-        internal bool UseOrbitMode { get => useOrbitMode; }
-
         internal bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
+
+        internal float ContinuousAccumulationDistance { get => continuousAccumulationDistance; }
 
         internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 

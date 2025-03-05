@@ -125,8 +125,7 @@ namespace Atmosphere
                                                                                     // A encodes 16-bit per channel max depth and weighted depth
                                                                                     // We don't need bilinear interpolation for these so the packing works
 
-        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT; // Unpacked Textures used to speed up reconstruction which does lots of lookups
-        private RenderTexture weightedDepthRTDebug; // Debug textures to visualize the previous packed textures after each rendering step
+        private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedWeightedDepth; // Unpacked Textures used to speed up reconstruction which does lots of lookups
         private bool packedTexturesDebugMode = false;
 
         // These are simple flip flop textures
@@ -244,6 +243,8 @@ namespace Atmosphere
 
             reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
 
+            reconstructCloudsMaterial.SetFloat("continuousAccumulationDistance", reflectionProbeCamera ? 0.0f : RaymarchedCloudsQualityManager.ContinuousAccumulationDistance);
+
             bool vrEnabled = VRUtils.VREnabled() && !reflectionProbeCamera;
 
             commandBuffer = new HistoryManager<CommandBuffer>(false, vrEnabled, false);
@@ -291,11 +292,7 @@ namespace Atmosphere
 
                 RenderTextureUtils.ResizeRT(unpackedNewRaysRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
-
-                if (packedTexturesDebugMode)
-                {
-                    RenderTextureUtils.ResizeRT(weightedDepthRTDebug, newRaysRenderWidth, newRaysRenderHeight);
-                }
+                RenderTextureUtils.ResizeRT(unpackedWeightedDepth, newRaysRenderWidth, newRaysRenderHeight);
 
                 RenderTextureUtils.ResizeRTHistoryManager(historyRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyMotionVectorsRT, screenWidth, screenHeight);
@@ -359,11 +356,7 @@ namespace Atmosphere
 
             unpackedNewRaysRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBHalf, false, FilterMode.Point);
             unpackedMotionVectorsRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
-
-            if (packedTexturesDebugMode)
-            { 
-                weightedDepthRTDebug = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
-            }
+            unpackedWeightedDepth = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
             lightningOcclusionRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
         }
@@ -517,14 +510,8 @@ namespace Atmosphere
                 if (useLightVolume && mainFlightCamera)
                     LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerLightVolumeRadius, outerLightVolumeRadius, lightVolumeSlowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse, lightVolumeMaxRadius);
 
-                // If the camera is higher than the highest layer by 2x as high as the layer is from the ground, enable orbitMode
-                // which relaxes strictness of temporal checks to accumulate more data and lower noise
-                // This is also used for the reflection probes
-                bool continuousAccumulationMode = (reflectionProbeCamera && (TimeWarp.CurrentRate * Time.timeScale < 10f)) || ((TimeWarp.CurrentRate * Time.timeScale < 100f) && RaymarchedCloudsQualityManager.UseOrbitMode && camDistanceToPlanetOrigin - outerCloudsRadius > 2f * (outerCloudsRadius - planetRadius));
-
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
                 var DeferredRaymarchedRendererToScreenMaterial = DeferredRaymarchedRendererToScreen.compositeColorMaterial;
-                DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, continuousAccumulationMode ? 1f : 0f);
                 DeferredRaymarchedRendererToScreenMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
@@ -600,7 +587,7 @@ namespace Atmosphere
                 {
                     SetTemporalReprojectionParams(out Vector2 uvOffset);
 
-                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, continuousAccumulationMode, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, ref useLightningFlipRaysBuffer, currentP, currentV, prevV, prevP, cubemapFace);
+                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, ref useLightningFlipRaysBuffer, currentP, currentV, prevV, prevP, cubemapFace);
 
                     if (!reflectionProbeCamera || cubemapFace == 0)
                     {
@@ -626,8 +613,8 @@ namespace Atmosphere
         {
             // calculate intersections and intersection distances for each layer/interval
             // if we're inside layer -> 1 intersect with distance 0 and 1 intersect with distance camAltitude + 2 * planetRadius+innerLayerAlt
-            // if we're lower than the layer -> 1 intersect with distance camAltitude + 2*radius+innerLayerAlt
-            // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude
+            // if we're lower than the layer -> 1 intersect with distance camAltitude + 2 * radius+innerLayerAlt
+            // if we're higher than the layer -> 1 intersect with distance camAltitude - outerLayerAltitude and 1 intersect with distance camAltitude + 2 * planetRadius+innerLayerAlt
             intersections.Clear();
 
             foreach (OverlapInterval overlapInterval in overlapIntervals)
@@ -694,7 +681,7 @@ namespace Atmosphere
             return overlapIntervals;
         }
 
-        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool orbitMode, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, ref bool useLightningFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP, int cubemapFace)
+        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, ref bool useLightningFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP, int cubemapFace)
         {
             commandBuffer.SetGlobalFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
             bool isFirstLayerRendered = true;
@@ -702,7 +689,7 @@ namespace Atmosphere
 
             RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[true, false, 0]) };
             RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[false, false, 0]) };
-            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(weightedDepthRTDebug) };
+            RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth) };
 
             foreach (var intersection in intersections)
             {
@@ -740,7 +727,6 @@ namespace Atmosphere
                     cloudMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
                     cloudMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
 
-                    cloudMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
                     cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
 
                     Matrix4x4 cloudPreviousV = prevV;
@@ -832,7 +818,7 @@ namespace Atmosphere
 
             // Unpack color and motion vectors textures to speed up reconstruction
             var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
-            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT)};
+            RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth)};
             UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer, false, 0], commandBuffer, unpackedRenderTextures, mr1);
 
             RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, cubemapFace]), new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, cubemapFace]) };
@@ -852,6 +838,7 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBuffer_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, unpackedMotionVectorsRT);
+            commandBuffer.SetGlobalTexture(ShaderProperties.newRaysWeightedDepth_PROPERTY, unpackedWeightedDepth);
 
             reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
             reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
@@ -859,8 +846,6 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-
-            reconstructCloudsMaterial.SetFloat(ShaderProperties.useOrbitMode_PROPERTY, orbitMode ? 1f : 0f);
 
             if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
@@ -977,12 +962,8 @@ namespace Atmosphere
             if (unpackedMotionVectorsRT)
                 unpackedMotionVectorsRT.Release();
 
-            if (packedTexturesDebugMode)
-            {
-                if (weightedDepthRTDebug)
-                    weightedDepthRTDebug.Release();
-            }
-
+            if (unpackedWeightedDepth)
+                unpackedWeightedDepth.Release();
         }
 
         public void OnDestroy()

@@ -80,9 +80,6 @@ namespace Utils
         public static int frameNumber_PROPERTY { get { return frameNumber; } }
         private static int frameNumber;
 
-        public static int useOrbitMode_PROPERTY { get { return useOrbitMode; } }
-        private static int useOrbitMode;
-
         public static int useCombinedOpenGLDistanceBuffer_PROPERTY { get { return useCombinedOpenGLDistanceBuffer; } }
         private static int useCombinedOpenGLDistanceBuffer;
 
@@ -154,6 +151,9 @@ namespace Utils
 
         public static int newRaysMotionVectors_PROPERTY { get { return newRaysMotionVectors; } }
         private static int newRaysMotionVectors;
+
+        public static int newRaysWeightedDepth_PROPERTY { get { return newRaysWeightedDepth; } }
+        private static int newRaysWeightedDepth;
 
         public static int innerSphereRadius_PROPERTY { get { return innerSphereRadius; } }
         private static int innerSphereRadius;
@@ -420,7 +420,6 @@ namespace Utils
             timeFadeDensity = Shader.PropertyToID("timeFadeDensity");
             timeFadeCoverage = Shader.PropertyToID("timeFadeCoverage");
             frameNumber = Shader.PropertyToID("frameNumber");
-            useOrbitMode = Shader.PropertyToID("useOrbitMode");
             useCombinedOpenGLDistanceBuffer = Shader.PropertyToID("useCombinedOpenGLDistanceBuffer");
             combinedOpenGLDistanceBuffer = Shader.PropertyToID("combinedOpenGLDistanceBuffer");
             reconstructedTextureResolution = Shader.PropertyToID("reconstructedTextureResolution");
@@ -445,6 +444,7 @@ namespace Utils
             newRaysBufferBilinear = Shader.PropertyToID("newRaysBufferBilinear");
             newRaysMaxDepthBuffer = Shader.PropertyToID("newRaysMaxDepthBuffer");
             newRaysMotionVectors = Shader.PropertyToID("newRaysMotionVectors");
+            newRaysWeightedDepth = Shader.PropertyToID("newRaysWeightedDepth");
             innerSphereRadius = Shader.PropertyToID("innerSphereRadius");
             outerSphereRadius = Shader.PropertyToID("outerSphereRadius");
             outerLayerRadius = Shader.PropertyToID("outerLayerRadius");
