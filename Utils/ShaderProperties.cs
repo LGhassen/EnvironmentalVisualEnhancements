@@ -140,6 +140,9 @@ namespace Utils
         public static int historyMotionVectors_PROPERTY { get { return historyMotionVectors; } }
         private static int historyMotionVectors;
 
+        public static int historyDistance_PROPERTY { get { return historyDistance; } }
+        private static int historyDistance;
+
         public static int newRaysBuffer_PROPERTY { get { return newRaysBuffer; } }
         private static int newRaysBuffer;
 
@@ -440,6 +443,7 @@ namespace Utils
             scattererCloudLightVolumeEnabled = Shader.PropertyToID("scattererCloudLightVolumeEnabled");
             historyBuffer = Shader.PropertyToID("historyBuffer");
             historyMotionVectors = Shader.PropertyToID("historyMotionVectors");
+            historyDistance = Shader.PropertyToID("historyDistance");
             newRaysBuffer = Shader.PropertyToID("newRaysBuffer");
             newRaysBufferBilinear = Shader.PropertyToID("newRaysBufferBilinear");
             newRaysMaxDepthBuffer = Shader.PropertyToID("newRaysMaxDepthBuffer");
