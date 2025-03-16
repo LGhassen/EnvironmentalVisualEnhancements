@@ -877,13 +877,13 @@ namespace Atmosphere
                 reorderedFrame = reorderedSamplingSequence[reorderedFrame];
             }
 
-            //figure out the current targeted pixel
+            // Figure out the current targeted pixel
             Vector2 currentPixel = new Vector2(reorderedFrame % reprojectionXfactor, reorderedFrame / reprojectionXfactor);
 
-            //figure out the offset from center pixel when we are rendering, to be used in the raymarching shader
+            // Figure out the offset from center pixel when we are rendering, to be used in the raymarching shader
             Vector2 centerPixel = new Vector2((float)(reprojectionXfactor - 1) * 0.5f, (float)(reprojectionYfactor - 1) * 0.5f);
             Vector2 pixelOffset = currentPixel - centerPixel;
-            uvOffset = pixelOffset / new Vector2(screenWidth, screenHeight);
+            uvOffset = pixelOffset / new Vector2(paddedScreenWidth, paddedScreenHeight);
 
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
