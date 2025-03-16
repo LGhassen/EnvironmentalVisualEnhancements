@@ -131,7 +131,7 @@ namespace Atmosphere
         // These are simple flip flop textures
         private HistoryManager<RenderTexture> lightningOcclusionRT;
 
-        bool useFlipScreenBuffer = true;
+        bool useFlipUpscalingBuffer = true;
         Material reconstructCloudsMaterial, unpackRaysMaterial;
 
         // Matrices of previous frame, can be different per VR eye or per cubemap face
@@ -543,19 +543,19 @@ namespace Atmosphere
                 //transform to camera space
                 Vector3 floatOffset = currentV.MultiplyVector(-currentOffset);
 
-                int cubemapFace = reflectionProbeCamera ? (int)ReflectionProbeUtils.GetCurrentReflectionProbeCameraCubemapFace(targetCamera) : 0;
+                int reflectionProbeCubemapFace = reflectionProbeCamera ? (int)ReflectionProbeUtils.GetCurrentReflectionProbeCameraCubemapFace(targetCamera) : 0;
 
                 //inject in the previous view matrix
-                var prevV = previousV[false, isRightEye, cubemapFace];
+                var prevV = previousV[false, isRightEye, reflectionProbeCubemapFace];
 
                 prevV.m03 += floatOffset.x;
                 prevV.m13 += floatOffset.y;
                 prevV.m23 += floatOffset.z;
 
-                var prevP = previousP[false, isRightEye, cubemapFace];
+                var prevP = previousP[false, isRightEye, reflectionProbeCubemapFace];
 
-                previousV[false, isRightEye, cubemapFace] = currentV;
-                previousP[false, isRightEye, cubemapFace] = currentP;
+                previousV[false, isRightEye, reflectionProbeCubemapFace] = currentV;
+                previousP[false, isRightEye, reflectionProbeCubemapFace] = currentP;
 
                 commandBuffer.SetGlobalFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
 
@@ -569,9 +569,6 @@ namespace Atmosphere
                         targetCamera.actualRenderingPath == RenderingPath.DeferredShading ? BuiltinRenderTextureType.ResolvedDepth : BuiltinRenderTextureType.Depth);
                 }
 
-                bool useFlipRaysBuffer = true;
-                bool useLightningFlipRaysBuffer = true;
-
                 float renderingIterations = 1;
 
                 if (cloudsScreenshotModeEnabled)
@@ -579,9 +576,12 @@ namespace Atmosphere
                     renderingIterations = screenshotModeIterations;
 
                     // In screenshot mode render multiple iterations additively to a single target without reprojection or neighborhood clipping, so clear targets in advance
-                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[true, isRightEye, 0]), historyRT[true, isRightEye, 0].depthBuffer);
+                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[true, isRightEye, 0]),
+                        historyRT[true, isRightEye, 0].depthBuffer);
                     commandBuffer.ClearRenderTarget(false, true, Color.clear);
-                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[false, isRightEye, 0]), historyRT[false, isRightEye, 0].depthBuffer);
+
+                    commandBuffer.SetRenderTarget(new RenderTargetIdentifier(historyRT[false, isRightEye, 0]),
+                        historyRT[false, isRightEye, 0].depthBuffer);
                     commandBuffer.ClearRenderTarget(false, true, Color.clear);
                 }
 
@@ -589,21 +589,21 @@ namespace Atmosphere
                 {
                     SetTemporalReprojectionParams(out Vector2 uvOffset);
 
-                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, isRightEye, flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset, frame, ref useFlipRaysBuffer, ref useLightningFlipRaysBuffer, currentP, currentV, prevV, prevP, cubemapFace);
+                    HandleRenderingCommands(innerCloudsRadius, outerCloudsRadius, isRightEye,
+                        flipRaysRenderTextures, flopRaysRenderTextures, commandBuffer, uvOffset,
+                        frame, currentP, currentV, prevV, prevP, reflectionProbeCubemapFace);
 
-                    if (!reflectionProbeCamera || cubemapFace == 0)
+                    if (!reflectionProbeCamera || reflectionProbeCubemapFace == 0)
                     {
                         frame++;
                         frame = frame % (ShaderLoaderClass.stbnDimensions.z * reprojectionXfactor * reprojectionYfactor);
                     }
                 }
 
-                commandBuffer.SetGlobalTexture(ShaderProperties.colorBuffer_PROPERTY, historyRT[useFlipScreenBuffer, isRightEye, cubemapFace]);
+                commandBuffer.SetGlobalTexture(ShaderProperties.colorBuffer_PROPERTY, historyRT[useFlipUpscalingBuffer, isRightEye, reflectionProbeCubemapFace]);
 
                 // Set texture for scatterer sunflare: temporary
-                commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[useFlipScreenBuffer, isRightEye, cubemapFace]);
-
-                commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
+                commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[useFlipUpscalingBuffer, isRightEye, reflectionProbeCubemapFace]);
 
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
 
@@ -683,7 +683,10 @@ namespace Atmosphere
             return overlapIntervals;
         }
 
-        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool isRightEye, RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures, CommandBuffer commandBuffer, Vector2 uvOffset, int frame, ref bool useFlipRaysBuffer, ref bool useLightningFlipRaysBuffer, Matrix4x4 currentP, Matrix4x4 currentV, Matrix4x4 prevV, Matrix4x4 prevP, int cubemapFace)
+        private void HandleRenderingCommands(float innerCloudsRadius, float outerCloudsRadius, bool isRightEye,
+            RenderTargetIdentifier[] flipRaysRenderTextures, RenderTargetIdentifier[] flopRaysRenderTextures,
+            CommandBuffer commandBuffer, Vector2 uvOffset, int frame, Matrix4x4 currentP, Matrix4x4 currentV,
+            Matrix4x4 prevV, Matrix4x4 prevP, int reflectionProbeCubemapFace)
         {
             commandBuffer.SetGlobalFloat(ShaderProperties.frameNumber_PROPERTY, (float)(frame));
             bool isFirstLayerRendered = true;
@@ -692,6 +695,9 @@ namespace Atmosphere
             RenderTargetIdentifier[] overlapFlipRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[true, false, 0]) };
             RenderTargetIdentifier[] overlapFlopRaysRenderTextures = { new RenderTargetIdentifier(packedOverlapRaysRT[false, false, 0]) };
             RenderTargetIdentifier[] debugRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth) };
+
+            bool useFlipRaysBuffer = true;
+            bool useLightningFlipRaysBuffer = true;
 
             foreach (var intersection in intersections)
             {
@@ -823,25 +829,25 @@ namespace Atmosphere
             RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth)};
             UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer, false, 0], commandBuffer, unpackedRenderTextures, mr1);
 
-            RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, cubemapFace]),
-                new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, cubemapFace]),
-                new RenderTargetIdentifier(historyDistanceRT[true, isRightEye, cubemapFace])};
+            RenderTargetIdentifier[] flipUpscalingIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(historyDistanceRT[true, isRightEye, reflectionProbeCubemapFace])};
 
-            RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[false, isRightEye, cubemapFace]),
-                new RenderTargetIdentifier(historyMotionVectorsRT[false, isRightEye, cubemapFace]),
-                new RenderTargetIdentifier(historyDistanceRT[false, isRightEye, cubemapFace])};
+            RenderTargetIdentifier[] flopUpscalingIdentifiers = { new RenderTargetIdentifier(historyRT[false, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(historyMotionVectorsRT[false, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(historyDistanceRT[false, isRightEye, reflectionProbeCubemapFace])};
 
-            RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
+            RenderTargetIdentifier[] targetIdentifiers = useFlipUpscalingBuffer ? flipUpscalingIdentifiers : flopUpscalingIdentifiers;
 
-            commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[true, isRightEye, cubemapFace].depthBuffer);
+            commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[true, isRightEye, reflectionProbeCubemapFace].depthBuffer);
 
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
 
-            bool readFromFlip = !useFlipScreenBuffer; // "useFlipScreenBuffer" means the *target* is flip, and we should be reading from flop
+            bool readFromFlip = !useFlipUpscalingBuffer; // "useFlipUpscalingBuffer" means the *target* is flip, and we should be reading from flop
 
-            commandBuffer.SetGlobalTexture(ShaderProperties.historyBuffer_PROPERTY, historyRT[readFromFlip, isRightEye, cubemapFace]);
-            commandBuffer.SetGlobalTexture(ShaderProperties.historyMotionVectors_PROPERTY, historyMotionVectorsRT[readFromFlip, isRightEye, cubemapFace]);
-            commandBuffer.SetGlobalTexture(ShaderProperties.historyDistance_PROPERTY, historyDistanceRT[readFromFlip, isRightEye, cubemapFace]);
+            commandBuffer.SetGlobalTexture(ShaderProperties.historyBuffer_PROPERTY, historyRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
+            commandBuffer.SetGlobalTexture(ShaderProperties.historyMotionVectors_PROPERTY, historyMotionVectorsRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
+            commandBuffer.SetGlobalTexture(ShaderProperties.historyDistance_PROPERTY, historyDistanceRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
 
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBuffer_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, unpackedNewRaysRT);
@@ -850,8 +856,10 @@ namespace Atmosphere
 
             reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
             reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
+            
             reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
-            reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
+            reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0)
+                .RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
 
@@ -859,6 +867,8 @@ namespace Atmosphere
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
             commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ? 1 : 0);
+
+            commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
         }
 
         private void UnpackTextures(RenderTargetIdentifier inputTexture, CommandBuffer commandBuffer, RenderTargetIdentifier[] unpackedRenderTextures, MeshRenderer meshRenderer)
@@ -915,11 +925,11 @@ namespace Atmosphere
                         volumesAdded.Clear();
                         volumesBounds.Clear();
 
-                        int cubemapFace = reflectionProbeCamera ? (int)ReflectionProbeUtils.GetCurrentReflectionProbeCameraCubemapFace(targetCamera) : 0;
+                        int reflectionProbeCubemapFace = reflectionProbeCamera ? (int)ReflectionProbeUtils.GetCurrentReflectionProbeCameraCubemapFace(targetCamera) : 0;
 
-                        if (!reflectionProbeCamera || cubemapFace == 0)
+                        if (!reflectionProbeCamera || reflectionProbeCubemapFace == 0)
                         {
-                            useFlipScreenBuffer = !useFlipScreenBuffer;
+                            useFlipUpscalingBuffer = !useFlipUpscalingBuffer;
                         }
                     }
                 }
