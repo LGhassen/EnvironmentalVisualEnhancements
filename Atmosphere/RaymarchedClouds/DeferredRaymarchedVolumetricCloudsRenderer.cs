@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using ShaderLoader;
 using Utils;
+using static Utils.Tools;
 
 namespace Atmosphere
 {
@@ -95,6 +96,13 @@ namespace Atmosphere
             public const int UpdateLightVolumeAmbientMultiSlice = 6;
         }
 
+        public static class ReconstructionShaderPassName
+        {
+            public const int ReconstructClouds = 0;
+            public const int ScreenshotMode = 1;
+            public const int ApproximateMotionVectors = 2;
+        }
+
         bool renderingEnabled = false;
         bool isInitialized = false;
         bool useLightVolume = false;
@@ -126,7 +134,8 @@ namespace Atmosphere
                                                                                     // We don't need bilinear interpolation for these so the packing works
 
         private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedWeightedDepth; // Unpacked Textures used to speed up reconstruction which does lots of lookups
-        private bool packedTexturesDebugMode = false;
+        private RenderTexture motionVectorsApproximationRT; // Additional RT to flip-flop between this and the unpackedMotionVectorsRT for dilating motion vectors
+        private bool packedTexturesDebugMode = true;
 
         // These are simple flip flop textures
         private HistoryManager<RenderTexture> lightningOcclusionRT;
@@ -293,6 +302,7 @@ namespace Atmosphere
                 RenderTextureUtils.ResizeRT(unpackedNewRaysRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedWeightedDepth, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeRT(motionVectorsApproximationRT, newRaysRenderWidth, newRaysRenderHeight);
 
                 RenderTextureUtils.ResizeRTHistoryManager(historyRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyMotionVectorsRT, screenWidth, screenHeight);
@@ -358,6 +368,7 @@ namespace Atmosphere
 
             unpackedNewRaysRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBHalf, false, FilterMode.Point);
             unpackedMotionVectorsRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+            motionVectorsApproximationRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
             unpackedWeightedDepth = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
             lightningOcclusionRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
@@ -698,6 +709,9 @@ namespace Atmosphere
 
             bool useFlipRaysBuffer = true;
             bool useLightningFlipRaysBuffer = true;
+            var meshRenderer = volumesAdded.ElementAt(0).volumeMeshrenderer;
+
+            var currentVP = currentP * currentV;
 
             foreach (var intersection in intersections)
             {
@@ -749,7 +763,7 @@ namespace Atmosphere
                         cloudPreviousV.m23 += noiseReprojectionOffset.z;
                     }
 
-                    cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentP * currentV);
+                    cloudMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentVP);
                     cloudMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * cloudPreviousV * layer.WorldOppositeFrameDeltaRotationMatrix); // inject the rotation of the cloud layer itself
 
                     commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLayerRendered_PROPERTY, isFirstLayerRendered ? 1f : 0f);
@@ -762,14 +776,12 @@ namespace Atmosphere
                     if (!renderOverlap)
                     {
                         commandBuffer.SetRenderTarget(useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures, packedNewRaysRT[true, false, 0].depthBuffer);
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchClouds);
+                        commandBuffer.DrawRenderer(meshRenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchClouds);
 
                         if (packedTexturesDebugMode)
                         {
                             var textureToDebug = (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures)[0];
-                            UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
-
-                            commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, packedNewRaysRT[!useFlipRaysBuffer, false, 0]); // unpacking has bug that overrides this property, maybe just make it a blit or compute
+                            UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, meshRenderer);
                         }
                     }
                     
@@ -790,17 +802,14 @@ namespace Atmosphere
                         commandBuffer.SetGlobalFloat(ShaderProperties.lastOverlapLayer_PROPERTY, lastOverlapLayer ? 1f : 0f);
 
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerOverlapRays_PROPERTY, packedOverlapRaysRT[!useOverlapFlipRaysBuffer, false, 0]);
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchCloudsOverlap);
+                        commandBuffer.DrawRenderer(meshRenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.RaymarchCloudsOverlap);
 
                         if (packedTexturesDebugMode)
                         {
                             var textureToDebug = (!lastOverlapLayer ? (useOverlapFlipRaysBuffer ? overlapFlipRaysRenderTextures : overlapFlopRaysRenderTextures)
                                                                     : (useFlipRaysBuffer ? flipRaysRenderTextures : flopRaysRenderTextures))[0];
 
-                            UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, layer.volumeMeshrenderer);
-
-                            // unpacking has bug that overrides this property, maybe just make it a blit or compute
-                            commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerRays_PROPERTY, packedNewRaysRT[!useFlipRaysBuffer, false, 0]);
+                            UnpackTextures(textureToDebug, commandBuffer, debugRenderTextures, meshRenderer);
                         }
 
                         useOverlapFlipRaysBuffer = !useOverlapFlipRaysBuffer;
@@ -813,7 +822,7 @@ namespace Atmosphere
                         commandBuffer.SetGlobalFloat(ShaderProperties.isFirstLightningLayerRendered_PROPERTY, isFirstLightningLayerRendered ? 1f : 0f);
                         commandBuffer.SetGlobalTexture(ShaderProperties.PreviousLayerLightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
                         commandBuffer.SetRenderTarget(useLightningFlipRaysBuffer ? lightningOcclusionRT[true, false, 0] : lightningOcclusionRT[false, false, 0], lightningOcclusionRT[true, false, 0].depthBuffer);
-                        commandBuffer.DrawRenderer(layer.volumeMeshrenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.LightningOcclusion);
+                        commandBuffer.DrawRenderer(meshRenderer, cloudMaterial, 0, RaymarchedCloudShaderPassName.LightningOcclusion);
 
                         isFirstLightningLayerRendered = false;
                         useLightningFlipRaysBuffer = !useLightningFlipRaysBuffer;
@@ -825,9 +834,29 @@ namespace Atmosphere
             }
 
             // Unpack color and motion vectors textures to speed up reconstruction
-            var mr1 = volumesAdded.ElementAt(0).volumeHolder.GetComponent<MeshRenderer>(); // TODO: replace with its own quad?
             RenderTargetIdentifier[] unpackedRenderTextures = { new RenderTargetIdentifier(unpackedNewRaysRT), new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth)};
-            UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer, false, 0], commandBuffer, unpackedRenderTextures, mr1);
+            UnpackTextures(packedNewRaysRT[!useFlipRaysBuffer, false, 0], commandBuffer, unpackedRenderTextures, meshRenderer);
+
+            // Dilate motion vectors and approximate missing ones from global layer distances
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
+
+            int motionVectorApproximationIterations = 4;
+            for (int i = 0; i < motionVectorApproximationIterations; i++)
+            {
+                // TODO: need at least the first layer's VP matrix here to approximate with
+                // Maybe just start with dilating though then we'll use distance and reproject?
+
+                bool writeToScratchBuffer = i % 2 == 0;
+
+                commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, writeToScratchBuffer ? unpackedMotionVectorsRT : motionVectorsApproximationRT);
+                commandBuffer.SetRenderTarget(writeToScratchBuffer ? motionVectorsApproximationRT : unpackedMotionVectorsRT);
+                commandBuffer.SetGlobalInt(ShaderProperties.motionVectorsApproximationIteration_PROPERTY, i);
+                commandBuffer.SetGlobalInt(ShaderProperties.motionVectorsApproximationLastIteration_PROPERTY,
+                    (i == motionVectorApproximationIterations - 1) ? 1 : 0);
+
+                commandBuffer.DrawRenderer(meshRenderer, reconstructCloudsMaterial, 0, ReconstructionShaderPassName.ApproximateMotionVectors);
+            }
 
             RenderTargetIdentifier[] flipUpscalingIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, reflectionProbeCubemapFace]),
                 new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, reflectionProbeCubemapFace]),
@@ -840,8 +869,6 @@ namespace Atmosphere
             RenderTargetIdentifier[] targetIdentifiers = useFlipUpscalingBuffer ? flipUpscalingIdentifiers : flopUpscalingIdentifiers;
 
             commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[true, isRightEye, reflectionProbeCubemapFace].depthBuffer);
-
-            reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
 
             bool readFromFlip = !useFlipUpscalingBuffer; // "useFlipUpscalingBuffer" means the *target* is flip, and we should be reading from flop
 
@@ -861,12 +888,11 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0)
                 .RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
-            reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
-
             if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
-            commandBuffer.DrawRenderer(mr1, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ? 1 : 0);
+            commandBuffer.DrawRenderer(meshRenderer, reconstructCloudsMaterial, 0, cloudsScreenshotModeEnabled ?
+                ReconstructionShaderPassName.ScreenshotMode : ReconstructionShaderPassName.ReconstructClouds);
 
             commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
         }
@@ -980,6 +1006,9 @@ namespace Atmosphere
 
             if (unpackedMotionVectorsRT)
                 unpackedMotionVectorsRT.Release();
+
+            if (motionVectorsApproximationRT)
+                motionVectorsApproximationRT.Release();
 
             if (unpackedWeightedDepth)
                 unpackedWeightedDepth.Release();

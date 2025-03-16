@@ -386,6 +386,12 @@ namespace Utils
         public static int upVector_PROPERTY { get { return upVector; } }
         private static int upVector;
 
+        public static int motionVectorsApproximationIteration_PROPERTY { get { return motionVectorsApproximationIteration; } }
+        private static int motionVectorsApproximationIteration;
+
+        public static int motionVectorsApproximationLastIteration_PROPERTY { get { return motionVectorsApproximationLastIteration; } }
+        private static int motionVectorsApproximationLastIteration;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -530,6 +536,9 @@ namespace Utils
             planetCenter = Shader.PropertyToID("planetCenter");
             planetPosition = Shader.PropertyToID("planetPosition");
             upVector = Shader.PropertyToID("upVector");
+
+            motionVectorsApproximationIteration = Shader.PropertyToID("motionVectorsApproximationIteration");
+            motionVectorsApproximationLastIteration = Shader.PropertyToID("motionVectorsApproximationLastIteration");
         }
     }
 }
