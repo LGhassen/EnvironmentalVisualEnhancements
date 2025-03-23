@@ -478,9 +478,9 @@ namespace Atmosphere
             }
         }
 
-        public void SetShaderTextureParams(Material mat)
+        public void SetShaderTextureParams(Material mat, bool singleNoiseScale)
         {
-            SetNoisetextureParams(mat);
+            SetNoisetextureParams(mat, singleNoiseScale);
 
             if (coverageMap != null)
             {
@@ -539,7 +539,7 @@ namespace Atmosphere
 
         string mainCameraNoiseKeywords, reflectionProbeNoiseKeywords;
 
-        private void SetNoisetextureParams(Material mat)
+        private void SetNoisetextureParams(Material mat, bool singleNoiseScale)
         {
             bool noiseKeywordOn = false;
             bool curlNoiseKeywordOn = false;
@@ -593,12 +593,13 @@ namespace Atmosphere
                 mat.DisableKeyword("NOISE_OFF");
             }
 
-            mainCameraNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn);
-            reflectionProbeNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, false, false);
+            mainCameraNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, flowmapKeywordOn, noiseUntilingKeywordOn, singleNoiseScale);
+            reflectionProbeNoiseKeywords = GetNoiseKeywords(noiseKeywordOn, curlNoiseKeywordOn, false, false, singleNoiseScale);
         }
 
         // Manually combined keywords to cut down shader permutations
-        private static string GetNoiseKeywords(bool noiseKeywordOn, bool curlNoiseKeywordOn, bool flowmapKeywordOn, bool noiseUntilingKeywordOn)
+        private static string GetNoiseKeywords(bool noiseKeywordOn, bool curlNoiseKeywordOn, bool flowmapKeywordOn,
+            bool noiseUntilingKeywordOn, bool singleNoiseScaleKeywordOn)
         {
             if (!noiseKeywordOn)
             { 
@@ -606,7 +607,10 @@ namespace Atmosphere
             }
             else
             {
-                return $"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}";
+                return $"NOISE_UNTILING_{(noiseUntilingKeywordOn ? "ON" : "OFF")}" +
+                        $"_CURL_NOISE_{(curlNoiseKeywordOn ? "ON" : "OFF")}" +
+                        $"_FLOWMAP_{(flowmapKeywordOn ? "ON" : "OFF")}" +
+                        $"_SINGLE_NOISE_SCALE_{(singleNoiseScaleKeywordOn ? "ON" : "OFF")}";
             }
         }
 
@@ -630,8 +634,8 @@ namespace Atmosphere
 
         public void SetShaderParams(Material mat)
         {
-            SetShaderTextureParams(mat);
-            SetCloudTypesShaderParams(mat);
+            SetCloudTypesShaderParams(mat, out bool singleNoiseScale);
+            SetShaderTextureParams(mat, singleNoiseScale);
 
             mat.SetFloat("useBodyRadiusIntersection", PQSManagerClass.HasRealPQS(parentCelestialBody) ? 1f : 0f);
 
@@ -695,7 +699,7 @@ namespace Atmosphere
             curvesTexture = BakeCurvesTexture(out accumulatedVerticalCoverageTexture);
         }
 
-        private void SetCloudTypesShaderParams(Material mat)
+        private void SetCloudTypesShaderParams(Material mat, out bool singleNoiseScale)
         {
             mat.SetFloat("innerSphereRadius", innerSphereRadius);
             mat.SetFloat("outerSphereRadius", outerSphereRadius);
@@ -716,6 +720,8 @@ namespace Atmosphere
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
+
+            singleNoiseScale = minMaxNoiseTilings.x == minMaxNoiseTilings.y;
 
             if (curlNoise != null)
             {
@@ -773,7 +779,7 @@ namespace Atmosphere
                     float coverageValue = Mathf.Lerp(EvaluateCoverageValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                                 EvaluateCoverageValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                                 cloudFrac);
-
+                    
                     float densityValue = Mathf.Lerp(EvaluateDensityValue(currentCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                                 EvaluateDensityValue(nextCloudType, currentAltitude, interpolatedMinAltitude, interpolatedMaxAltitude),
                                                 cloudFrac);
