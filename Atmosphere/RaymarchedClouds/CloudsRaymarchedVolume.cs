@@ -124,6 +124,9 @@ namespace Atmosphere
         [ConfigItem]
         bool useDetailTex = false;
 
+        [ConfigItem]
+        bool useUntilingIfEnabled = true;
+
         float volumetricLayerScaledFade = 1.0f;
 
         [ConfigItem]
@@ -217,7 +220,7 @@ namespace Atmosphere
             // If all features are enabled including SDF and Detailtex, disable shadowcaster + SDF
             bool skipShadowCaster = Tools.IsMac() && lightVolumeSettings.UseLightVolume && cloudColorMap != null
                 && curlNoise != null && curlNoiseRT != null && (sdf != null || detailTex != null)
-                && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas);
+                && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || useUntilingIfEnabled);
 
             if (!skipShadowCaster && shadowCasterLayerRaymarchedVolume?.CoverageMap != null)
             {
@@ -497,7 +500,7 @@ namespace Atmosphere
             // If all features are enabled including SDF and Detailtex, disable shadowcaster + SDF
             bool skipSDF = Tools.IsMac() && lightVolumeSettings.UseLightVolume && cloudColorMap != null
                         && curlNoise != null && curlNoiseRT != null && detailTex != null
-                        && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas);
+                        && RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null); // TODO recheck this, nonTiling no longer does added sample
 
             if (!skipSDF && !string.IsNullOrEmpty(sdfMap) && sdf == null)
             {
@@ -557,7 +560,7 @@ namespace Atmosphere
                 mat.SetFloat("smoothCurlNoise", curlNoise.Smooth ? 1f : 0f);
             }
 
-            if (RaymarchedCloudsQualityManager.NonTiling3DNoise && (flowMap == null || flowMap.KeepUntilingOnNoFlowAreas))
+            if (RaymarchedCloudsQualityManager.NonTiling3DNoise && useUntilingIfEnabled)
                 noiseUntilingKeywordOn = true;
 
             if (useDetailTex && CloudsPQSMaterial.DetailTex != null)
