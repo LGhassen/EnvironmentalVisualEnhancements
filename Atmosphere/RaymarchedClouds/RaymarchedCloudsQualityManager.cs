@@ -13,8 +13,6 @@ namespace Atmosphere
 
         static bool nonTiling3DNoise = true;
 
-        static float continuousAccumulationDistance = 100000f;
-
         static bool renderCloudsInReflectionProbes = true;
 
         static float screenShotModeDenoisingIterations = 8f;
@@ -31,8 +29,6 @@ namespace Atmosphere
         internal static bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
 
         internal static float ScreenShotModeDenoisingIterations { get => screenShotModeDenoisingIterations; }
-        
-        internal static float ContinuousAccumulationDistance { get => continuousAccumulationDistance; }
 
         internal static LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
 
@@ -76,7 +72,6 @@ namespace Atmosphere
                 temporalUpscaling = ObjectList[0].TemporalUpscaling;
 
                 nonTiling3DNoise = ObjectList[0].NonTiling3DNoise;
-                continuousAccumulationDistance = ObjectList[0].ContinuousAccumulationDistance;
                 renderCloudsInReflectionProbes = ObjectList[0].RenderCloudsInReflectionProbes;
 
                 screenShotModeDenoisingIterations = ObjectList[0].ScreenShotModeDenoisingIterations;

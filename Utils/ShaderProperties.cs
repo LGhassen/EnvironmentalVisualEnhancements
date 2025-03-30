@@ -392,6 +392,9 @@ namespace Utils
         public static int motionVectorsApproximationLastIteration_PROPERTY { get { return motionVectorsApproximationLastIteration; } }
         private static int motionVectorsApproximationLastIteration;
 
+        public static int continuousAccumulationDistance_PROPERTY { get { return continuousAccumulationDistance; } }
+        private static int continuousAccumulationDistance;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -539,6 +542,7 @@ namespace Utils
 
             motionVectorsApproximationIteration = Shader.PropertyToID("motionVectorsApproximationIteration");
             motionVectorsApproximationLastIteration = Shader.PropertyToID("motionVectorsApproximationLastIteration");
+            continuousAccumulationDistance = Shader.PropertyToID("continuousAccumulationDistance");
         }
     }
 }

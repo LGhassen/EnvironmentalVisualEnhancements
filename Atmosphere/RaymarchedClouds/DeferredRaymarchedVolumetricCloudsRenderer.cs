@@ -252,8 +252,6 @@ namespace Atmosphere
 
             reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
 
-            reconstructCloudsMaterial.SetFloat("continuousAccumulationDistance", reflectionProbeCamera ? 0.0f : RaymarchedCloudsQualityManager.ContinuousAccumulationDistance);
-
             bool vrEnabled = VRUtils.VREnabled() && !reflectionProbeCamera;
 
             commandBuffer = new HistoryManager<CommandBuffer>(false, vrEnabled, false);
@@ -482,7 +480,7 @@ namespace Atmosphere
                 List<OverlapInterval> overlapIntervals = ResolveLayerOverlapIntervals(volumesBounds);                
                 ResolveLayerIntersections(overlapIntervals, camDistanceToPlanetOrigin, intersections);
 
-                float innerCloudsRadius = float.MaxValue, outerCloudsRadius = float.MinValue;
+                float innerCloudsRadius = float.MaxValue, outerCloudsRadius = float.MinValue; float continuousAccumulationDistance = float.MaxValue;
 
                 float cloudFade = 1f;
 
@@ -500,6 +498,9 @@ namespace Atmosphere
                     outerCloudsRadius = Mathf.Max(outerCloudsRadius, volumetricLayer.OuterSphereRadius);
 
                     cloudFade = Mathf.Min(cloudFade, volumetricLayer.VolumetricLayerScaledFade);
+
+                    continuousAccumulationDistance = Mathf.Min(continuousAccumulationDistance,
+                        volumetricLayer.RaymarchingSettings.ContinuousAccumulationDistance);
 
                     if (volumetricLayer.LightVolumeSettings.UseLightVolume)
                     {
@@ -531,6 +532,8 @@ namespace Atmosphere
                 DeferredRaymarchedRendererToScreenMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
                 DeferredRaymarchedRendererToScreen.depthOcclusionMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+
+                reconstructCloudsMaterial.SetFloat(ShaderProperties.continuousAccumulationDistance_PROPERTY, reflectionProbeCamera ? 0.0f : continuousAccumulationDistance);
 
                 // now sort our intersections front to back
                 intersections = intersections.OrderBy(x => x.distance).ToList();
