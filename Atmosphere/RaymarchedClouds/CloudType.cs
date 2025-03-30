@@ -20,7 +20,7 @@ namespace Atmosphere
         float baseNoiseTiling = 1000f;
 
         [ConfigItem]
-        float noiseEdgeHardness = 0.95f;
+        float noiseEdgeHardness = 0.0f;
 
         [ConfigItem]
         float particleFieldDensity = 1f;
