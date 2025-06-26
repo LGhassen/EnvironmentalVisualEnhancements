@@ -24,7 +24,7 @@ namespace Atmosphere
         float overlapRenderOrder = 1f;
 
         [ConfigItem]
-        float continuousAccumulationDistance = 100000f;
+        float continuousAccumulationDistance = 50000f;
 
         public float LightMarchSteps { get => lightMarchSteps; }
         public float LightMarchDistance { get => lightMarchDistance; }

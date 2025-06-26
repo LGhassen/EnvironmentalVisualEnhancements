@@ -30,9 +30,6 @@ namespace Atmosphere
         bool nonTiling3DNoise = true;
 
         [ConfigItem]
-        float continuousAccumulationDistance = 100000f;
-
-        [ConfigItem]
         bool renderCloudsInReflectionProbes = true;
 
         [ConfigItem]
@@ -45,8 +42,6 @@ namespace Atmosphere
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
-
-        internal float ContinuousAccumulationDistance { get => continuousAccumulationDistance; }
 
         internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 
