@@ -28,6 +28,7 @@ namespace Atmosphere
             if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.PerlinOnly)
             { 
                 NoiseMaterial.SetVector("_PerlinParams", settings.PerlinNoiseSettings.GetParams());
+                NoiseMaterial.SetFloat("_PerlinContrast", 1f);
             }
 
             if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.WorleyOnly)
@@ -149,10 +150,11 @@ namespace Atmosphere
             RenderTexture.active = active;
         }
 
-        public static void RenderCurlNoiseToTexture(RenderTexture RT, NoiseSettings settings)
+        public static void RenderCurlNoiseToTexture(RenderTexture RT, CurlNoise curlNoise)
         {
-            NoiseMaterial.SetVector("_PerlinParams", settings.GetParams());
+            NoiseMaterial.SetVector("_PerlinParams", new Vector4(curlNoise.Octaves, curlNoise.Periods, 0.5f, 2f)); // octaves, periods, persistence, lacunarity
             NoiseMaterial.SetFloat("_PerlinLift", 0f);
+            NoiseMaterial.SetFloat("_PerlinContrast", curlNoise.Contrast);
 
             NoiseMaterial.SetVector("_Resolution", new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1f));
 

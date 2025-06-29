@@ -16,10 +16,7 @@ namespace Atmosphere
         float periods = 1f;
 
         [ConfigItem]
-        float persistence = 0.5f;
-
-        [ConfigItem]
-        float lacunarity = 2f;
+        float contrast = 1f;
 
         [ConfigItem]
         bool smooth = false;
@@ -33,13 +30,11 @@ namespace Atmosphere
         public float Octaves { get => octaves; }
         public float Periods { get => periods; }
 
+        public float Contrast { get => contrast; }
+
         public bool Smooth { get => smooth; }
         public float Tiling { get => tiling; }
         public float Strength { get => strength; }
 
-        public NoiseSettings ToNoiseSettings()
-        {
-            return new NoiseSettings(octaves, periods, persistence, lacunarity);
-        }
     }
 }
