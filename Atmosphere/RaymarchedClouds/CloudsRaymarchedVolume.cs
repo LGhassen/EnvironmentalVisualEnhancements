@@ -709,14 +709,16 @@ namespace Atmosphere
 
             mat.SetTexture("DensityCurve", curvesTexture);
 
-            Vector4[] cloudTypePropertiesArray0 = new Vector4[cloudTypes.Count];
+            Vector4[] cloudTypePropertiesArray = new Vector4[cloudTypes.Count];
+            float[] multipleScatteringBrightnessArray = new float[cloudTypes.Count];
 
             Vector2 minMaxNoiseTilings = new Vector2(1e9f, 0f);
 
             for (int i = 0; i < cloudTypes.Count; i++)
             {
-                // TODO: we have 1 free property here
-                cloudTypePropertiesArray0[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, Mathf.Clamp01(Mathf.Max(1f - cloudTypes[i].NoiseEdgeHardness, 1e-10f)), 0f);
+                // TODO: we have 1 free property here, could use for per-type curl noise strength
+                cloudTypePropertiesArray[i] = new Vector4(cloudTypes[i].Density, 1f / cloudTypes[i].BaseNoiseTiling, Mathf.Clamp01(Mathf.Max(1f - cloudTypes[i].NoiseEdgeHardness, 1e-10f)), 0f);
+                multipleScatteringBrightnessArray[i] = cloudTypes[i].MultipleScatteringBrightness;
 
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / cloudTypes[i].BaseNoiseTiling), Mathf.Max(minMaxNoiseTilings.y, 1f / cloudTypes[i].BaseNoiseTiling));
             }
@@ -728,7 +730,8 @@ namespace Atmosphere
                 minMaxNoiseTilings = new Vector2(Mathf.Min(minMaxNoiseTilings.x, 1f / curlNoise.Tiling), Mathf.Max(minMaxNoiseTilings.y, 1f / curlNoise.Tiling));
             }
 
-            mat.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray0);
+            mat.SetVectorArray("cloudTypeProperties0", cloudTypePropertiesArray);
+            mat.SetFloatArray("multipleScatteringBrightnessArray", multipleScatteringBrightnessArray);
             mat.SetInt("numberOfCloudTypes", cloudTypes.Count);
             mat.SetFloat("planetRadius", planetRadius);
 

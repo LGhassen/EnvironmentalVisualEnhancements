@@ -23,6 +23,9 @@ namespace Atmosphere
         float noiseEdgeHardness = 0.0f;
 
         [ConfigItem]
+        float multipleScatteringBrightness = 1.0f;
+
+        [ConfigItem]
         float particleFieldDensity = 1f;
 
         [ConfigItem]
@@ -54,6 +57,7 @@ namespace Atmosphere
         public bool InterpolateCloudHeights { get => interpolateCloudHeights; }
         public float BaseNoiseTiling { get => baseNoiseTiling; }
         public float NoiseEdgeHardness { get => noiseEdgeHardness; }
+        public float MultipleScatteringBrightness { get => multipleScatteringBrightness; }
 
         public float Density { get => density; }
 
