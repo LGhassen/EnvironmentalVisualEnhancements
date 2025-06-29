@@ -26,6 +26,9 @@ namespace Atmosphere
         float multipleScatteringBrightness = 1.0f;
 
         [ConfigItem]
+        float curlNoiseStrength = 1.0f;
+
+        [ConfigItem]
         float particleFieldDensity = 1f;
 
         [ConfigItem]
@@ -58,6 +61,7 @@ namespace Atmosphere
         public float BaseNoiseTiling { get => baseNoiseTiling; }
         public float NoiseEdgeHardness { get => noiseEdgeHardness; }
         public float MultipleScatteringBrightness { get => multipleScatteringBrightness; }
+        public float CurlNoiseStrength { get => curlNoiseStrength; }
 
         public float Density { get => density; }
 
