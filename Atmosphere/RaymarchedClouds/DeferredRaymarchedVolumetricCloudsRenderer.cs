@@ -135,7 +135,7 @@ namespace Atmosphere
 
         private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedWeightedDepth; // Unpacked Textures used to speed up reconstruction which does lots of lookups
         private RenderTexture motionVectorsApproximationRT; // Additional RT to flip-flop between this and the unpackedMotionVectorsRT for dilating motion vectors
-        private bool packedTexturesDebugMode = true;
+        private bool packedTexturesDebugMode = false;
 
         // These are simple flip flop textures
         private HistoryManager<RenderTexture> lightningOcclusionRT;
