@@ -737,14 +737,13 @@ namespace Atmosphere
             mat.SetVector("minMaxNoiseTilings", minMaxNoiseTilings);
         }
 
-        private Texture2D BakeCurvesTexture(out Texture2D accumulatedVerticalCoverageTexture)
+        private Texture2D BakeCurvesTexture(out Texture2D accumulatedVerticalDensityTexture)
         {
             int resolution = 128;
 
-
             if (cloudTypes.Count == 0)
             {
-                accumulatedVerticalCoverageTexture = Texture2D.Instantiate(Texture2D.blackTexture);
+                accumulatedVerticalDensityTexture = Texture2D.Instantiate(Texture2D.blackTexture);
                 return Texture2D.Instantiate(Texture2D.whiteTexture);
             }
 
@@ -752,17 +751,17 @@ namespace Atmosphere
             curvesTexture.filterMode = FilterMode.Bilinear;
             curvesTexture.wrapMode = TextureWrapMode.Clamp;
 
-            accumulatedVerticalCoverageTexture = new Texture2D(resolution, 1, TextureFormat.RHalf, false);
-            accumulatedVerticalCoverageTexture.filterMode = FilterMode.Bilinear;
-            accumulatedVerticalCoverageTexture.wrapMode = TextureWrapMode.Clamp;
+            accumulatedVerticalDensityTexture = new Texture2D(resolution, resolution, TextureFormat.RHalf, false);
+            accumulatedVerticalDensityTexture.filterMode = FilterMode.Bilinear;
+            accumulatedVerticalDensityTexture.wrapMode = TextureWrapMode.Clamp;
             float layerHeight = cloudMaxAltitude - cloudMinAltitude;
 
             Color[] curvesColors = new Color[resolution * resolution];
-            Color[] accumulatedVerticalCoverageColors = new Color[resolution];
+            Color[] accumulatedVerticalCoverageColors = new Color[resolution * resolution];
 
             for (int x = 0; x < resolution; x++)
             {
-                // find where we are and the two curves to interpolate
+                // Find where we are and the two curves to interpolate
                 float cloudTypeIndex = (float)x / (float)(resolution-1);
                 cloudTypeIndex *= cloudTypes.Count - 1;
                 int currentCloudType = (int)cloudTypeIndex;
@@ -771,8 +770,6 @@ namespace Atmosphere
 
                 float interpolatedMinAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MinAltitude, cloudTypes[nextCloudType].MinAltitude, cloudFrac);
                 float interpolatedMaxAltitude = Mathf.Lerp(cloudTypes[currentCloudType].MaxAltitude, cloudTypes[nextCloudType].MaxAltitude, cloudFrac);
-
-                float accumulatedVerticalCoverage = 0f;
 
                 for (int y = 0; y < resolution; y++)
                 {
@@ -788,18 +785,39 @@ namespace Atmosphere
 
                     curvesColors[x + y * resolution].r = coverageValue;
                     curvesColors[x + y * resolution].g = densityValue;
-
-                    accumulatedVerticalCoverage += coverageValue;
                 }
-
-                accumulatedVerticalCoverage /= resolution;
-                accumulatedVerticalCoverage *= layerHeight;
-                accumulatedVerticalCoverageColors[x] = new Color(accumulatedVerticalCoverage, accumulatedVerticalCoverage, accumulatedVerticalCoverage, accumulatedVerticalCoverage);
-
             }
 
             curvesTexture.SetPixels(curvesColors);
             curvesTexture.Apply(false);
+
+            for (int x = 0; x < resolution; x++)
+            {
+                float cloudTypeIndex = (float)x / (float)(resolution - 1);
+                cloudTypeIndex *= cloudTypes.Count - 1;
+                int currentCloudType = (int)cloudTypeIndex;
+                int nextCloudType = Math.Min(currentCloudType + 1, cloudTypes.Count - 1);
+                float cloudFrac = cloudTypeIndex - currentCloudType;
+
+                for (int y = 0; y < resolution; y++)
+                {
+                    float c = (float)y / (float)(resolution - 1);
+                    float a = 0f;
+
+                    for (int z= 0; z < resolution; z++)
+                    {
+                        float cg = Mathf.Clamp01(c + curvesColors[x + z * resolution].r - 1f);
+                        float ih = Mathf.Lerp(Mathf.Clamp01(Mathf.Max(1f - cloudTypes[currentCloudType].NoiseEdgeHardness, 1e-10f)), Mathf.Clamp01(Mathf.Max(1f - cloudTypes[nextCloudType].NoiseEdgeHardness, 1e-10f)), cloudFrac);
+                        a += Mathf.Clamp01((cg - 0.5f * noise.ErosionDepth) / (1.0f - ih)) * curvesColors[x + z * resolution].g * Mathf.Lerp(cloudTypes[currentCloudType].Density, cloudTypes[nextCloudType].Density, cloudFrac);
+                    }
+
+                    a *= layerHeight / resolution;
+                    accumulatedVerticalCoverageColors[x + y * resolution] = new Color(a, a, a, a);
+                }
+            }
+
+            accumulatedVerticalDensityTexture.SetPixels(accumulatedVerticalCoverageColors);
+            accumulatedVerticalDensityTexture.Apply(false);
 
             return curvesTexture;
         }
