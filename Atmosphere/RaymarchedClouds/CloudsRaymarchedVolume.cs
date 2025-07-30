@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Utils;
 using PQSManager;
+using System.Threading.Tasks;
 
 namespace Atmosphere
 {
@@ -759,6 +760,7 @@ namespace Atmosphere
             Color[] curvesColors = new Color[resolution * resolution];
             Color[] accumulatedVerticalCoverageColors = new Color[resolution * resolution];
 
+            // Don't use parallel.for here, unity float curve isn't thread safe for reads
             for (int x = 0; x < resolution; x++)
             {
                 // Find where we are and the two curves to interpolate
@@ -791,7 +793,7 @@ namespace Atmosphere
             curvesTexture.SetPixels(curvesColors);
             curvesTexture.Apply(false);
 
-            for (int x = 0; x < resolution; x++)
+            Parallel.For(0, resolution, x =>
             {
                 float cloudTypeIndex = (float)x / (float)(resolution - 1);
                 cloudTypeIndex *= cloudTypes.Count - 1;
@@ -804,7 +806,7 @@ namespace Atmosphere
                     float c = (float)y / (float)(resolution - 1);
                     float a = 0f;
 
-                    for (int z= 0; z < resolution; z++)
+                    for (int z = 0; z < resolution; z++)
                     {
                         float cg = Mathf.Clamp01(c + curvesColors[x + z * resolution].r - 1f);
                         float ih = Mathf.Lerp(Mathf.Clamp01(Mathf.Max(1f - cloudTypes[currentCloudType].NoiseEdgeHardness, 1e-10f)), Mathf.Clamp01(Mathf.Max(1f - cloudTypes[nextCloudType].NoiseEdgeHardness, 1e-10f)), cloudFrac);
@@ -814,7 +816,7 @@ namespace Atmosphere
                     a *= layerHeight / resolution;
                     accumulatedVerticalCoverageColors[x + y * resolution] = new Color(a, a, a, a);
                 }
-            }
+            });
 
             accumulatedVerticalDensityTexture.SetPixels(accumulatedVerticalCoverageColors);
             accumulatedVerticalDensityTexture.Apply(false);
