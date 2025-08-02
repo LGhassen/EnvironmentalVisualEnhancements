@@ -5,6 +5,7 @@ using Utils;
 using System;
 using System.IO;
 using System.Collections.Generic;
+using EVEManager;
 
 namespace Atmosphere
 {
@@ -42,7 +43,7 @@ namespace Atmosphere
 
         public float brushSize = 5000f;
         public float hardness = 0f;
-        public float opacity = 0.05f;
+        public float opacity = 1f;
         public float coverageValue = 1f;
 
         public string selectedCloudTypeName = "";
@@ -62,12 +63,14 @@ namespace Atmosphere
         bool paintEnabled = true;
         List<EditingMode> editingModes = new List<EditingMode>();
 
-        public RenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
+        public PainterTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
+
         Material cloudMaterial, reflectionProbeCloudMaterial, scaledCloudMaterial, paintMaterial;
 
         Transform scaledTransform;
 
         Vector3 lastDrawnMousePos = Vector3.zero;
+        bool lastDrawnIsPreview = true;
 
         private static Shader paintShader;
 
@@ -82,7 +85,7 @@ namespace Atmosphere
 
         private static Shader copyMapShader;
 
-        private static Shader CopyMapShader
+        public static Shader CopyMapShader
         {
             get
             {
@@ -102,17 +105,22 @@ namespace Atmosphere
 
             paintCursor = new PaintCursor();
 
+            cloudCoverage = new PainterTexture();
+            cloudType = new PainterTexture();
+            cloudColorMap = new PainterTexture();
+            cloudFlowMap = new PainterTexture();
+            cloudScaledFlowMap = new PainterTexture();
+
             return InitTextures();
         }
 
         public void Unload()
         {
-            if (cloudCoverage != null) cloudCoverage.Release();
-            if (cloudType != null) cloudType.Release();
-            if (cloudColorMap != null) cloudColorMap.Release();
-            if (cloudFlowMap != null) cloudFlowMap.Release();
-
-            if (cloudScaledFlowMap != null) cloudScaledFlowMap.Release();
+            if (cloudCoverage != null) cloudCoverage.Cleanup();
+            if (cloudType != null) cloudType.Cleanup();
+            if (cloudColorMap != null) cloudColorMap.Cleanup();
+            if (cloudFlowMap != null) cloudFlowMap.Cleanup();
+            if (cloudScaledFlowMap != null) cloudScaledFlowMap.Cleanup();
 
             if (paintCursor != null)
             {
@@ -131,7 +139,7 @@ namespace Atmosphere
 
                 foreach (var layer in layers)
                 {
-                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage.Preview, true);
                 }
             }
 
@@ -154,14 +162,14 @@ namespace Atmosphere
             {
                 layerRaymarchedVolume = cloudsObject.LayerRaymarchedVolume;
 
-                if (layerRaymarchedVolume.CoverageMap != null)   InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
-                if (layerRaymarchedVolume.CloudTypeMap != null)  InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
-                if (layerRaymarchedVolume.CloudColorMap != null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
-                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null) InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.CoverageMap != null) cloudCoverage.InitTexture(layerRaymarchedVolume.CoverageMap, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudTypeMap != null) cloudType.InitTexture(layerRaymarchedVolume.CloudTypeMap, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudColorMap != null) cloudColorMap.InitTexture(layerRaymarchedVolume.CloudColorMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null) cloudFlowMap.InitTexture(layerRaymarchedVolume.FlowMap.Texture, RenderTextureFormat.ARGB32);
 
                 layer2D = cloudsObject.Layer2D;
 
-                if (layer2D?.CloudsMat.FlowMap != null && layer2D?.CloudsMat.FlowMap.Texture != null) InitTexture(layer2D.CloudsMat.FlowMap.Texture, ref cloudScaledFlowMap, RenderTextureFormat.ARGB32);
+                if (layer2D?.CloudsMat.FlowMap != null && layer2D?.CloudsMat.FlowMap.Texture != null) cloudScaledFlowMap.InitTexture(layer2D.CloudsMat.FlowMap.Texture, RenderTextureFormat.ARGB32);
 
                 SetTextureProperties();
 
@@ -178,24 +186,24 @@ namespace Atmosphere
             cloudMaterial = layerRaymarchedVolume.RaymarchedCloudMaterial;
             reflectionProbeCloudMaterial = layerRaymarchedVolume.ReflectionProbeRaymarchedCloudMaterial;
 
-            if (cloudCoverage != null)
+            if (cloudCoverage.IsCreated)
             {
                 cloudMaterial.EnableKeyword("ALPHAMAP_1");
                 cloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask1", 1f);
-                SetMaterialTexture(cloudMaterial, "CloudCoverage", cloudCoverage);
+                SetMaterialTexture(cloudMaterial, "CloudCoverage", cloudCoverage.Preview);
 
                 reflectionProbeCloudMaterial.EnableKeyword("ALPHAMAP_1");
                 reflectionProbeCloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
                 reflectionProbeCloudMaterial.SetFloat("useAlphaMask1", 1f);
-                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudCoverage", cloudCoverage);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudCoverage", cloudCoverage.Preview);
 
                 // find other layers which use this for shadows and apply it to them
                 var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
 
                 foreach (var layer in layers)
                 {
-                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage, true);
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage.Preview, true);
                 }
 
                 cloudMaterial.DisableKeyword("SDF_ON");
@@ -205,59 +213,59 @@ namespace Atmosphere
                 reflectionProbeCloudMaterial.EnableKeyword("SDF_OFF");
             }
 
-            if (cloudType != null)
+            if (cloudType.IsCreated)
             {
                 cloudMaterial.EnableKeyword("ALPHAMAP_2");
                 cloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
                 cloudMaterial.SetFloat("useAlphaMask2", 1f);
-                SetMaterialTexture(cloudMaterial, "CloudType", cloudType);
+                SetMaterialTexture(cloudMaterial, "CloudType", cloudType.Preview);
 
                 reflectionProbeCloudMaterial.EnableKeyword("ALPHAMAP_2");
                 reflectionProbeCloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
                 reflectionProbeCloudMaterial.SetFloat("useAlphaMask2", 1f);
-                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudType", cloudType);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudType", cloudType.Preview);
             }
-            if (cloudColorMap != null)
+            if (cloudColorMap.IsCreated)
             { 
-                SetMaterialTexture(cloudMaterial, "CloudColorMap", cloudColorMap);
-                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudColorMap", cloudColorMap);
+                SetMaterialTexture(cloudMaterial, "CloudColorMap", cloudColorMap.Preview);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "CloudColorMap", cloudColorMap.Preview);
             }
 
-            if (cloudFlowMap != null)
+            if (cloudFlowMap.IsCreated)
             { 
-                SetMaterialTexture(cloudMaterial, "_FlowMap", cloudFlowMap);
-                SetMaterialTexture(reflectionProbeCloudMaterial, "_FlowMap", cloudFlowMap);
+                SetMaterialTexture(cloudMaterial, "_FlowMap", cloudFlowMap.Preview);
+                SetMaterialTexture(reflectionProbeCloudMaterial, "_FlowMap", cloudFlowMap.Preview);
             }
 
             scaledCloudMaterial = layer2D?.CloudRenderingMaterial;
 
-            if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
+            if (scaledCloudMaterial != null && cloudScaledFlowMap.IsCreated)
             {
-                SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap);
+                SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap.Preview);
             }
 
             editingModes = new List<EditingMode>();
 
-            if (cloudCoverage != null)
+            if (cloudCoverage.IsCreated)
                 editingModes.Add(EditingMode.coverage);
 
-            if (cloudType != null)
+            if (cloudType.IsCreated)
                 editingModes.Add(EditingMode.cloudType);
 
-            if (cloudCoverage != null && cloudType != null)
+            if (cloudCoverage.IsCreated && cloudType.IsCreated)
                 editingModes.Add(EditingMode.coverageAndCloudType);
 
-            if (cloudColorMap != null)
+            if (cloudColorMap.IsCreated)
                 editingModes.Add(EditingMode.colorMap);
 
-            if (cloudFlowMap != null)
+            if (cloudFlowMap.IsCreated)
             {
                 editingModes.Add(EditingMode.flowMapDirectional);
                 editingModes.Add(EditingMode.flowMapVortex);
                 editingModes.Add(EditingMode.flowMapBand);
             }
 
-            if (cloudScaledFlowMap != null)
+            if (cloudScaledFlowMap.IsCreated)
             {
                 editingModes.Add(EditingMode.scaledFlowMapDirectional);
                 editingModes.Add(EditingMode.scaledFlowMapVortex);
@@ -265,63 +273,47 @@ namespace Atmosphere
             }
         }
 
-        private void InitTexture(TextureWrapper targetWrapper, ref RenderTexture targetRT, RenderTextureFormat format)
+        bool mouseWasOverWindow = false;
+
+        private void ResetPreview()
         {
-            var targetTexture = targetWrapper.GetTexture();
-
-            if (targetTexture != null)
+            if (editingMode == EditingMode.coverage || editingMode == EditingMode.coverageAndCloudType)
             {
-                if (targetRT != null)
-                    targetRT.Release();
-
-                targetRT = new RenderTexture(targetTexture.width, targetTexture.height, 0, format, 0);
-                targetRT.filterMode = FilterMode.Bilinear;
-                targetRT.wrapMode = TextureWrapMode.Repeat;
-                targetRT.useMipMap = false;
-                
-                if (targetTexture.dimension == UnityEngine.Rendering.TextureDimension.Cube)
-                    targetRT.dimension = UnityEngine.Rendering.TextureDimension.Cube;
-
-                targetRT.Create();
-
-                var active = RenderTexture.active;
-
-                var copyMapMaterial = new Material(CopyMapShader);
-
-                targetWrapper.SetAlphaMask(copyMapMaterial, 1);
-
-                if (targetRT.dimension == UnityEngine.Rendering.TextureDimension.Cube)
-                {
-                    CopyCubemapToRT(targetTexture, targetRT, copyMapMaterial);
-                }
-                else
-                {
-                    copyMapMaterial.SetTexture("textureToCopy", targetTexture);
-                    Graphics.Blit(null, targetRT, copyMapMaterial);
-                }
-
-                RenderTexture.active = active;
+                cloudCoverage.CopyCommittedToPreview();
+            }
+            if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
+            {
+                cloudType.CopyCommittedToPreview();
+            }
+            if (editingMode == EditingMode.colorMap)
+            {
+                cloudColorMap.CopyCommittedToPreview();
+            }
+            if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.flowMapBand)
+            {
+                cloudFlowMap.CopyCommittedToPreview();
+            }
+            if (editingMode == EditingMode.scaledFlowMapDirectional || editingMode == EditingMode.scaledFlowMapVortex || editingMode == EditingMode.scaledFlowMapBand)
+            {
+                cloudScaledFlowMap.CopyCommittedToPreview();
             }
         }
-
-        // Unity doesn't provide a way to blit from a cubemap face to another with a custom material, do it manually with a custom blit.
-        // Blitting from a cubemap face is also not supported except with Graphics.CopyTexture so implement my own by transforming the uv
-        // and cubemap face index to cubemap direction to sample the original cubemap
-        private void CopyCubemapToRT(Texture sourceTexture, RenderTexture targetRT, Material copyMapMaterial)
-        {
-            copyMapMaterial.EnableKeyword("CUBEMAP_MODE_ON");
-            copyMapMaterial.SetTexture("textureToCopy", sourceTexture);
-
-            for (int i = 0; i < 6; i++)
-            {
-                copyMapMaterial.SetInt("cubemapFace", i);
-                RenderTextureUtils.BlitToCubemapFace(targetRT, copyMapMaterial, i);
-            }
-        }
-
 
         public void Paint()
         {
+            if (GlobalEVEManager.MouseIsOverWindow)
+            {
+                if (!mouseWasOverWindow)
+                {
+                    ResetPreview();
+                }
+
+                mouseWasOverWindow = true;
+                return;
+            }
+
+            mouseWasOverWindow = false;
+
             if (initialized && paintEnabled && HighLogic.LoadedSceneIsFlight && FlightCamera.fetch != null && cloudsObject != null)
             {
                 Vector3d sphereCenter = ScaledSpace.ScaledToLocalSpace(scaledTransform.position);
@@ -332,8 +324,7 @@ namespace Atmosphere
                 float outerSphereRadius = Mathf.Max(planetRadius, cloudMaterial.GetFloat("outerSphereRadius"));
                 double sphereRadius = innerSphereRadius;
 
-                Vector3d rayDir = Vector3d.one;
-                Vector3d cameraPos = Vector3d.zero;
+                Vector3d rayDir, cameraPos;
 
                 if (!MapView.MapIsEnabled)
                 { 
@@ -384,16 +375,19 @@ namespace Atmosphere
                         paintCursor.SetDrawSettings(cursorPosition, upDirection, scale, layerHeight);
                     }
 
-                    if (Input.GetMouseButton(0) && Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y)
+                    bool isPreview = !Input.GetMouseButton(0);
+
+                    if ((Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y) || (isPreview != lastDrawnIsPreview))
                     {
                         lastDrawnMousePos = Input.mousePosition;
+                        lastDrawnIsPreview = isPreview;
 
-                        PaintCurrentMode(intersectPosition, sphereRadius);
+                        PaintCurrentMode(intersectPosition, sphereRadius, isPreview);
                     }
 
-                    if (scaledCloudMaterial != null && cloudScaledFlowMap != null)
+                    if (scaledCloudMaterial != null && cloudScaledFlowMap.IsCreated)
                     {
-                        SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap);
+                        SetMaterialTexture(scaledCloudMaterial, "_FlowMap", cloudScaledFlowMap.Preview);
                     }
 
                     lastIntersectPosition = intersectPosition;
@@ -427,9 +421,13 @@ namespace Atmosphere
             return intersectDistance;
         }
 
-        private void BlitPaint(RenderTexture rt, Material paintMat, int pass)
+        private void BlitPaint(PainterTexture painterTexture, bool isPreview, Material paintMat, int pass)
         {
-            if (rt.dimension == UnityEngine.Rendering.TextureDimension.Cube)
+            painterTexture.CopyCommittedToPreview();
+
+            var rtToPaint = isPreview ? painterTexture.Preview : painterTexture.Committed;
+
+            if (rtToPaint.dimension == UnityEngine.Rendering.TextureDimension.Cube)
             {
                 paintMat.EnableKeyword("PAINT_CUBEMAP_ON");
                 paintMat.DisableKeyword("PAINT_CUBEMAP_OFF");
@@ -437,18 +435,18 @@ namespace Atmosphere
                 for (int i=0; i<6; i++)
                 {
                     paintMat.SetInt("cubemapFace", i);
-                    RenderTextureUtils.BlitToCubemapFace(rt, paintMat, i, pass);
+                    RenderTextureUtils.BlitToCubemapFace(rtToPaint, paintMat, i, pass);
                 }
             }
             else
             {
                 paintMat.EnableKeyword("PAINT_CUBEMAP_OFF");
                 paintMat.DisableKeyword("PAINT_CUBEMAP_ON");
-                Graphics.Blit(null, rt, paintMat, pass);
+                Graphics.Blit(null, rtToPaint, paintMat, pass);
             }
         }
 
-        private void PaintCurrentMode(Vector3d intersectPosition, double sphereRadius)
+        private void PaintCurrentMode(Vector3d intersectPosition, double sphereRadius, bool isPreview)
         {
             var cloudRotationMatrix = layer2D != null ? layer2D.MainRotationMatrix * layerRaymarchedVolume.ParentTransform.worldToLocalMatrix : layerRaymarchedVolume.CloudRotationMatrix;
 
@@ -467,17 +465,17 @@ namespace Atmosphere
             {
                 paintMaterial.SetVector("paintValue", new Vector3(coverageValue, coverageValue, coverageValue));
 
-                BlitPaint(cloudCoverage, paintMaterial, 0);
+                BlitPaint(cloudCoverage, isPreview, paintMaterial, 0);
             }
             if (editingMode == EditingMode.cloudType || editingMode == EditingMode.coverageAndCloudType)
             {
                 paintMaterial.SetVector("paintValue", new Vector3(selectedCloudTypeValue, selectedCloudTypeValue, selectedCloudTypeValue));
-                BlitPaint(cloudType, paintMaterial, 0);
+                BlitPaint(cloudType, isPreview, paintMaterial, 0);
             }
             if (editingMode == EditingMode.colorMap)
             {
                 paintMaterial.SetColor("paintValue", colorValue);
-                BlitPaint(cloudColorMap, paintMaterial, 0);
+                BlitPaint(cloudColorMap, isPreview, paintMaterial, 0);
             }
             if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.scaledFlowMapDirectional)
             {
@@ -506,20 +504,20 @@ namespace Atmosphere
                 Vector3 tangentSpaceFlow = new Vector3(tangentOnlyFlow.x * flowValue * 0.5f + 0.5f, tangentOnlyFlow.y * flowValue * 0.5f + 0.5f, upwardsFlowValue * 0.5f + 0.5f);
 
                 paintMaterial.SetVector("paintValue", tangentSpaceFlow);
-                BlitPaint(editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 0);
+                BlitPaint(editingMode == EditingMode.flowMapDirectional ? cloudFlowMap : cloudScaledFlowMap, isPreview, paintMaterial, 0);
             }
             if (editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.scaledFlowMapVortex)
             {
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("upwardsFlowValue", upwardsFlowValue);
                 paintMaterial.SetFloat("clockWiseRotation", vortexRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                BlitPaint(editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 1);
+                BlitPaint(editingMode == EditingMode.flowMapVortex ? cloudFlowMap : cloudScaledFlowMap, isPreview, paintMaterial, 1);
             }
             if (editingMode == EditingMode.flowMapBand || editingMode == EditingMode.scaledFlowMapBand)
             {
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("clockWiseRotation", bandRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
-                BlitPaint(editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, paintMaterial, 2);
+                BlitPaint(editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, isPreview, paintMaterial, 2);
             }
 
             RenderTexture.active = active;
@@ -534,10 +532,10 @@ namespace Atmosphere
                 layerRaymarchedVolume = cloudsObject?.LayerRaymarchedVolume;
                 layer2D = cloudsObject?.Layer2D;
 
-                if (layerRaymarchedVolume.CoverageMap != null && cloudCoverage == null) InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
-                if (layerRaymarchedVolume.CloudTypeMap != null && cloudType == null) InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
-                if (layerRaymarchedVolume.CloudColorMap != null && cloudColorMap == null) InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
-                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null && cloudFlowMap == null) InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.CoverageMap != null && !cloudCoverage.IsCreated) cloudCoverage.InitTexture(layerRaymarchedVolume.CoverageMap, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudTypeMap != null && !cloudType.IsCreated) cloudType.InitTexture(layerRaymarchedVolume.CloudTypeMap, RenderTextureFormat.R8);
+                if (layerRaymarchedVolume.CloudColorMap != null && !cloudColorMap.IsCreated) cloudColorMap.InitTexture(layerRaymarchedVolume.CloudColorMap, RenderTextureFormat.ARGB32);
+                if (layerRaymarchedVolume.FlowMap != null && layerRaymarchedVolume.FlowMap.Texture != null && !cloudFlowMap.IsCreated) cloudFlowMap.InitTexture(layerRaymarchedVolume.FlowMap.Texture, RenderTextureFormat.ARGB32);
 
                 if (cloudsObject != null && layerRaymarchedVolume != null)
                     SetTextureProperties();
@@ -660,7 +658,7 @@ namespace Atmosphere
 
             placement.y += 2;
 
-            if (cloudCoverage != null)
+            if (cloudCoverage.IsCreated)
             {
                 if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Generate SDF"))
                 {
@@ -674,18 +672,18 @@ namespace Atmosphere
         private void GenerateAndSaveSDF()
         {
             string path = CreateFileNameAndPath("sdf", "sdf");
-            SDFTool.GenerateAndSaveSDFInBackground(cloudCoverage, path);
+            SDFTool.GenerateAndSaveSDFInBackground(cloudCoverage.Committed, path);
         }
 
         private void ResetCurrentTextures()
         {
             if (editingMode == EditingMode.coverage)
             {
-                InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
+                cloudCoverage.InitTexture(layerRaymarchedVolume.CoverageMap, RenderTextureFormat.R8);
             }
             else if (editingMode == EditingMode.cloudType)
             {
-                InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
+                cloudType.InitTexture(layerRaymarchedVolume.CloudTypeMap, RenderTextureFormat.R8);
             }
             else if (editingMode == EditingMode.coverageAndCloudType)
             {
@@ -694,17 +692,17 @@ namespace Atmosphere
 
                 if (coverageMapTexture != null && cloudTypeTexture != null)
                 {
-                    InitTexture(layerRaymarchedVolume.CoverageMap, ref cloudCoverage, RenderTextureFormat.R8);
-                    InitTexture(layerRaymarchedVolume.CloudTypeMap, ref cloudType, RenderTextureFormat.R8);
+                    cloudCoverage.InitTexture(layerRaymarchedVolume.CoverageMap, RenderTextureFormat.R8);
+                    cloudType.InitTexture(layerRaymarchedVolume.CloudTypeMap, RenderTextureFormat.R8);
                 }
             }
             else if (editingMode == EditingMode.colorMap)
             {
-                InitTexture(layerRaymarchedVolume.CloudColorMap, ref cloudColorMap, RenderTextureFormat.ARGB32);
+                cloudColorMap.InitTexture(layerRaymarchedVolume.CloudColorMap, RenderTextureFormat.ARGB32);
             }
             else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex)
             {
-                InitTexture(layerRaymarchedVolume.FlowMap.Texture, ref cloudFlowMap, RenderTextureFormat.ARGB32);
+                cloudFlowMap.InitTexture(layerRaymarchedVolume.FlowMap.Texture, RenderTextureFormat.ARGB32);
             }
 
             SetTextureProperties();
@@ -712,54 +710,55 @@ namespace Atmosphere
 
         private void SaveCurrentTextures()
         {
-            if (editingMode == EditingMode.coverage && cloudCoverage != null)
+            // TODO: change all to committed
+            if (editingMode == EditingMode.coverage && cloudCoverage.IsCreated)
             {
-                SaveRTToFile(cloudCoverage, "CloudCoverage");
+                SaveRTToFile(cloudCoverage.Committed, "CloudCoverage");
             }
-            else if (editingMode == EditingMode.cloudType && cloudType != null)
+            else if (editingMode == EditingMode.cloudType && cloudType.IsCreated)
             {
-                SaveRTToFile(cloudType, "CloudType");
+                SaveRTToFile(cloudType.Committed, "CloudType");
             }
-            else if (editingMode == EditingMode.coverageAndCloudType && cloudType != null && cloudCoverage != null)
+            else if (editingMode == EditingMode.coverageAndCloudType && cloudType.IsCreated && cloudCoverage.IsCreated)
             {
-                SaveRTToFile(cloudCoverage, "CloudCoverage");
-                SaveRTToFile(cloudType, "CloudType");
+                SaveRTToFile(cloudCoverage.Committed, "CloudCoverage");
+                SaveRTToFile(cloudType.Committed, "CloudType");
             }
-            else if (editingMode == EditingMode.colorMap && cloudColorMap != null)
+            else if (editingMode == EditingMode.colorMap && cloudColorMap.IsCreated)
             {
-                SaveRTToFile(cloudColorMap, "CloudColor");
+                SaveRTToFile(cloudColorMap.Committed, "CloudColor");
             }
             else if (editingMode == EditingMode.flowMapDirectional || editingMode == EditingMode.flowMapVortex || editingMode == EditingMode.flowMapBand)
             {
-                SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+                SaveRTToFile(cloudFlowMap.Committed, "CloudFlowMap");
             }
             else if (editingMode == EditingMode.scaledFlowMapDirectional || editingMode == EditingMode.scaledFlowMapVortex || editingMode == EditingMode.scaledFlowMapBand)
             {
-                SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
+                SaveRTToFile(cloudScaledFlowMap.Committed, "CloudScaledFlowMap");
             }
         }
 
         private void SaveAllTextures()
         {
-            if (cloudCoverage != null)
+            if (cloudCoverage.IsCreated)
             {
-                SaveRTToFile(cloudCoverage, "CloudCoverage");
+                SaveRTToFile(cloudCoverage.Committed, "CloudCoverage");
             }
-            if (cloudType != null)
+            if (cloudType.IsCreated)
             {
-                SaveRTToFile(cloudType, "CloudType");
+                SaveRTToFile(cloudType.Committed, "CloudType");
             }
-            if (cloudColorMap != null)
+            if (cloudColorMap.IsCreated)
             {
-                SaveRTToFile(cloudColorMap, "ColorMap");
+                SaveRTToFile(cloudColorMap.Committed, "ColorMap");
             }
-            if (cloudFlowMap != null)
+            if (cloudFlowMap.IsCreated)
             {
-                SaveRTToFile(cloudFlowMap, "CloudFlowMap");
+                SaveRTToFile(cloudFlowMap.Committed, "CloudFlowMap");
             }
-            if(cloudScaledFlowMap != null)
+            if(cloudScaledFlowMap.IsCreated)
             {
-                SaveRTToFile(cloudScaledFlowMap, "CloudScaledFlowMap");
+                SaveRTToFile(cloudScaledFlowMap.Committed, "CloudScaledFlowMap");
             }
         }
 
