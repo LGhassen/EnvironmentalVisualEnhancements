@@ -488,14 +488,18 @@ namespace Utils
 
                 try
                 {
-                    obj = Activator.CreateInstance(field.FieldType);
+                    if (node != null && node.GetNodes("Item").Length > 0)
+                    { 
+                        obj = Activator.CreateInstance(field.FieldType);
 
-                    foreach (var itemNode in node.GetNodes("Item"))
-                    {
-                        var itemObject = Activator.CreateInstance(innerType);
-                        LoadObjectFromConfig(itemObject, itemNode);
-                        field.FieldType.GetMethod("Add").Invoke(obj, new[] { itemObject });
+                        foreach (var itemNode in node.GetNodes("Item"))
+                        {
+                            var itemObject = Activator.CreateInstance(innerType);
+                            LoadObjectFromConfig(itemObject, itemNode);
+                            field.FieldType.GetMethod("Add").Invoke(obj, new[] { itemObject });
+                        }
                     }
+
                     return true;
                 }
                 catch { throw new Exception("Can't parse " + value + " to List<"+ innerType.Name+">"); }

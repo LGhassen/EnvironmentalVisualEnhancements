@@ -137,6 +137,11 @@ namespace Atmosphere
 
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
+        [ConfigItem, Optional]
+        List<PainterTile> painterTiles = null;
+
+        public List<PainterTile> PainterTiles { get { return painterTiles; } }
+
         private float flowLoopTime = 0f; 
 
         protected Material raymarchedCloudMaterial, reflectionProbeRaymarchedCloudMaterial;
@@ -148,7 +153,6 @@ namespace Atmosphere
 
         private bool shadowCasterTextureSet = false;
         private bool _enabled = false;
-        private bool reflectionProbeMode = false;
 
         private float currentTimeFadeDensity = 1f;
         private float currentTimeFadeCoverage = 1f;

@@ -3,7 +3,7 @@ using Utils;
 
 namespace Atmosphere
 {
-    public class PainterTexture
+    public class PainterRenderTexture
     {
         private RenderTexture preview;
         private RenderTexture committed;

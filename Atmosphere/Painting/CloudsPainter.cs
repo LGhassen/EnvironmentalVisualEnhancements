@@ -30,7 +30,9 @@ namespace Atmosphere
             flowMapBand,
             scaledFlowMapDirectional,
             scaledFlowMapVortex,
-            scaledFlowMapBand
+            scaledFlowMapBand,
+            tile,
+            maskedTile  // TODO: where to put/load the guide map for this from? maybe inline here?
         }
 
         public enum RotationDirection
@@ -49,6 +51,14 @@ namespace Atmosphere
         public string selectedCloudTypeName = "";
         public float selectedCloudTypeValue = 0f;
 
+        public string selectedPainterTileName = "";
+        public PainterTile selectedPainterTile;
+        public float tileRescaleValue = 1f;
+        public float tileRotationValue = 0f; // degrees
+        public float tileOffsetX, tileOffsetY;
+        TextureWrapper selectedTileCoverageWrapper = null;
+        TextureWrapper selectedTileTypeWrapper = null;
+
         public float flowValue = 1f;
         public float upwardsFlowValue = 0f;
 
@@ -63,7 +73,7 @@ namespace Atmosphere
         bool paintEnabled = true;
         List<EditingMode> editingModes = new List<EditingMode>();
 
-        public PainterTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
+        public PainterRenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
 
         Material cloudMaterial, reflectionProbeCloudMaterial, scaledCloudMaterial, paintMaterial;
 
@@ -105,11 +115,11 @@ namespace Atmosphere
 
             paintCursor = new PaintCursor();
 
-            cloudCoverage = new PainterTexture();
-            cloudType = new PainterTexture();
-            cloudColorMap = new PainterTexture();
-            cloudFlowMap = new PainterTexture();
-            cloudScaledFlowMap = new PainterTexture();
+            cloudCoverage = new PainterRenderTexture();
+            cloudType = new PainterRenderTexture();
+            cloudColorMap = new PainterRenderTexture();
+            cloudFlowMap = new PainterRenderTexture();
+            cloudScaledFlowMap = new PainterRenderTexture();
 
             return InitTextures();
         }
@@ -139,7 +149,10 @@ namespace Atmosphere
 
                 foreach (var layer in layers)
                 {
-                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage.Preview, true);
+                    // TODO: Do I even still use this old shadowCaster texture method?
+                    // Remove it to remove complexity and multi_compiles?
+                    //layer.LayerRaymarchedVolume.SetShadowCasterTextureParams(cloudCoverage.Preview, true);
+                    layer.LayerRaymarchedVolume.SetShadowCasterTextureParams();
                 }
             }
 
@@ -152,7 +165,16 @@ namespace Atmosphere
                     layer2D.CloudsMat.ApplyMaterialProperties(scaledCloudMaterial);
                 }
             }
-            
+
+            if (selectedTileCoverageWrapper != null)
+            {
+                selectedTileCoverageWrapper.Remove();
+            }
+
+            if (selectedTileTypeWrapper != null)
+            {
+                selectedTileTypeWrapper.Remove();
+            }
         }
 
         private bool InitTextures()
@@ -255,6 +277,12 @@ namespace Atmosphere
             if (cloudCoverage.IsCreated && cloudType.IsCreated)
                 editingModes.Add(EditingMode.coverageAndCloudType);
 
+            if (cloudCoverage.IsCreated && layerRaymarchedVolume.PainterTiles != null && layerRaymarchedVolume.PainterTiles.Count > 0)
+            {
+                editingModes.Add(EditingMode.tile);
+                editingModes.Add(EditingMode.maskedTile);
+            }
+
             if (cloudColorMap.IsCreated)
                 editingModes.Add(EditingMode.colorMap);
 
@@ -297,6 +325,26 @@ namespace Atmosphere
             {
                 cloudScaledFlowMap.CopyCommittedToPreview();
             }
+            if (editingMode == EditingMode.tile || editingMode == EditingMode.maskedTile)
+            {
+                if (cloudCoverage.IsCreated)
+                {
+                    cloudCoverage.CopyCommittedToPreview();
+                }
+                if (cloudType.IsCreated)
+                {
+                    cloudType.CopyCommittedToPreview();
+                }
+            }
+        }
+
+        // KSP version doesn't work correctly?
+        public Vector3d CorrectedTransformPoint(Matrix4x4D m, Vector3d v)
+        {
+            return new Vector3d(
+                v.x * m.m00 + v.y * m.m01 + v.z * m.m02 + m.m03,
+                v.x * m.m10 + v.y * m.m11 + v.z * m.m12 + m.m13,
+                v.x * m.m20 + v.y * m.m21 + v.z * m.m22 + m.m23);
         }
 
         public void Paint()
@@ -336,6 +384,9 @@ namespace Atmosphere
                     rayDir = GetCursorRayDirection(ScaledCamera.Instance.cam);
                     cameraPos = ScaledSpace.ScaledToLocalSpace(ScaledCamera.Instance.cam.transform.position);
                 }
+
+                var cloudSpaceCameraPos = CorrectedTransformPoint(new Matrix4x4D(layerRaymarchedVolume.CloudRotationMatrix), cameraPos);
+                UpdateTilePaintingTangentFrame(cloudSpaceCameraPos, innerSphereRadius);
 
                 double intersectDistance = Mathf.Infinity;
 
@@ -395,6 +446,52 @@ namespace Atmosphere
             }
         }
 
+        bool tangentFrameInitialized = false;
+        Vector3d tangentFrameTangent = new Vector3d(0, 0, 0);
+        Vector3d tangentFrameBitangent = new Vector3d(0, 0, 0);
+        Vector3d tangentFrameNormal = new Vector3d(0, 0, 0);
+        Vector3d tangentFrameOrigin = new Vector3d(0, 0, 0);
+        Vector3d cumulatedTangentFrameOffset = new Vector3d(0, 0, 0);
+
+        private void UpdateTilePaintingTangentFrame(Vector3d cameraPositionInCloudSpace, double radius)
+        {
+            tangentFrameNormal = cameraPositionInCloudSpace.normalized;
+
+            if (tangentFrameInitialized)
+            {
+                tangentFrameTangent = Vector3d.Cross(tangentFrameBitangent, tangentFrameNormal).normalized;
+            }
+            else
+            {
+                var reference = Math.Abs(tangentFrameNormal.y) < 0.99d ? new Vector3d(0d, 1d, 0d) : new Vector3d(1d, 0d, 0d);
+                tangentFrameTangent = Vector3d.Cross(reference, tangentFrameNormal).normalized;
+                tangentFrameInitialized = true;
+            }
+
+            tangentFrameBitangent = Vector3d.Cross(tangentFrameNormal, tangentFrameTangent).normalized;
+
+            var currentFrameOrigin = tangentFrameNormal * radius;
+
+            var frameDelta = currentFrameOrigin - tangentFrameOrigin;
+            Vector3d projectedFrameDelta = frameDelta - Vector3d.Dot(frameDelta, tangentFrameNormal) * tangentFrameNormal;  // Remove normal component
+            Vector2d frameOffset = new Vector2d(Vector3d.Dot(tangentFrameTangent, projectedFrameDelta), Vector3d.Dot(tangentFrameBitangent, projectedFrameDelta));
+
+            var sinTheta = Vector3d.Cross(tangentFrameOrigin.normalized, currentFrameOrigin.normalized).magnitude;
+            var arcAngle = Math.Asin(Math.Max(Math.Min(sinTheta, 1.0), 0.0));
+            var arcLength = radius * arcAngle;
+
+            frameOffset = frameOffset.normalized * arcLength;
+
+            if (double.IsNaN(frameOffset.x) || double.IsNaN(frameOffset.y))
+            {
+                frameOffset = Vector2d.zero;
+            }
+
+            cumulatedTangentFrameOffset += frameOffset;
+
+            tangentFrameOrigin = currentFrameOrigin;
+        }
+
         private void SetMaterialTexture(Material mat, string name, Texture tex)
         {
             if (tex.dimension == UnityEngine.Rendering.TextureDimension.Cube)
@@ -421,7 +518,7 @@ namespace Atmosphere
             return intersectDistance;
         }
 
-        private void BlitPaint(PainterTexture painterTexture, bool isPreview, Material paintMat, int pass)
+        private void BlitPaint(PainterRenderTexture painterTexture, bool isPreview, Material paintMat, int pass)
         {
             painterTexture.CopyCommittedToPreview();
 
@@ -450,7 +547,7 @@ namespace Atmosphere
         {
             var cloudRotationMatrix = layer2D != null ? layer2D.MainRotationMatrix * layerRaymarchedVolume.ParentTransform.worldToLocalMatrix : layerRaymarchedVolume.CloudRotationMatrix;
 
-            // feed all info to the shader
+            // Feed all info to the shader
             paintMaterial.SetVector("brushPosition", (Vector3)intersectPosition);
             paintMaterial.SetFloat("brushSize", brushSize);
             paintMaterial.SetFloat("hardness", 1f - hardness);
@@ -518,6 +615,52 @@ namespace Atmosphere
                 paintMaterial.SetFloat("flowValue", flowValue);
                 paintMaterial.SetFloat("clockWiseRotation", bandRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
                 BlitPaint(editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, isPreview, paintMaterial, 2);
+            }
+            if (editingMode == EditingMode.tile)
+            {
+                var selectedTileSize = (double)selectedPainterTile.Size;
+                var uvOffset = cumulatedTangentFrameOffset / (selectedTileSize * tileRescaleValue);
+                uvOffset = new Vector3d(uvOffset.x - Math.Floor(uvOffset.x), uvOffset.y - Math.Floor(uvOffset.y), 0d);
+
+                paintMaterial.SetVector("tileFrameTangent", (Vector3)tangentFrameTangent);
+                paintMaterial.SetVector("tileFrameBitangent", (Vector3)tangentFrameBitangent);
+                paintMaterial.SetVector("tileFrameNormal", (Vector3)tangentFrameNormal);
+                paintMaterial.SetVector("tileFrameOrigin", (Vector3)tangentFrameOrigin);
+                paintMaterial.SetVector("tileFrameUVOffset", (Vector3)uvOffset);
+                paintMaterial.SetFloat("tileSize", selectedPainterTile.Size * tileRescaleValue);
+
+                paintMaterial.SetFloat("tileRotation", tileRotationValue * Mathf.Deg2Rad);
+                paintMaterial.SetVector("tileOffset", new Vector2((float)tileOffsetX, (float)tileOffsetY));
+
+                if (selectedTileCoverageWrapper != selectedPainterTile.CoverageMap)
+                {
+                    if (selectedPainterTile.CoverageMap!= null)
+                        selectedPainterTile.CoverageMap.ApplyTexture(paintMaterial, "inputTile", 0);
+
+                    if (selectedTileCoverageWrapper != null)
+                        selectedTileCoverageWrapper.Remove();
+
+                    selectedTileCoverageWrapper = selectedPainterTile.CoverageMap;
+                }
+
+                if (selectedTileTypeWrapper != selectedPainterTile.CloudTypeMap)
+                {
+                    if (selectedPainterTile.CloudTypeMap != null)
+                        selectedPainterTile.CloudTypeMap.ApplyTexture(paintMaterial, "inputTypeTile", 0);
+
+                    if (selectedTileTypeWrapper != null)
+                        selectedTileTypeWrapper.Remove();
+
+                    selectedTileTypeWrapper = selectedPainterTile.CloudTypeMap;
+                }
+
+                paintMaterial.SetVector("remapTile", selectedPainterTile.RemapCoverage);
+                paintMaterial.SetInt("readType", 0);
+                BlitPaint(cloudCoverage, isPreview, paintMaterial, 3);
+
+                paintMaterial.SetVector("remapTile", selectedPainterTile.RemapType);
+                paintMaterial.SetInt("readType", selectedTileTypeWrapper != null ? 1 : 0);
+                BlitPaint(cloudType, isPreview, paintMaterial, 3);
             }
 
             RenderTexture.active = active;
@@ -629,6 +772,23 @@ namespace Atmosphere
                 DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
                 bandRotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), bandRotationDirection, 4, placementBase, ref placement);
             }
+            else if (editingMode == EditingMode.tile)
+            {
+                // draw tile selector (copy code from type painter)
+                var tileList = layerRaymarchedVolume.PainterTiles.Select(x => x.TileName).ToList();
+                int selectedIndex = tileList.IndexOf(selectedPainterTileName);
+                selectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
+
+                // Need to keep track of the last textureWrappers loaded so I can load/unload them as needed
+                selectedPainterTileName = GUIHelper.DrawSelector<String>(tileList, ref selectedIndex, 4, placementBase, ref placement);
+                selectedPainterTile = layerRaymarchedVolume.PainterTiles.ElementAt(selectedIndex);
+
+                // Draw tile rescale and tile rotation fields
+                DrawFloatField(placementBase, ref placement, "Rescale ", ref tileRescaleValue, 0f, 5f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Rotate ", ref tileRotationValue, -360f, 360f, "000");
+                DrawFloatField(placementBase, ref placement, "Offset X ", ref tileOffsetX, -1f, 1f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Offset Y ", ref tileOffsetY, -1f, 1f, "0.00");
+            }
 
             paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");
             placement.y += 1;
@@ -719,10 +879,12 @@ namespace Atmosphere
             {
                 SaveRTToFile(cloudType.Committed, "CloudType");
             }
-            else if (editingMode == EditingMode.coverageAndCloudType && cloudType.IsCreated && cloudCoverage.IsCreated)
+            else if ((editingMode == EditingMode.coverageAndCloudType || editingMode == EditingMode.tile || editingMode == EditingMode.maskedTile) && (cloudType.IsCreated || cloudCoverage.IsCreated))
             {
-                SaveRTToFile(cloudCoverage.Committed, "CloudCoverage");
-                SaveRTToFile(cloudType.Committed, "CloudType");
+                if (cloudCoverage.IsCreated)
+                    SaveRTToFile(cloudCoverage.Committed, "CloudCoverage");
+                if (cloudType.IsCreated)
+                    SaveRTToFile(cloudType.Committed, "CloudType");
             }
             else if (editingMode == EditingMode.colorMap && cloudColorMap.IsCreated)
             {

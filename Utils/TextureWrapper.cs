@@ -615,6 +615,8 @@ namespace Utils
                 if (textureInitialized)
                     TextureOnDemandLoader.NotifyUnload(value);
             }
+
+            textureInitialized = false;
         }
     }
 }
