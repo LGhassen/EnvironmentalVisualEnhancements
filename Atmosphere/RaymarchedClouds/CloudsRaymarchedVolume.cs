@@ -142,6 +142,12 @@ namespace Atmosphere
 
         public List<PainterTile> PainterTiles { get { return painterTiles; } }
 
+        [ConfigItem, Optional]
+        List<PainterTileMask> painterTileMasks = null;
+
+        public List<PainterTileMask> PainterTileMasks { get { return painterTileMasks; } }
+        
+
         private float flowLoopTime = 0f; 
 
         protected Material raymarchedCloudMaterial, reflectionProbeRaymarchedCloudMaterial;

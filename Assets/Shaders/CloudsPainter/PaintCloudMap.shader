@@ -257,10 +257,13 @@
 
 			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
 
+			#include "UnityLightingCommon.cginc"
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudShading.cginc"
 			#include "PaintUtils.cginc"
+			#include "../EVEUtils.cginc"
+			#include "../cubeMap.cginc"
 
 			float brushSize;
 			float hardness;
@@ -280,9 +283,11 @@
 			sampler2D inputTypeTile;
 			float tileSize;
 			int readType;
+			int writingType;
+			int useGuideMask;
 
-			// both missing
-			sampler2D inputMask; // handle if this should be a cubemap
+			#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
+			CUBEMAP_DEF_1(inputMask);
 			int useMask;
 
 			struct v2f
@@ -378,7 +383,20 @@
 
 				tile = RemapClamped(tile, 0.0, 1.0, remapTile.x, remapTile.y);
 
-				// TODO: mask painting with erosion
+				if (useGuideMask > 0)
+				{
+					float mask = GET_CUBE_MAP_1(inputMask, normalize(planetFragmentPos));
+
+					if (writingType < 1)
+					{
+						float result = clamp((tile * 0.6 + mask - 0.6) * 2.5, 0.0, 1.0);
+						tile = result > tile ? tile : result;
+					}
+					else
+					{
+						opacity = mask < 1.0 / 255.0 ? 0.0 : opacity;
+					}
+				}
 
 				return float4(tile.rrr, brushOpacity * opacity);
 			}

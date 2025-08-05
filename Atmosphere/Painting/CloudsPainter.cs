@@ -32,7 +32,7 @@ namespace Atmosphere
             scaledFlowMapVortex,
             scaledFlowMapBand,
             tile,
-            maskedTile  // TODO: where to put/load the guide map for this from? maybe inline here?
+            maskedTile
         }
 
         public enum RotationDirection
@@ -58,6 +58,10 @@ namespace Atmosphere
         public float tileOffsetX, tileOffsetY;
         TextureWrapper selectedTileCoverageWrapper = null;
         TextureWrapper selectedTileTypeWrapper = null;
+
+        public string selectedPainterTileMaskName = "";
+        public PainterTileMask selectedPainterTileMask = null;
+        TextureWrapper selectedGuideMaskWrapper = null;
 
         public float flowValue = 1f;
         public float upwardsFlowValue = 0f;
@@ -175,6 +179,11 @@ namespace Atmosphere
             {
                 selectedTileTypeWrapper.Remove();
             }
+
+            if (selectedGuideMaskWrapper != null)
+            {
+                selectedGuideMaskWrapper.Remove();
+            }
         }
 
         private bool InitTextures()
@@ -280,7 +289,11 @@ namespace Atmosphere
             if (cloudCoverage.IsCreated && layerRaymarchedVolume.PainterTiles != null && layerRaymarchedVolume.PainterTiles.Count > 0)
             {
                 editingModes.Add(EditingMode.tile);
-                editingModes.Add(EditingMode.maskedTile);
+
+                if (layerRaymarchedVolume.PainterTileMasks != null && layerRaymarchedVolume.PainterTileMasks.Count > 0)
+                { 
+                    editingModes.Add(EditingMode.maskedTile);
+                }
             }
 
             if (cloudColorMap.IsCreated)
@@ -616,7 +629,7 @@ namespace Atmosphere
                 paintMaterial.SetFloat("clockWiseRotation", bandRotationDirection == RotationDirection.ClockWise ? 1f : 0f);
                 BlitPaint(editingMode == EditingMode.flowMapBand ? cloudFlowMap : cloudScaledFlowMap, isPreview, paintMaterial, 2);
             }
-            if (editingMode == EditingMode.tile)
+            if (editingMode == EditingMode.tile || editingMode == EditingMode.maskedTile)
             {
                 var selectedTileSize = (double)selectedPainterTile.Size;
                 var uvOffset = cumulatedTangentFrameOffset / (selectedTileSize * tileRescaleValue);
@@ -635,7 +648,7 @@ namespace Atmosphere
                 if (selectedTileCoverageWrapper != selectedPainterTile.CoverageMap)
                 {
                     if (selectedPainterTile.CoverageMap!= null)
-                        selectedPainterTile.CoverageMap.ApplyTexture(paintMaterial, "inputTile", 0);
+                        selectedPainterTile.CoverageMap.ApplyTexture(paintMaterial, "inputTile", 2);
 
                     if (selectedTileCoverageWrapper != null)
                         selectedTileCoverageWrapper.Remove();
@@ -646,7 +659,7 @@ namespace Atmosphere
                 if (selectedTileTypeWrapper != selectedPainterTile.CloudTypeMap)
                 {
                     if (selectedPainterTile.CloudTypeMap != null)
-                        selectedPainterTile.CloudTypeMap.ApplyTexture(paintMaterial, "inputTypeTile", 0);
+                        selectedPainterTile.CloudTypeMap.ApplyTexture(paintMaterial, "inputTypeTile", 3);
 
                     if (selectedTileTypeWrapper != null)
                         selectedTileTypeWrapper.Remove();
@@ -654,12 +667,34 @@ namespace Atmosphere
                     selectedTileTypeWrapper = selectedPainterTile.CloudTypeMap;
                 }
 
+                if (editingMode == EditingMode.maskedTile)
+                {
+                    if (selectedGuideMaskWrapper != selectedPainterTileMask.Texture)
+                    { 
+                        if (selectedPainterTileMask.Texture != null)
+                            selectedPainterTileMask.Texture.ApplyTexture(paintMaterial, "inputMask", 1);
+
+                        if (selectedGuideMaskWrapper != null)
+                            selectedGuideMaskWrapper.Remove();
+
+                        selectedGuideMaskWrapper = selectedPainterTileMask.Texture;
+                    }
+
+                    paintMaterial.SetInt("useGuideMask", 1);
+                }
+                else
+                {
+                    paintMaterial.SetInt("useGuideMask", 0);
+                }
+
                 paintMaterial.SetVector("remapTile", selectedPainterTile.RemapCoverage);
                 paintMaterial.SetInt("readType", 0);
+                paintMaterial.SetInt("writingType", 0);
                 BlitPaint(cloudCoverage, isPreview, paintMaterial, 3);
 
                 paintMaterial.SetVector("remapTile", selectedPainterTile.RemapType);
                 paintMaterial.SetInt("readType", selectedTileTypeWrapper != null ? 1 : 0);
+                paintMaterial.SetInt("writingType", 1);
                 BlitPaint(cloudType, isPreview, paintMaterial, 3);
             }
 
@@ -772,14 +807,13 @@ namespace Atmosphere
                 DrawFloatField(placementBase, ref placement, "Flow ", ref flowValue, -1f, 1f, "0.00");
                 bandRotationDirection = GUIHelper.DrawSelector(Enum.GetValues(typeof(RotationDirection)).Cast<RotationDirection>().ToList(), bandRotationDirection, 4, placementBase, ref placement);
             }
-            else if (editingMode == EditingMode.tile)
+            else if (editingMode == EditingMode.tile || editingMode == EditingMode.maskedTile)
             {
-                // draw tile selector (copy code from type painter)
+                // Draw tile selector
                 var tileList = layerRaymarchedVolume.PainterTiles.Select(x => x.TileName).ToList();
                 int selectedIndex = tileList.IndexOf(selectedPainterTileName);
                 selectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-                // Need to keep track of the last textureWrappers loaded so I can load/unload them as needed
                 selectedPainterTileName = GUIHelper.DrawSelector<String>(tileList, ref selectedIndex, 4, placementBase, ref placement);
                 selectedPainterTile = layerRaymarchedVolume.PainterTiles.ElementAt(selectedIndex);
 
@@ -788,6 +822,17 @@ namespace Atmosphere
                 DrawFloatField(placementBase, ref placement, "Rotate ", ref tileRotationValue, -360f, 360f, "000");
                 DrawFloatField(placementBase, ref placement, "Offset X ", ref tileOffsetX, -1f, 1f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Offset Y ", ref tileOffsetY, -1f, 1f, "0.00");
+
+                if (editingMode == EditingMode.maskedTile)
+                {
+                    // Draw tile mask selector
+                    var tileMaskList = layerRaymarchedVolume.PainterTileMasks.Select(x => x.TileMaskName).ToList();
+                    int selectedMaskIndex = tileMaskList.IndexOf(selectedPainterTileName);
+                    selectedMaskIndex = selectedMaskIndex < 0 ? 0 : selectedMaskIndex;
+
+                    selectedPainterTileMaskName = GUIHelper.DrawSelector<String>(tileMaskList, ref selectedMaskIndex, 4, placementBase, ref placement);
+                    selectedPainterTileMask = layerRaymarchedVolume.PainterTileMasks.ElementAt(selectedMaskIndex);
+                }
             }
 
             paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");

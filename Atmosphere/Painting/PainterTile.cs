@@ -8,11 +8,10 @@ namespace Atmosphere
         [ConfigItem]
         string tileName = "New tile";
 
-        // Technically these shouldn't be loaded until I apply them in the painter, just make sure that's the case
         [ConfigItem]
         TextureWrapper coverageMap;
 
-        [ConfigItem, Optional]  // TODO: deduce RG mode from this being present or not
+        [ConfigItem, Optional]
         TextureWrapper cloudTypeMap;
 
         [ConfigItem]
@@ -30,5 +29,17 @@ namespace Atmosphere
         public float Size { get => size; }
         public Vector2 RemapCoverage { get => remapCoverage; }
         public Vector2 RemapType { get => remapType; }
+    }
+
+    public class PainterTileMask
+    {
+        [ConfigItem]
+        string tileMaskName = "New tile mask";
+
+        [ConfigItem]
+        TextureWrapper texture;
+
+        public string TileMaskName { get => tileMaskName; }
+        public TextureWrapper Texture { get => texture; }
     }
 }
