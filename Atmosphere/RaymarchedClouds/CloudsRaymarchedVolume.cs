@@ -485,7 +485,7 @@ namespace Atmosphere
             if (curlNoise != null)
             {
                 curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
-                NoiseGenerator.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise.ToNoiseSettings());
+                NoiseGenerator.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise);
             }
         }
 

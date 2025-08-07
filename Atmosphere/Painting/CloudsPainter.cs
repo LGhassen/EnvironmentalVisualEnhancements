@@ -79,7 +79,7 @@ namespace Atmosphere
 
         public PainterRenderTexture cloudCoverage, cloudType, cloudColorMap, cloudFlowMap, cloudScaledFlowMap;
 
-        Material cloudMaterial, reflectionProbeCloudMaterial, scaledCloudMaterial, paintMaterial;
+        Material cloudMaterial, reflectionProbeCloudMaterial, scaledCloudMaterial, paintMaterial, screenSpaceShadowMaterial;
 
         Transform scaledTransform;
 
@@ -216,6 +216,7 @@ namespace Atmosphere
         {
             cloudMaterial = layerRaymarchedVolume.RaymarchedCloudMaterial;
             reflectionProbeCloudMaterial = layerRaymarchedVolume.ReflectionProbeRaymarchedCloudMaterial;
+            screenSpaceShadowMaterial = layer2D?.ScreenSpaceShadowMaterial;
 
             if (cloudCoverage.IsCreated)
             {
@@ -228,6 +229,14 @@ namespace Atmosphere
                 reflectionProbeCloudMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
                 reflectionProbeCloudMaterial.SetFloat("useAlphaMask1", 1f);
                 SetMaterialTexture(reflectionProbeCloudMaterial, "CloudCoverage", cloudCoverage.Preview);
+
+                if (screenSpaceShadowMaterial != null)
+                {
+                    screenSpaceShadowMaterial.EnableKeyword("ALPHAMAP_1");
+                    screenSpaceShadowMaterial.SetVector("alphaMask1", new Vector4(1f, 0f, 0f, 0f));
+                    screenSpaceShadowMaterial.SetFloat("useAlphaMask1", 1f);
+                    SetMaterialTexture(screenSpaceShadowMaterial, "CloudCoverage", cloudCoverage.Preview);
+                }
 
                 // find other layers which use this for shadows and apply it to them
                 var layers = CloudsManager.GetObjectList().Where(x => x.Body == body && x.LayerRaymarchedVolume != null && x.LayerRaymarchedVolume.ReceiveShadowsFromLayer == layerName);
@@ -255,6 +264,14 @@ namespace Atmosphere
                 reflectionProbeCloudMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
                 reflectionProbeCloudMaterial.SetFloat("useAlphaMask2", 1f);
                 SetMaterialTexture(reflectionProbeCloudMaterial, "CloudType", cloudType.Preview);
+
+                if (screenSpaceShadowMaterial != null)
+                {
+                    screenSpaceShadowMaterial.EnableKeyword("ALPHAMAP_2");
+                    screenSpaceShadowMaterial.SetVector("alphaMask2", new Vector4(1f, 0f, 0f, 0f));
+                    screenSpaceShadowMaterial.SetFloat("useAlphaMask2", 1f);
+                    SetMaterialTexture(screenSpaceShadowMaterial, "CloudType", cloudType.Preview);
+                }
             }
             if (cloudColorMap.IsCreated)
             { 

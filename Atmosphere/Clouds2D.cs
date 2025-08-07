@@ -376,7 +376,7 @@ namespace Atmosphere
                 GameObject.DestroyImmediate(CloudMesh);
                 CloudMesh = null;
             }
-            if(ShadowProjectorGO != null)
+            if (ShadowProjectorGO != null)
             {
                 ShadowProjectorGO.transform.parent = null;
                 ShadowProjector.transform.parent = null;
