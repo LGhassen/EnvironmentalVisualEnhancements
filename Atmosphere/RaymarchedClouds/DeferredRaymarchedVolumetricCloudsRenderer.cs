@@ -72,7 +72,6 @@ namespace Atmosphere
 
         public static void ReinitAll()
         {
-            
             foreach (var renderer in CameraToDeferredRaymarchedVolumetricCloudsRenderer.Values)
             {
                 if (renderer != null)
@@ -124,7 +123,7 @@ namespace Atmosphere
         List<OverlapIntervalIntersection> intersections = new List<OverlapIntervalIntersection>();
 
         // These are sets of flip flop textures, can also have different sets per VR eye or per cubemap face
-        private HistoryManager<RenderTexture> historyRT, historyMotionVectorsRT, historyDistanceRT;
+        private HistoryManager<RenderTexture> historyRT, historyMotionVectorsRT, historyDistanceRT, upscalingHeuristics;
 
         // These are simple flip flop textures
         private HistoryManager<RenderTexture> packedNewRaysRT, packedOverlapRaysRT; // These are packed 32-bit per channel textures to save texture slots on Mac
@@ -305,6 +304,7 @@ namespace Atmosphere
                 RenderTextureUtils.ResizeRTHistoryManager(historyRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyMotionVectorsRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyDistanceRT, screenWidth, screenHeight);
+                RenderTextureUtils.ResizeRTHistoryManager(upscalingHeuristics, screenWidth, screenHeight);
 
                 reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
                 reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
@@ -356,6 +356,7 @@ namespace Atmosphere
             historyRT = RenderTextureUtils.CreateRTHistoryManager(true, supportVR, reflectionProbeCamera, screenWidth, screenHeight, colorFormat, FilterMode.Bilinear);
             historyMotionVectorsRT = RenderTextureUtils.CreateRTHistoryManager(true, supportVR, reflectionProbeCamera, screenWidth, screenHeight, RenderTextureFormat.RGHalf, FilterMode.Bilinear);
             historyDistanceRT = RenderTextureUtils.CreateRTHistoryManager(true, supportVR, reflectionProbeCamera, screenWidth, screenHeight, RenderTextureFormat.RHalf, FilterMode.Bilinear);
+            upscalingHeuristics = RenderTextureUtils.CreateRTHistoryManager(true, supportVR, reflectionProbeCamera, screenWidth, screenHeight, RenderTextureFormat.R8, FilterMode.Bilinear);
 
             previousV = new HistoryManager<Matrix4x4>(false, supportVR, reflectionProbeCamera);
             previousP = new HistoryManager<Matrix4x4>(false, supportVR, reflectionProbeCamera);
@@ -863,11 +864,15 @@ namespace Atmosphere
 
             RenderTargetIdentifier[] flipUpscalingIdentifiers = { new RenderTargetIdentifier(historyRT[true, isRightEye, reflectionProbeCubemapFace]),
                 new RenderTargetIdentifier(historyMotionVectorsRT[true, isRightEye, reflectionProbeCubemapFace]),
-                new RenderTargetIdentifier(historyDistanceRT[true, isRightEye, reflectionProbeCubemapFace])};
+                new RenderTargetIdentifier(historyDistanceRT[true, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(upscalingHeuristics[true, isRightEye, reflectionProbeCubemapFace])
+            };
 
             RenderTargetIdentifier[] flopUpscalingIdentifiers = { new RenderTargetIdentifier(historyRT[false, isRightEye, reflectionProbeCubemapFace]),
                 new RenderTargetIdentifier(historyMotionVectorsRT[false, isRightEye, reflectionProbeCubemapFace]),
-                new RenderTargetIdentifier(historyDistanceRT[false, isRightEye, reflectionProbeCubemapFace])};
+                new RenderTargetIdentifier(historyDistanceRT[false, isRightEye, reflectionProbeCubemapFace]),
+                new RenderTargetIdentifier(upscalingHeuristics[false, isRightEye, reflectionProbeCubemapFace]),
+            };
 
             RenderTargetIdentifier[] targetIdentifiers = useFlipUpscalingBuffer ? flipUpscalingIdentifiers : flopUpscalingIdentifiers;
 
@@ -878,6 +883,7 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.historyBuffer_PROPERTY, historyRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
             commandBuffer.SetGlobalTexture(ShaderProperties.historyMotionVectors_PROPERTY, historyMotionVectorsRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
             commandBuffer.SetGlobalTexture(ShaderProperties.historyDistance_PROPERTY, historyDistanceRT[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
+            commandBuffer.SetGlobalTexture(ShaderProperties.upscalingHeuristics_PROPERTY, upscalingHeuristics[readFromFlip, isRightEye, reflectionProbeCubemapFace]);
 
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBuffer_PROPERTY, unpackedNewRaysRT);
             commandBuffer.SetGlobalTexture(ShaderProperties.newRaysBufferBilinear_PROPERTY, unpackedNewRaysRT);
@@ -998,6 +1004,7 @@ namespace Atmosphere
             RenderTextureUtils.ReleaseRTHistoryManager(historyRT);
             RenderTextureUtils.ReleaseRTHistoryManager(historyMotionVectorsRT);
             RenderTextureUtils.ReleaseRTHistoryManager(historyDistanceRT);
+            RenderTextureUtils.ReleaseRTHistoryManager(upscalingHeuristics);
 
             RenderTextureUtils.ReleaseRTHistoryManager(packedNewRaysRT);
             RenderTextureUtils.ReleaseRTHistoryManager(lightningOcclusionRT);

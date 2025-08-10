@@ -143,6 +143,9 @@ namespace Utils
         public static int historyDistance_PROPERTY { get { return historyDistance; } }
         private static int historyDistance;
 
+        public static int upscalingHeuristics_PROPERTY { get { return upscalingHeuristics; } }
+        private static int upscalingHeuristics;
+
         public static int newRaysBuffer_PROPERTY { get { return newRaysBuffer; } }
         private static int newRaysBuffer;
 
@@ -453,6 +456,7 @@ namespace Utils
             historyBuffer = Shader.PropertyToID("historyBuffer");
             historyMotionVectors = Shader.PropertyToID("historyMotionVectors");
             historyDistance = Shader.PropertyToID("historyDistance");
+            upscalingHeuristics = Shader.PropertyToID("upscalingHeuristics");
             newRaysBuffer = Shader.PropertyToID("newRaysBuffer");
             newRaysBufferBilinear = Shader.PropertyToID("newRaysBufferBilinear");
             newRaysMaxDepthBuffer = Shader.PropertyToID("newRaysMaxDepthBuffer");
