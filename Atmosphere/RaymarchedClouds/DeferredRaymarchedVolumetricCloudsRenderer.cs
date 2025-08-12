@@ -617,8 +617,9 @@ namespace Atmosphere
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.colorBuffer_PROPERTY, historyRT[useFlipUpscalingBuffer, isRightEye, reflectionProbeCubemapFace]);
 
-                // Set texture for scatterer sunflare: temporary
+                // Set textures for scatterer
                 commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloud_PROPERTY, historyRT[useFlipUpscalingBuffer, isRightEye, reflectionProbeCubemapFace]);
+                commandBuffer.SetGlobalTexture(ShaderProperties.scattererReconstructedCloudMotionVectors_PROPERTY, historyMotionVectorsRT[useFlipUpscalingBuffer, isRightEye, reflectionProbeCubemapFace]);
 
                 DeferredRaymarchedRendererToScreen.compositeColorMaterial.renderQueue = 2998;
 
