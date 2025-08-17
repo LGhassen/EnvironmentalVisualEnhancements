@@ -212,6 +212,10 @@ namespace Atmosphere
 
         private static CameraEvent CloudRenderingCameraEvent = CameraEvent.AfterForwardOpaque;
 
+
+        private bool painterUnstableMaskInUse = false;
+        private bool lightningUnstableMasksInUse = false;
+
         public void Initialize()
         {
             targetCamera = GetComponent<Camera>();
@@ -263,7 +267,6 @@ namespace Atmosphere
                 commandBuffer[false, false, 0] = new CommandBuffer();
                 commandBuffer[false, false, 0].name = "EVE Raymarched Volumetrics Renderer VR left eye CommandBuffer";
             }
-
 
             isInitialized = true;
         }
@@ -898,6 +901,8 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0)
                 .RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
+            HandleUnstableMasks();
+
             if (useCombinedOpenGLDistanceBuffer && DepthToDistanceCommandBuffer.RenderTexture)
                 reconstructCloudsMaterial.SetTexture(ShaderProperties.combinedOpenGLDistanceBuffer_PROPERTY, DepthToDistanceCommandBuffer.RenderTexture);
 
@@ -905,6 +910,45 @@ namespace Atmosphere
                 ReconstructionShaderPassName.ScreenshotMode : ReconstructionShaderPassName.ReconstructClouds);
 
             commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
+        }
+
+        private void HandleUnstableMasks()
+        {
+            if (CloudsPainter.UnstableMaskPosition.w == 0.0 && painterUnstableMaskInUse)
+            {
+                reconstructCloudsMaterial.DisableKeyword("PAINTER_UNSTABLE_MASK_ON");
+                reconstructCloudsMaterial.EnableKeyword("PAINTER_UNSTABLE_MASK_OFF");
+                painterUnstableMaskInUse = false;
+            }
+            else if (CloudsPainter.UnstableMaskPosition.w > 0.0)
+            {
+                if (!painterUnstableMaskInUse)
+                {
+                    reconstructCloudsMaterial.EnableKeyword("PAINTER_UNSTABLE_MASK_ON");
+                    reconstructCloudsMaterial.DisableKeyword("PAINTER_UNSTABLE_MASK_OFF");
+                    painterUnstableMaskInUse = true;
+                }
+
+                reconstructCloudsMaterial.SetVector(ShaderProperties.painterUnstableMask_PROPERTY, CloudsPainter.UnstableMaskPosition);
+            }
+
+            if (Lightning.CurrentCount == 0 && lightningUnstableMasksInUse)
+            {
+                reconstructCloudsMaterial.DisableKeyword("LIGHTNING_UNSTABLE_MASK_ON");
+                reconstructCloudsMaterial.EnableKeyword("LIGHTNING_UNSTABLE_MASK_OFF");
+                lightningUnstableMasksInUse = false;
+            }
+            else if (Lightning.CurrentCount > 0.0)
+            {
+                if (!lightningUnstableMasksInUse)
+                {
+                    reconstructCloudsMaterial.EnableKeyword("LIGHTNING_UNSTABLE_MASK_ON");
+                    reconstructCloudsMaterial.DisableKeyword("LIGHTNING_UNSTABLE_MASK_OFF");
+                    lightningUnstableMasksInUse = true;
+                }
+
+                Lightning.SetUpscalingShaderParams(reconstructCloudsMaterial);
+            }
         }
 
         private void UnpackTextures(RenderTargetIdentifier inputTexture, CommandBuffer commandBuffer, RenderTargetIdentifier[] unpackedRenderTextures, MeshRenderer meshRenderer)

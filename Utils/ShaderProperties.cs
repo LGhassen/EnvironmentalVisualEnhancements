@@ -200,6 +200,9 @@ namespace Utils
         public static int lightningArray_PROPERTY { get { return lightningArray; } }
         private static int lightningArray;
 
+        public static int lightningUnstableMasksArray_PROPERTY { get { return lightningUnstableMasksArray; } }
+        private static int lightningUnstableMasksArray;
+
         public static int lightningColorsArray_PROPERTY { get { return lightningColorsArray; } }
         private static int lightningColorsArray;
 
@@ -401,6 +404,9 @@ namespace Utils
         public static int continuousAccumulationDistance_PROPERTY { get { return continuousAccumulationDistance; } }
         private static int continuousAccumulationDistance;
 
+        public static int painterUnstableMask_PROPERTY { get { return painterUnstableMask; } }
+        private static int painterUnstableMask;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -480,6 +486,7 @@ namespace Utils
             lightningArray = Shader.PropertyToID("lightningArray");
             lightningColorsArray = Shader.PropertyToID("lightningColorsArray");
             lightningTransformsArray = Shader.PropertyToID("lightningTransformsArray");
+            lightningUnstableMasksArray = Shader.PropertyToID("lightningUnstableMasksArray");
             alpha = Shader.PropertyToID("alpha");
             color = Shader.PropertyToID("color");
             randomIndexes = Shader.PropertyToID("randomIndexes");
@@ -551,6 +558,7 @@ namespace Utils
             motionVectorsApproximationIteration = Shader.PropertyToID("motionVectorsApproximationIteration");
             motionVectorsApproximationLastIteration = Shader.PropertyToID("motionVectorsApproximationLastIteration");
             continuousAccumulationDistance = Shader.PropertyToID("continuousAccumulationDistance");
+            painterUnstableMask = Shader.PropertyToID("painterUnstableMask");
         }
     }
 }

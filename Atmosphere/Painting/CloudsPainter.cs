@@ -184,6 +184,8 @@ namespace Atmosphere
             {
                 selectedGuideMaskWrapper.Remove();
             }
+
+            UnstableMaskPosition = Vector4.zero;
         }
 
         private bool InitTextures()
@@ -377,8 +379,13 @@ namespace Atmosphere
                 v.x * m.m20 + v.y * m.m21 + v.z * m.m22 + m.m23);
         }
 
+        // Publicly accessible for unstable mask in reconstruction shader
+        public static Vector4 UnstableMaskPosition = Vector4.zero;
+
         public void Paint()
         {
+            UnstableMaskPosition = Vector4.zero;
+
             if (GlobalEVEManager.MouseIsOverWindow)
             {
                 if (!mouseWasOverWindow)
@@ -457,6 +464,11 @@ namespace Atmosphere
                     }
 
                     bool isPreview = !Input.GetMouseButton(0);
+
+                    // Fit a sphere around our unstable area
+                    float unstableRadius = Mathf.Sqrt(brushSize * brushSize + 0.25f * layerHeight * layerHeight);
+                    Vector3 unstablePosition = intersectPosition + upDirection * layerHeight * 0.5f;
+                    UnstableMaskPosition = new Vector4(unstablePosition.x, unstablePosition.y, unstablePosition.z, unstableRadius);
 
                     if ((Input.mousePosition.x != lastDrawnMousePos.x && Input.mousePosition.y != lastDrawnMousePos.y) || (isPreview != lastDrawnIsPreview))
                     {
