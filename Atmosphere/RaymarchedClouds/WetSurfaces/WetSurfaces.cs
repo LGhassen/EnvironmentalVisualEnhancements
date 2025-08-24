@@ -18,6 +18,8 @@ namespace Atmosphere
 
         RenderTexture accumulationTexture;
 
+        public CloudsRaymarchedVolume CloudsRaymarchedVolume { get => cloudsRaymarchedVolume; }
+
         public bool Apply(Transform parent, CloudsRaymarchedVolume volume)
         {
             wetSurfacesConfigObject = WetSurfacesManager.GetConfig(wetSurfacesConfig);
@@ -75,7 +77,8 @@ namespace Atmosphere
                 coverageAtCraft *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeWetSurfacesDensity(cloudType);
 
             WetSurfacesManager.RenderingManager.AddFrameCoverage(coverageAtCraft, wetSurfacesConfigObject, parentTransform,
-                                                                accumulationTexture, cloudsRaymarchedVolume.CloudRotationMatrix, cloudsRaymarchedVolume.PlanetRadius);
+                accumulationTexture, cloudsRaymarchedVolume.CloudRotationMatrix, cloudsRaymarchedVolume.PlanetRadius,
+                cloudsRaymarchedVolume.CurrentTimeFadeCoverage * cloudsRaymarchedVolume.CurrentTimeFadeDensity);
         }
 
 

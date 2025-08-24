@@ -170,6 +170,10 @@ namespace Atmosphere
         WetSurfacesPerCameraRenderer nearCameraWetSurfacesRenderer, farCameraWetSurfacesRenderer;
         bool renderersAdded = false;
         bool renderToFlip = true;
+        float currentCoverage = 0f;
+        float currentCraftWetLevel = 0f;
+        float ripplesTime = 0f;
+        float maxAltitude, minAltitude;
 
         public void Initialize()
         {
@@ -185,10 +189,6 @@ namespace Atmosphere
             accumulationMaterial = new Material(AccumulationShader);
             wetEffectMaterial.SetTexture(ShaderProperties._ripplesLut_PROPERTY, rippleNormals);
         }
-
-        float currentCoverage = 0f;
-        float currentCraftWetLevel = 0f;
-        float ripplesTime = 0f;
 
         private void RemoveRenderer()
         {
@@ -226,23 +226,24 @@ namespace Atmosphere
         private int activeAccumulationLayerCount = 0;
 
         public void AddFrameCoverage(float coverage, WetSurfacesConfig wetSurfacesConfig, Transform parentTransform,
-            RenderTexture accumulationTexture, Matrix4x4 worldToLayerTransform, float parentRadius)
+            RenderTexture accumulationTexture, Matrix4x4 worldToLayerTransform, float parentRadius, float timeFade)
         {
-            if (activeAccumulationLayerCount >= MAX_ACTIVE_ACCUMULATION_LAYERS)
+            if (activeAccumulationLayerCount >= MAX_ACTIVE_ACCUMULATION_LAYERS || timeFade <= 0.0)
                 return;
-
-            if (loadedWetSurfacesConfig != wetSurfacesConfig)
-            {
-                OnWetSurfacesConfigChanged(wetSurfacesConfig, parentRadius);
-            }
 
             this.parentTransform = parentTransform;
             currentCoverage += coverage;
 
             activeAccumulationTextures[activeAccumulationLayerCount] = accumulationTexture;
             activeAccumulationTransforms[activeAccumulationLayerCount] = worldToLayerTransform;
+            activeAccumulationFades[activeAccumulationLayerCount] = timeFade;
 
             activeAccumulationLayerCount++;
+
+            if (loadedWetSurfacesConfig != wetSurfacesConfig)
+            {
+                OnWetSurfacesConfigChanged(wetSurfacesConfig, parentRadius);
+            }
         }
 
         private void OnWetSurfacesConfigChanged(WetSurfacesConfig wetSurfacesConfig, float planetRadius)
@@ -254,6 +255,25 @@ namespace Atmosphere
             {
                 wetSurfacesConfig.PuddlesTexture.ApplyTexture(wetEffectMaterial, "_puddlesTexture");
             }
+
+            maxAltitude = -1e9f;
+            minAltitude = 1e9f;
+
+            foreach (var wetSurface in wetSurfacesLoaded)
+            {
+                foreach (var cloudType in wetSurface.CloudsRaymarchedVolume.CloudTypes)
+                {
+                    if (cloudType.WetSurfacesIntensity > 0.0)
+                    {
+                        maxAltitude = Mathf.Max(maxAltitude, cloudType.MaxAltitude);
+                        minAltitude = Mathf.Min(minAltitude, cloudType.MinAltitude);
+                    }
+                }
+            }
+
+            wetEffectMaterial.SetFloat("maxAltitude", maxAltitude);
+            wetEffectMaterial.SetFloat("minAltitude", minAltitude);
+            wetEffectMaterial.SetFloat("planetRadius", planetRadius);
 
             accumulationMaterial.SetFloat("planetRadius", planetRadius);
 
@@ -378,8 +398,9 @@ namespace Atmosphere
 
             Graphics.Blit(null, trackingRT[renderToFlip, false, 0], accumulationMaterial);
 
-
             wetEffectMaterial.SetTexture(ShaderProperties.trackingRT_PROPERTY, trackingRT[renderToFlip, false, 0]);
+
+            
 
             renderToFlip = !renderToFlip;
         }
