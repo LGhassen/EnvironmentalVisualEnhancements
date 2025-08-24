@@ -140,6 +140,14 @@ namespace EVEManager
             }
         }
 
+        private void LateUpdate()
+        {
+            foreach (EVEManagerBase manager in Managers)
+            {
+                manager.LateUpdate();
+            }
+        }
+
         #pragma warning disable 0649
         private GUISkin _mySkin;
         private Rect _mainWindowRect = new Rect(0, 0, 600, 720);

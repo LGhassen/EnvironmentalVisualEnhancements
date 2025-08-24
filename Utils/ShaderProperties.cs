@@ -407,6 +407,48 @@ namespace Utils
         public static int painterUnstableMask_PROPERTY { get { return painterUnstableMask; } }
         private static int painterUnstableMask;
 
+        public static int ripplesTime_PROPERTY { get { return ripplesTime; } }
+        private static int ripplesTime;
+
+        public static int ripplesInputTexture_PROPERTY { get { return ripplesInputTexture; } }
+        private static int ripplesInputTexture;
+
+        public static int _ripplesLut_PROPERTY { get { return _ripplesLut; } }
+        private static int _ripplesLut;
+
+        public static int planetToWorldMatrix_PROPERTY { get { return planetToWorldMatrix; } }
+        private static int planetToWorldMatrix;
+
+        public static int worldToPlanetMatrix_PROPERTY { get { return worldToPlanetMatrix; } }
+        private static int worldToPlanetMatrix;
+
+        public static int fades_PROPERTY { get { return fades; } }
+        private static int fades;
+
+        public static int transforms_PROPERTY { get { return transforms; } }
+        private static int transforms;
+
+        public static int activeCount_PROPERTY { get { return activeCount; } }
+        private static int activeCount;
+
+        public static int accumulationDeltaTime_PROPERTY { get { return accumulationDeltaTime; } }
+        private static int accumulationDeltaTime;
+
+        public static int previousTexture_PROPERTY { get { return previousTexture; } }
+        private static int previousTexture;
+
+        public static int trackingRT_PROPERTY { get { return trackingRT; } }
+        private static int trackingRT;
+
+        public static int craftWetness_PROPERTY { get { return craftWetness; } }
+        private static int craftWetness;
+
+        public static int rainRipplesAmount_PROPERTY { get { return rainRipplesAmount; } }
+        private static int rainRipplesAmount;
+
+        public static int floatingOriginOffset_PROPERTY { get { return floatingOriginOffset; } }
+        private static int floatingOriginOffset;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -559,6 +601,22 @@ namespace Utils
             motionVectorsApproximationLastIteration = Shader.PropertyToID("motionVectorsApproximationLastIteration");
             continuousAccumulationDistance = Shader.PropertyToID("continuousAccumulationDistance");
             painterUnstableMask = Shader.PropertyToID("painterUnstableMask");
+
+            ripplesTime = Shader.PropertyToID("ripplesTime");
+            ripplesInputTexture = Shader.PropertyToID("ripplesInputTexture");
+            _ripplesLut = Shader.PropertyToID("_ripplesLut");
+            planetToWorldMatrix = Shader.PropertyToID("planetToWorldMatrix");
+            worldToPlanetMatrix = Shader.PropertyToID("worldToPlanetMatrix");
+            fades = Shader.PropertyToID("fades");
+            transforms = Shader.PropertyToID("transforms");
+            activeCount = Shader.PropertyToID("activeCount");
+            accumulationDeltaTime = Shader.PropertyToID("accumulationDeltaTime");
+            previousTexture = Shader.PropertyToID("previousTexture");
+            trackingRT = Shader.PropertyToID("trackingRT");
+            craftWetness = Shader.PropertyToID("craftWetness");
+            rainRipplesAmount = Shader.PropertyToID("rainRipplesAmount");
+            floatingOriginOffset = Shader.PropertyToID("floatingOriginOffset");
+
         }
     }
 }
