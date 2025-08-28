@@ -99,6 +99,12 @@ namespace Atmosphere
         float wetnessDryingSpeed = 0.0001f;
 
         [ConfigItem]
+        float wetDiffuse = 0.5f;
+
+        [ConfigItem]
+        float wetSmoothness = 0.6f;
+
+        [ConfigItem]
         float puddleAccumulationSpeed = 0.01f;
 
         [ConfigItem]
@@ -112,6 +118,8 @@ namespace Atmosphere
         public float PuddleAccumulationSpeed { get => puddleAccumulationSpeed; }
         public float PuddleDryingSpeed { get => puddleDryingSpeed; }
         public float MaxPuddleAccumulation { get => maxPuddleAccumulation; }
+        public float WetDiffuse { get => wetDiffuse; }
+        public float WetSmoothness { get => wetSmoothness; }
     }
 
     public class Terrain
@@ -121,6 +129,12 @@ namespace Atmosphere
 
         [ConfigItem]
         float wetnessDryingSpeed = 0.0001f;
+
+        [ConfigItem]
+        float wetDiffuse = 0.4f;
+
+        [ConfigItem]
+        float wetSmoothness = 0.5f;
 
         [ConfigItem]
         float puddleAccumulationSpeed = 0.01f;
@@ -138,6 +152,8 @@ namespace Atmosphere
         public float PuddleAccumulationSpeed { get => puddleAccumulationSpeed; }
         public float PuddleDryingSpeed { get => puddleDryingSpeed; }
         public float MaxPuddleAccumulation { get => maxPuddleAccumulation; }
+        public float WetDiffuse { get => wetDiffuse; }
+        public float WetSmoothness { get => wetSmoothness; }
     }
 
     public class Craft
@@ -148,7 +164,15 @@ namespace Atmosphere
         [ConfigItem]
         float wetnessDryingSpeed = 0.01f;
 
+        [ConfigItem]
+        float wetDiffuse = 0.65f;
+
+        [ConfigItem]
+        float wetSmoothness = 0.7f;
+
         public float WetnessAccumulationSpeed { get => wetnessAccumulationSpeed; }
         public float WetnessDryingSpeed { get => wetnessDryingSpeed; }
+        public float WetDiffuse { get => wetDiffuse; }
+        public float WetSmoothness { get => wetSmoothness; }
     }
 }

@@ -137,38 +137,40 @@ namespace Atmosphere
 
         public void Update()
         {
-            if (registeredSurfaces.Count == 0 || HighLogic.LoadedScene == GameScenes.MAINMENU)
-                return;
-
-            WetSurfacesConfig closestActive = GetClosestActive();
-
-            bool activeConfigChanged = closestActive != activeConfig;
-
-            if (activeConfigChanged)
+            if (registeredSurfaces.Count != 0 && HighLogic.LoadedScene != GameScenes.MAINMENU)
             {
-                var volume = registeredSurfaces[closestActive].surfaces.First().CloudsRaymarchedVolume;
-                OnActiveConfigChanged(closestActive, volume.PlanetRadius, volume.ParentTransform, volume.parentCelestialBody);
+                WetSurfacesConfig closestActive = GetClosestActive();
+
+                bool activeConfigChanged = closestActive != activeConfig;
+
+                if (activeConfigChanged)
+                {
+                    var volume = registeredSurfaces[closestActive].surfaces.First().CloudsRaymarchedVolume;
+                    OnActiveConfigChanged(closestActive, volume.PlanetRadius, volume.ParentTransform, volume.parentCelestialBody);
+                }
+
+                var ut = Planetarium.GetUniversalTime();
+                var deltaTime = Tools.GetDeltaTime();
+
+                // Catchup conditions
+                bool fastForward = ut > (lastUpdateUT + 1000.0 * deltaTime) && deltaTime > 0.0;
+                bool timeTravel = ut < lastUpdateUT;
+
+                if (fastForward || timeTravel || activeConfigChanged)
+                {
+                    WetSurfacesManager.Log($"Wet surfaces catchup conditions triggered: Active config change {activeConfigChanged}, large time delta {fastForward}, time travel: {timeTravel}");
+                    PerformCatchup();
+                }
+                else
+                {
+                    UpdateActiveWetSurfaceInstances();
+                    UpdateRendering(deltaTime);
+                }
+
+                lastUpdateUT = ut;
             }
 
-            var ut = Planetarium.GetUniversalTime();
-            var deltaTime = Tools.GetDeltaTime();
-
-            // Catchup conditions
-            bool fastForward = ut > lastUpdateUT + 10.0 * deltaTime;
-            bool timeTravel = ut < lastUpdateUT;
-
-            if (fastForward || timeTravel || activeConfigChanged)
-            {
-                WetSurfacesManager.Log($"Wet surfaces catchup conditions triggered: Active config change {activeConfigChanged}, large time delta {fastForward}, time travel: {timeTravel}");
-                PerformCatchup();
-            }
-            else
-            {
-                UpdateActiveWetSurfaceInstances();
-                UpdateRendering(deltaTime);
-            }
-
-            lastUpdateUT = ut;
+            AddOrRemoveCameraScripts();
         }
 
         private WetSurfacesConfig GetClosestActive()
@@ -204,6 +206,15 @@ namespace Atmosphere
         {
             wetEffectMaterial.SetFloat("puddlesTiling", 1f / wetSurfacesConfig.PuddleTextureScale);
             wetEffectMaterial.SetFloat("rippleTiling", 1f / wetSurfacesConfig.RippleScale);
+
+            wetEffectMaterial.SetFloat("craftDiffuse", wetSurfacesConfig.Craft.WetDiffuse);
+            wetEffectMaterial.SetFloat("craftSmoothness", wetSurfacesConfig.Craft.WetSmoothness);
+
+            wetEffectMaterial.SetFloat("sceneryDiffuse", wetSurfacesConfig.Scenery.WetDiffuse);
+            wetEffectMaterial.SetFloat("scenerySmoothness", wetSurfacesConfig.Scenery.WetSmoothness);
+
+            wetEffectMaterial.SetFloat("terrainDiffuse", wetSurfacesConfig.Terrain.WetDiffuse);
+            wetEffectMaterial.SetFloat("terrainSmoothness", wetSurfacesConfig.Terrain.WetSmoothness);
 
             if (wetSurfacesConfig.PuddlesTexture != null)
             {
@@ -307,18 +318,16 @@ namespace Atmosphere
                 UpdateTerrainAndSceneryLevels(deltaTime, activeParentTransform.localToWorldMatrix);
                 wetEffectMaterial.SetMatrix(ShaderProperties.worldToPlanetMatrix_PROPERTY, activeParentTransform.worldToLocalMatrix);
                 wetEffectMaterial.SetInt(ShaderProperties.useRipples_PROPERTY, currentCoverage > 0f ? 1 : 0);
-
-                UpdateRenderers();
             }
 
             currentCoverage = 0f;
             activeAccumulationLayerCount = 0;
         }
 
-        private void UpdateRenderers()
+        private void AddOrRemoveCameraScripts()
         {
             // If in pqs and active
-            if (registeredSurfaces[activeConfig].surfaces.Count > 0 && activeCelestialBody.pqsController.isActive)
+            if (activeConfig != null && registeredSurfaces.ContainsKey(activeConfig) && activeCelestialBody.pqsController.isActive)
             {
                 if (!renderersAdded || nearCameraWetSurfacesRenderer == null)
                 {
@@ -343,12 +352,9 @@ namespace Atmosphere
                     renderersAdded = true;
                 }
             }
-            else
+            else if(renderersAdded)
             {
-                if (renderersAdded)
-                {
-                    RemoveRenderers();
-                }
+                RemoveRenderers();
             }
         }
 
