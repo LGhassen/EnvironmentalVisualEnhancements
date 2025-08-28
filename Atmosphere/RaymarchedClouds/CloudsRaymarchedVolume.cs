@@ -1061,8 +1061,11 @@ namespace Atmosphere
                 if (droplets != null)
                     droplets.Update();
 
+                // This will be updated by the wetSurfacesManager
+                /*
                 if (wetSurfaces != null)
                     wetSurfaces.Update();
+                */
 
                 if (lightning != null)
                     lightning.Update();

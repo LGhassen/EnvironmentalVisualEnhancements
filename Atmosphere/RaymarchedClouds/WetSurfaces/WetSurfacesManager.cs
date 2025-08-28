@@ -143,23 +143,25 @@ namespace Atmosphere
             }
         }
 
-        // These will be used to do the catch-up
-        private List<WetSurfaces> wetSurfacesLoaded = new List<WetSurfaces>();
+        // This class will update the wet surfaces directly (even if volumetrics are switched
+        // off for 2D clouds). In the future these will also be used to catchup on history
+        // on game load or cloud layer load
+        private List<WetSurfaces> registeredWetSurfaces = new List<WetSurfaces>();
 
         public void RegisterWetSurfacesInstanceLoaded(WetSurfaces cloudWetSurfaces)
         {
-            wetSurfacesLoaded.Add(cloudWetSurfaces);
+            registeredWetSurfaces.Add(cloudWetSurfaces);
         }
 
         public void UnregisterWetSurfacesInstanceLoaded(WetSurfaces cloudWetSurfaces)
         {
-            if (wetSurfacesLoaded.Contains(cloudWetSurfaces))
+            if (registeredWetSurfaces.Contains(cloudWetSurfaces))
             {
-                wetSurfacesLoaded.Remove(cloudWetSurfaces);
+                registeredWetSurfaces.Remove(cloudWetSurfaces);
             }
         }
 
-        WetSurfacesConfig loadedWetSurfacesConfig = null;
+        WetSurfacesConfig loadedConfig = null;
         Transform parentTransform;
 
         public Material wetEffectMaterial, ripplesLutMaterial, accumulationMaterial;
@@ -240,7 +242,7 @@ namespace Atmosphere
 
             activeAccumulationLayerCount++;
 
-            if (loadedWetSurfacesConfig != wetSurfacesConfig)
+            if (loadedConfig != wetSurfacesConfig)
             {
                 OnWetSurfacesConfigChanged(wetSurfacesConfig, parentRadius);
             }
@@ -259,7 +261,7 @@ namespace Atmosphere
             maxAltitude = -1e9f;
             minAltitude = 1e9f;
 
-            foreach (var wetSurface in wetSurfacesLoaded)
+            foreach (var wetSurface in registeredWetSurfaces)
             {
                 foreach (var cloudType in wetSurface.CloudsRaymarchedVolume.CloudTypes)
                 {
@@ -293,12 +295,15 @@ namespace Atmosphere
 
             accumulationMaterial.SetFloat("maxTerrainPuddleAccumulation", wetSurfacesConfig.Terrain.MaxPuddleAccumulation);
 
-            loadedWetSurfacesConfig = wetSurfacesConfig;
+            loadedConfig = wetSurfacesConfig;
         }
 
         public void Update()
         {
-
+            foreach (var wetSurface in registeredWetSurfaces)
+            {
+                wetSurface?.Update();
+            }
         }
 
         // Do the ripples update and later on the map tracking here?
@@ -379,7 +384,7 @@ namespace Atmosphere
 
         private void UpdateTerrainAndSceneryLevels(float deltaTime)
         {
-            if (parentTransform == null || loadedWetSurfacesConfig == null)
+            if (parentTransform == null || loadedConfig == null)
                 return;
 
             accumulationMaterial.SetMatrix(ShaderProperties.planetToWorldMatrix_PROPERTY, parentTransform.localToWorldMatrix);
@@ -407,11 +412,11 @@ namespace Atmosphere
 
         private void UpdateCraftWetLevel(float deltaTime)
         {
-            if (loadedWetSurfacesConfig == null)
+            if (loadedConfig == null)
                 return;
 
-            currentCraftWetLevel += loadedWetSurfacesConfig.Craft.WetnessAccumulationSpeed * currentCoverage * deltaTime;
-            currentCraftWetLevel -= loadedWetSurfacesConfig.Craft.WetnessDryingSpeed * deltaTime;
+            currentCraftWetLevel += loadedConfig.Craft.WetnessAccumulationSpeed * currentCoverage * deltaTime;
+            currentCraftWetLevel -= loadedConfig.Craft.WetnessDryingSpeed * deltaTime;
 
             currentCraftWetLevel = Mathf.Clamp01(currentCraftWetLevel);
             currentCraftWetLevel = Mathf.Min(currentCraftWetLevel, 0.5f); // because this looked good

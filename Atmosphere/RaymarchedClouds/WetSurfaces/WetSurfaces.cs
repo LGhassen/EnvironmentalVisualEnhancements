@@ -64,6 +64,10 @@ namespace Atmosphere
 
         public void Update()
         {
+            float timeFade = cloudsRaymarchedVolume.CurrentTimeFadeCoverage * cloudsRaymarchedVolume.CurrentTimeFadeDensity;
+            if (timeFade <= 0.0f)
+                return;
+
             Vector3 positionToSample = Vector3.zero;
             
             if (FlightGlobals.ActiveVessel != null)
@@ -74,11 +78,12 @@ namespace Atmosphere
             coverageAtCraft = Mathf.Clamp01((coverageAtCraft - wetSurfacesConfigObject.MinCoverageThreshold) / (wetSurfacesConfigObject.MaxCoverageThreshold - wetSurfacesConfigObject.MinCoverageThreshold));
 
             if (coverageAtCraft > 0f)
+            {
                 coverageAtCraft *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeWetSurfacesDensity(cloudType);
+            }
 
             WetSurfacesManager.RenderingManager.AddFrameCoverage(coverageAtCraft, wetSurfacesConfigObject, parentTransform,
-                accumulationTexture, cloudsRaymarchedVolume.CloudRotationMatrix, cloudsRaymarchedVolume.PlanetRadius,
-                cloudsRaymarchedVolume.CurrentTimeFadeCoverage * cloudsRaymarchedVolume.CurrentTimeFadeDensity);
+            accumulationTexture, cloudsRaymarchedVolume.CloudRotationMatrix, cloudsRaymarchedVolume.PlanetRadius, timeFade);
         }
 
 
