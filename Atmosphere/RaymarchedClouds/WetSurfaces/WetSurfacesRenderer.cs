@@ -98,11 +98,13 @@ namespace Atmosphere
         float ripplesTime = 0f;
         float maxAltitude, minAltitude;
 
+        int rippleTextureSize = 1024;
+
         public void Initialize()
         {
-            rippleGradientFlip = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
-            rippleGradientFlop = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
-            rippleNormals = RenderTextureUtils.CreateRenderTexture(1024, 1024, RenderTextureFormat.RG16, false, FilterMode.Bilinear);
+            rippleGradientFlip = RenderTextureUtils.CreateRenderTexture(rippleTextureSize, rippleTextureSize, RenderTextureFormat.R8, false, FilterMode.Bilinear);
+            rippleGradientFlop = RenderTextureUtils.CreateRenderTexture(rippleTextureSize, rippleTextureSize, RenderTextureFormat.R8, false, FilterMode.Bilinear);
+            rippleNormals = RenderTextureUtils.CreateRenderTexture(rippleTextureSize, rippleTextureSize, RenderTextureFormat.RG16, true, FilterMode.Bilinear);
 
             // x y scenery puddles and wetness, z w terrain puddles and wetness
             trackingRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, 2048, 1024, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
@@ -530,10 +532,7 @@ namespace Atmosphere
             ripplesLutMaterial.SetTexture(ShaderProperties.ripplesInputTexture_PROPERTY, rippleGradientFlip);
             Graphics.Blit(null, rippleNormals, ripplesLutMaterial, 3);
 
-            /*
-            rippleNormals.GenerateMips(); // TODO: Should I do this or just fade out the normals with distance?
-                                          // Second would be cheaper
-            */
+            rippleNormals.GenerateMips();
 
             ripplesLutMaterial.SetFloat(ShaderProperties.rainRipplesAmount_PROPERTY, currentCoverage);
         }
