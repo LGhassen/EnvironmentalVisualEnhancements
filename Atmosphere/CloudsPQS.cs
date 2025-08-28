@@ -61,6 +61,8 @@ namespace Atmosphere
             }
         }
 
+        public TimeSettings TimeSettings { get => timeSettings; }
+
         public void OnSphereActive()
         {
             CloudsManager.Log("CloudsPQS: ("+this.name+") OnSphereActive");
@@ -185,23 +187,12 @@ namespace Atmosphere
                 detailRotation -= new Vector3d((int)detailRotation.x, (int)detailRotation.y, (int)detailRotation.z);
                 detailRotation *= 360;
                 detailRotation += offset;
-                Vector3d mainRotation = (ut * mainPeriod);
-                mainRotation -= new Vector3d((int)mainRotation.x, (int)mainRotation.y, (int)mainRotation.z);
-                mainRotation *= 360f;
-                mainRotation += offset;
 
-                QuaternionD mainRotationQ = Quaternion.identity;
-                if (killBodyRotation)
-                {
-                    mainRotationQ = QuaternionD.AngleAxis(celestialBody.rotationAngle, Vector3.up);
-                }
-                mainRotationQ *=
-                    QuaternionD.AngleAxis(mainRotation.x, (Vector3)rotationAxis.GetRow(0)) *
-                    QuaternionD.AngleAxis(mainRotation.y, (Vector3)rotationAxis.GetRow(1)) *
-                    QuaternionD.AngleAxis(mainRotation.z, (Vector3)rotationAxis.GetRow(2));
-                Matrix4x4 mainRotationMatrix = Matrix4x4.TRS(Vector3.zero, mainRotationQ, Vector3.one).inverse;
+                QuaternionD mainRotationQ;
+                Matrix4x4 mainRotationMatrix;
+                GetMainRotationAtUT(ut, celestialBody.rotationAngle, out mainRotationQ, out mainRotationMatrix);
 
-                QuaternionD detailRotationQ = 
+                QuaternionD detailRotationQ =
                     QuaternionD.AngleAxis(detailRotation.x, Vector3.right) *
                     QuaternionD.AngleAxis(detailRotation.y, Vector3.up) *
                     QuaternionD.AngleAxis(detailRotation.z, Vector3.forward);
@@ -213,7 +204,7 @@ namespace Atmosphere
                     {
                         OnSphereActive();
                     }
-                    
+
                     if (!scaled && (!sphere.isActive || MapView.MapIsEnabled))
                     {
                         OnSphereInactive();
@@ -227,8 +218,9 @@ namespace Atmosphere
                         {
                             var inRange = layer2D == null ? true : Mathf.Abs(FlightCamera.fetch.cameraAlt - layer2D.Altitude()) < layerVolume.VisibleRange();
                             if (inRange != layerVolume.enabled)
-                                CloudsManager.Log((inRange ? "Enable" : "Disable")+" clouds when camera: " + FlightCamera.fetch.cameraAlt + " layer: " + (layer2D == null ? "none" : layer2D.Altitude().ToString()));
-                            if (inRange) {
+                                CloudsManager.Log((inRange ? "Enable" : "Disable") + " clouds when camera: " + FlightCamera.fetch.cameraAlt + " layer: " + (layer2D == null ? "none" : layer2D.Altitude().ToString()));
+                            if (inRange)
+                            {
                                 layerVolume.enabled = true;
                                 layerVolume.UpdatePos(FlightCamera.fetch.mainCamera.transform.position,
                                                        world2SphereMatrix,
@@ -236,7 +228,9 @@ namespace Atmosphere
                                                        detailRotationQ,
                                                        mainRotationMatrix,
                                                        detailRotationMatrix);
-                            } else {
+                            }
+                            else
+                            {
                                 layerVolume.enabled = false;
                             }
                         }
@@ -352,6 +346,25 @@ namespace Atmosphere
             }
         }
 
+        public void GetMainRotationAtUT(double ut, double celestialBodyRotationAngle, out QuaternionD mainRotationQ, out Matrix4x4 mainRotationMatrix)
+        {
+            Vector3d mainRotation = (ut * mainPeriod);
+            mainRotation -= new Vector3d((int)mainRotation.x, (int)mainRotation.y, (int)mainRotation.z);
+            mainRotation *= 360f;
+            mainRotation += offset;
+
+            mainRotationQ = Quaternion.identity;
+            if (killBodyRotation)
+            {
+                mainRotationQ = QuaternionD.AngleAxis(celestialBodyRotationAngle, Vector3.up);
+            }
+            mainRotationQ *=
+                QuaternionD.AngleAxis(mainRotation.x, (Vector3)rotationAxis.GetRow(0)) *
+                QuaternionD.AngleAxis(mainRotation.y, (Vector3)rotationAxis.GetRow(1)) *
+                QuaternionD.AngleAxis(mainRotation.z, (Vector3)rotationAxis.GetRow(2));
+            mainRotationMatrix = Matrix4x4.TRS(Vector3.zero, mainRotationQ, Vector3.one).inverse;
+        }
+
         internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation, TimeSettings timeSettings)
         {
             this.body = body;
@@ -401,7 +414,7 @@ namespace Atmosphere
                 if (layerRaymarchedVolume != null)
                 {
                     // TODO pass timeSettings fadeMode
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D, (float)speed.magnitude);
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D, (float)speed.magnitude, this);
                 }
 
                 if (!pqs.isActive || HighLogic.LoadedScene == GameScenes.TRACKSTATION)

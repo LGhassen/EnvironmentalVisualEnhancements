@@ -187,6 +187,7 @@
     <Compile Include="RaymarchedClouds\RaymarchedCloudsQuality.cs" />
     <Compile Include="RaymarchedClouds\WetSurfaces\WetSurfaces.cs" />
     <Compile Include="RaymarchedClouds\WetSurfaces\WetSurfacesConfig.cs" />
+    <Compile Include="RaymarchedClouds\WetSurfaces\WetSurfacesRenderer.cs" />
     <Compile Include="RaymarchedClouds\WetSurfaces\WetSurfacesManager.cs" />
     <Compile Include="RaymarchedClouds\LightVolume\ScreenSpaceShadowsManager.cs" />
     <Compile Include="VolumeManager.cs" />

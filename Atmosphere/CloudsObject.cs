@@ -115,26 +115,30 @@ namespace Atmosphere
                 ut = Planetarium.GetUniversalTime();
             }
 
-            if (unit == TimeUnit.Hours) ut /= 3600.0;
+            currentFade = GetFadeForUT(ut);
+
+            return currentFade > 0.0f ? true : false;
+        }
+
+        public float GetFadeForUT(double ut)
+        {
+            if (unit == TimeUnit.Hours)
+                ut /= 3600.0;
 
             ut += repeatInterval - offset;
-
             ut = ut % repeatInterval;
 
             if (ut > duration)
             {
-                currentFade = 0f;
-                return false;
+                return 0f;
             }
 
             if (ut < fadeTime)
-                currentFade = (float)(ut / fadeTime);
+                return (float)(ut / fadeTime);
             else if (ut > duration - fadeTime)
-                currentFade = (float)(1.0 - (ut - (duration - fadeTime)) / fadeTime);
+                return (float)(1.0 - (ut - (duration - fadeTime)) / fadeTime);
             else
-                currentFade = 1.0f;
-
-            return true;
+                return 1.0f;
         }
 
         public TimeFadeMode GetFadeMode()

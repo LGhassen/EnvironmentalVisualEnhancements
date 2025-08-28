@@ -27,10 +27,9 @@ namespace Atmosphere
                 return false;
 
             cloudsRaymarchedVolume = volume;
+            InitAccumulationTexture(volume, wetSurfacesConfigObject);
 
             WetSurfacesManager.RenderingManager.RegisterWetSurfacesInstanceLoaded(this);
-
-            InitAccumulationTexture(volume, wetSurfacesConfigObject);
 
             return true;
         }

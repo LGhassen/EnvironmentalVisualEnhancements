@@ -317,13 +317,17 @@ namespace Atmosphere
         public LightVolumeUsage LightVolumeSettings { get => lightVolumeSettings; }
         public RaymarchingSettings RaymarchingSettings { get => raymarchingSettings; }
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude)
+        CloudsPQS cloudsPQS;
+        public CloudsPQS CloudsPQS { get => cloudsPQS; }
+
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude, CloudsPQS cloudsPQS)
         {
             parentCelestialBody = celestialBody;
             CloudsPQSMaterial = material;
 
             planetRadius = parentRadius;
             parentTransform = parent;
+            this.cloudsPQS = cloudsPQS;
 
             raymarchedCloudMaterial = new Material(RaymarchedCloudShader);
             reflectionProbeRaymarchedCloudMaterial = new Material(RaymarchedCloudShader);
