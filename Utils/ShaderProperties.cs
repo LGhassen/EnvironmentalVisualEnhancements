@@ -449,6 +449,9 @@ namespace Utils
         public static int floatingOriginOffset_PROPERTY { get { return floatingOriginOffset; } }
         private static int floatingOriginOffset;
 
+        public static int useRipples_PROPERTY { get { return useRipples; } }
+        private static int useRipples;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -616,6 +619,7 @@ namespace Utils
             craftWetness = Shader.PropertyToID("craftWetness");
             rainRipplesAmount = Shader.PropertyToID("rainRipplesAmount");
             floatingOriginOffset = Shader.PropertyToID("floatingOriginOffset");
+            useRipples = Shader.PropertyToID("useRipples");
 
         }
     }

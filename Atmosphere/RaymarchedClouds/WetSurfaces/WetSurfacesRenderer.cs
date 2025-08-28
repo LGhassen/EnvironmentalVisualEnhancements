@@ -83,6 +83,7 @@ namespace Atmosphere
 
         WetSurfacesConfig activeConfig = null;
         Transform activeParentTransform = null;
+        CelestialBody activeCelestialBody = null;
 
         public Material wetEffectMaterial, ripplesLutMaterial, accumulationMaterial;
 
@@ -110,23 +111,6 @@ namespace Atmosphere
             ripplesLutMaterial = new Material(RipplesLutShader);
             accumulationMaterial = new Material(AccumulationShader);
             wetEffectMaterial.SetTexture(ShaderProperties._ripplesLut_PROPERTY, rippleNormals);
-        }
-
-        private void RemoveRenderer()
-        {
-            if (nearCameraWetSurfacesRenderer != null)
-            {
-                nearCameraWetSurfacesRenderer.Cleanup();
-                Component.Destroy(nearCameraWetSurfacesRenderer);
-            }
-
-            if (farCameraWetSurfacesRenderer != null)
-            {
-                farCameraWetSurfacesRenderer.Cleanup();
-                Component.Destroy(farCameraWetSurfacesRenderer);
-            }
-
-            renderersAdded = false;
         }
 
         static readonly int MAX_ACTIVE_ACCUMULATION_LAYERS = 6;
@@ -161,7 +145,7 @@ namespace Atmosphere
             if (activeConfigChanged)
             {
                 var volume = registeredSurfaces[closestActive].surfaces.First().CloudsRaymarchedVolume;
-                OnActiveConfigChanged(closestActive, volume.PlanetRadius, volume.ParentTransform);
+                OnActiveConfigChanged(closestActive, volume.PlanetRadius, volume.ParentTransform, volume.parentCelestialBody);
             }
 
             var ut = Planetarium.GetUniversalTime();
@@ -214,7 +198,7 @@ namespace Atmosphere
             return closestConfig;
         }
 
-        private void OnActiveConfigChanged(WetSurfacesConfig wetSurfacesConfig, float planetRadius, Transform parentTransform)
+        private void OnActiveConfigChanged(WetSurfacesConfig wetSurfacesConfig, float planetRadius, Transform parentTransform, CelestialBody celestialBody)
         {
             wetEffectMaterial.SetFloat("puddlesTiling", 1f / wetSurfacesConfig.PuddleTextureScale);
             wetEffectMaterial.SetFloat("rippleTiling", 1f / wetSurfacesConfig.RippleScale);
@@ -263,6 +247,7 @@ namespace Atmosphere
 
             activeConfig = wetSurfacesConfig;
             activeParentTransform = parentTransform;
+            activeCelestialBody = celestialBody;
         }
 
         private void UpdateActiveWetSurfaceInstances()
@@ -319,6 +304,7 @@ namespace Atmosphere
 
                 UpdateTerrainAndSceneryLevels(deltaTime, activeParentTransform.localToWorldMatrix);
                 wetEffectMaterial.SetMatrix(ShaderProperties.worldToPlanetMatrix_PROPERTY, activeParentTransform.worldToLocalMatrix);
+                wetEffectMaterial.SetInt(ShaderProperties.useRipples_PROPERTY, currentCoverage > 0f ? 1 : 0);
 
                 UpdateRenderers();
             }
@@ -329,28 +315,56 @@ namespace Atmosphere
 
         private void UpdateRenderers()
         {
-            if (!renderersAdded || nearCameraWetSurfacesRenderer == null)
+            // If in pqs and active
+            if (registeredSurfaces[activeConfig].surfaces.Count > 0 && activeCelestialBody.pqsController.isActive)
             {
-                var nearCamera = Camera.allCameras.Where(x => x.name == "Camera 00").FirstOrDefault();
-                if (nearCamera != null)
+                if (!renderersAdded || nearCameraWetSurfacesRenderer == null)
                 {
-                    nearCameraWetSurfacesRenderer = nearCamera.gameObject.AddComponent<WetSurfacesPerCameraRenderer>();
-                    nearCameraWetSurfacesRenderer.SetMaterial(wetEffectMaterial);
-                }
-
-                if (!Tools.IsUnifiedCameraMode() && farCameraWetSurfacesRenderer == null)
-                {
-                    var farCamera = Camera.allCameras.Where(x => x.name == "Camera 01").FirstOrDefault();
-
-                    if (farCamera != null)
+                    var nearCamera = Camera.allCameras.Where(x => x.name == "Camera 00").FirstOrDefault();
+                    if (nearCamera != null)
                     {
-                        farCameraWetSurfacesRenderer = farCamera.gameObject.AddComponent<WetSurfacesPerCameraRenderer>();
-                        farCameraWetSurfacesRenderer.SetMaterial(wetEffectMaterial);
+                        nearCameraWetSurfacesRenderer = nearCamera.gameObject.AddComponent<WetSurfacesPerCameraRenderer>();
+                        nearCameraWetSurfacesRenderer.SetMaterial(wetEffectMaterial);
                     }
-                }
 
-                renderersAdded = true;
+                    if (!Tools.IsUnifiedCameraMode() && farCameraWetSurfacesRenderer == null)
+                    {
+                        var farCamera = Camera.allCameras.Where(x => x.name == "Camera 01").FirstOrDefault();
+
+                        if (farCamera != null)
+                        {
+                            farCameraWetSurfacesRenderer = farCamera.gameObject.AddComponent<WetSurfacesPerCameraRenderer>();
+                            farCameraWetSurfacesRenderer.SetMaterial(wetEffectMaterial);
+                        }
+                    }
+
+                    renderersAdded = true;
+                }
             }
+            else
+            {
+                if (renderersAdded)
+                {
+                    RemoveRenderers();
+                }
+            }
+        }
+
+        private void RemoveRenderers()
+        {
+            if (nearCameraWetSurfacesRenderer != null)
+            {
+                nearCameraWetSurfacesRenderer.Cleanup();
+                Component.Destroy(nearCameraWetSurfacesRenderer);
+            }
+
+            if (farCameraWetSurfacesRenderer != null)
+            {
+                farCameraWetSurfacesRenderer.Cleanup();
+                Component.Destroy(farCameraWetSurfacesRenderer);
+            }
+
+            renderersAdded = false;
         }
 
         private void UpdateTerrainAndSceneryLevels(float deltaTime, Matrix4x4 planetToWorldMatrix)
@@ -420,8 +434,6 @@ namespace Atmosphere
             GL.Clear(false, true, Color.black);
             RenderTexture.active = rt;
 
-            var celestialBody = registeredSurfaces[activeConfig].surfaces.First().CloudsRaymarchedVolume.parentCelestialBody;
-
             Stopwatch stopwatch = Stopwatch.StartNew();
 
             for (int i=0; i < catchupSteps; i++)
@@ -433,7 +445,7 @@ namespace Atmosphere
 
                 // For every time step, recompute the planet's rotation and the cloud transform relative to it
                 // Technically we are only doing this because of the kill rotation optionand because clouds can rotate on multiple axes
-                var celestialBodyRotationAngle = GetCelestialBodyRotationAngleAtUT(catchupUt, celestialBody);
+                var celestialBodyRotationAngle = GetCelestialBodyRotationAngleAtUT(catchupUt, activeCelestialBody);
 
                 activeAccumulationLayerCount = 0;
 
@@ -532,7 +544,7 @@ namespace Atmosphere
             // If disabled, remove renderer from camera, otherwise it will get added in Update
             if (value == false)
             {
-                RemoveRenderer();
+                RemoveRenderers();
             }
         }
     }
