@@ -96,11 +96,6 @@ namespace EVEManager
 
         }
 
-        public virtual void LateUpdate()
-        {
-
-        }
-
         public virtual void SaveConfig()
         {
             ILog("Saving...");

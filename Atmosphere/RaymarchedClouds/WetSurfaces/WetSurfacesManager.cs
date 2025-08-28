@@ -99,17 +99,8 @@ namespace Atmosphere
                 wetSurfacesRenderingManager.Update();
             }
         }
-
-        public override void LateUpdate()
-        {
-            base.LateUpdate();
-
-            if (wetSurfacesRenderingManager != null)
-            {
-                wetSurfacesRenderingManager.LateUpdate();
-            }
-        }
     }
+
 
     public class WetSurfacesRenderingManager
     {
@@ -143,26 +134,52 @@ namespace Atmosphere
             }
         }
 
+        class RegisteredWetSurfaceProperties
+        {
+            public CelestialBody body;
+            public List<WetSurfaces> surfaces;
+        }
+
         // This class will update the wet surfaces directly (even if volumetrics are switched
         // off for 2D clouds). In the future these will also be used to catchup on history
         // on game load or cloud layer load
-        private List<WetSurfaces> registeredWetSurfaces = new List<WetSurfaces>();
+        private Dictionary<WetSurfacesConfig, RegisteredWetSurfaceProperties> registeredSurfaces = new Dictionary<WetSurfacesConfig, RegisteredWetSurfaceProperties>();
+
 
         public void RegisterWetSurfacesInstanceLoaded(WetSurfaces cloudWetSurfaces)
         {
-            registeredWetSurfaces.Add(cloudWetSurfaces);
+            var config = cloudWetSurfaces.WetSurfacesConfigObject;
+
+            if (registeredSurfaces.TryGetValue(config, out var properties))
+            {
+                properties.surfaces.Add(cloudWetSurfaces);
+            }
+            else
+            {
+                registeredSurfaces[config] = new RegisteredWetSurfaceProperties()
+                {
+                    surfaces = new List<WetSurfaces>() { cloudWetSurfaces },
+                    body = cloudWetSurfaces.CloudsRaymarchedVolume.parentCelestialBody
+                };
+            }
         }
 
         public void UnregisterWetSurfacesInstanceLoaded(WetSurfaces cloudWetSurfaces)
         {
-            if (registeredWetSurfaces.Contains(cloudWetSurfaces))
+            var config = cloudWetSurfaces.WetSurfacesConfigObject;
+
+            if (registeredSurfaces.TryGetValue(config, out var properties))
             {
-                registeredWetSurfaces.Remove(cloudWetSurfaces);
+                properties.surfaces.Remove(cloudWetSurfaces);
+                if (properties.surfaces.Count == 0)
+                {
+                    registeredSurfaces.Remove(config);
+                }
             }
         }
 
-        WetSurfacesConfig loadedConfig = null;
-        Transform parentTransform;
+        WetSurfacesConfig activeConfig = null;
+        Transform activeParentTransform = null; // TODO: might need to track celestial body also
 
         public Material wetEffectMaterial, ripplesLutMaterial, accumulationMaterial;
 
@@ -227,28 +244,54 @@ namespace Atmosphere
 
         private int activeAccumulationLayerCount = 0;
 
-        public void AddFrameCoverage(float coverage, WetSurfacesConfig wetSurfacesConfig, Transform parentTransform,
-            RenderTexture accumulationTexture, Matrix4x4 worldToLayerTransform, float parentRadius, float timeFade)
+        public void Update()
         {
-            if (activeAccumulationLayerCount >= MAX_ACTIVE_ACCUMULATION_LAYERS || timeFade <= 0.0)
+            if (registeredSurfaces.Count == 0)
                 return;
 
-            this.parentTransform = parentTransform;
-            currentCoverage += coverage;
+            WetSurfacesConfig closestConfig = GetClosestConfig();
 
-            activeAccumulationTextures[activeAccumulationLayerCount] = accumulationTexture;
-            activeAccumulationTransforms[activeAccumulationLayerCount] = worldToLayerTransform;
-            activeAccumulationFades[activeAccumulationLayerCount] = timeFade;
-
-            activeAccumulationLayerCount++;
-
-            if (loadedConfig != wetSurfacesConfig)
+            if (closestConfig != activeConfig)
             {
-                OnWetSurfacesConfigChanged(wetSurfacesConfig, parentRadius);
+                var volume = registeredSurfaces[closestConfig].surfaces.First().CloudsRaymarchedVolume;
+                OnActiveConfigChanged(closestConfig, volume.PlanetRadius, volume.ParentTransform);
             }
+
+            UpdateActiveWetSurfaceInstances();
+
+            UpdateRendering();
         }
 
-        private void OnWetSurfacesConfigChanged(WetSurfacesConfig wetSurfacesConfig, float planetRadius)
+        private WetSurfacesConfig GetClosestConfig()
+        {
+            WetSurfacesConfig closestConfig = null;
+
+            if (registeredSurfaces.Count == 1)
+            {
+                closestConfig = registeredSurfaces.First().Key;
+            }
+            else
+            {
+                // Sort to find nearest
+                float minDistanceSquared = float.PositiveInfinity;
+
+                foreach (var surface in registeredSurfaces)
+                {
+                    float squaredDistance = Vector3.Dot(surface.Value.body.transform.position,
+                                                        surface.Value.body.transform.position);
+
+                    if (squaredDistance < minDistanceSquared)
+                    {
+                        minDistanceSquared = squaredDistance;
+                        closestConfig = surface.Key;
+                    }
+                }
+            }
+
+            return closestConfig;
+        }
+
+        private void OnActiveConfigChanged(WetSurfacesConfig wetSurfacesConfig, float planetRadius, Transform parentTransform)
         {
             wetEffectMaterial.SetFloat("puddlesTiling", 1f / wetSurfacesConfig.PuddleTextureScale);
             wetEffectMaterial.SetFloat("rippleTiling", 1f / wetSurfacesConfig.RippleScale);
@@ -261,7 +304,7 @@ namespace Atmosphere
             maxAltitude = -1e9f;
             minAltitude = 1e9f;
 
-            foreach (var wetSurface in registeredWetSurfaces)
+            foreach (var wetSurface in registeredSurfaces[wetSurfacesConfig].surfaces)
             {
                 foreach (var cloudType in wetSurface.CloudsRaymarchedVolume.CloudTypes)
                 {
@@ -295,65 +338,71 @@ namespace Atmosphere
 
             accumulationMaterial.SetFloat("maxTerrainPuddleAccumulation", wetSurfacesConfig.Terrain.MaxPuddleAccumulation);
 
-            loadedConfig = wetSurfacesConfig;
+            activeConfig = wetSurfacesConfig;
+            activeParentTransform = parentTransform;
         }
 
-        public void Update()
+        private void UpdateActiveWetSurfaceInstances()
         {
-            foreach (var wetSurface in registeredWetSurfaces)
+            foreach (var wetSurface in registeredSurfaces[activeConfig].surfaces)
             {
-                wetSurface?.Update();
+                if (activeAccumulationLayerCount >= MAX_ACTIVE_ACCUMULATION_LAYERS)
+                    continue;
+
+                var volume = wetSurface.CloudsRaymarchedVolume;
+                var config = wetSurface.WetSurfacesConfigObject;
+
+                float timeFade = volume.CurrentTimeFadeCoverage * volume.CurrentTimeFadeDensity;
+
+                if (timeFade <= 0.0f)
+                    continue;
+
+                Vector3 positionToSample = Vector3.zero;
+
+                if (FlightGlobals.ActiveVessel != null)
+                    positionToSample = FlightGlobals.ActiveVessel.transform.position;
+
+                var coverageAtCraft = volume.SampleCoverage(positionToSample, out float cloudType);
+
+                coverageAtCraft = Mathf.Clamp01((coverageAtCraft - config.MinCoverageThreshold) / (config.MaxCoverageThreshold - config.MinCoverageThreshold));
+
+                if (coverageAtCraft > 0f)
+                {
+                    coverageAtCraft *= volume.GetInterpolatedCloudTypeWetSurfacesDensity(cloudType);
+                }
+
+                currentCoverage += coverageAtCraft;
+
+                activeAccumulationTextures[activeAccumulationLayerCount] = wetSurface.AccumulationTexture;
+                activeAccumulationTransforms[activeAccumulationLayerCount] = volume.CloudRotationMatrix;
+                activeAccumulationFades[activeAccumulationLayerCount] = timeFade;
+
+                activeAccumulationLayerCount++;
             }
         }
 
-        // Do the ripples update and later on the map tracking here?
-        public void LateUpdate()
+        private void UpdateRendering()
         {
-
             currentCoverage = Mathf.Min(1f, currentCoverage);
 
             //if (currentCoverage > 0f || currentWetLevel > 0f || currentPuddleLevel > 0f)
             {
-                UpdateWetSurfaces();
+                var deltaTime = Tools.GetDeltaTime();
 
-                // Set Renderer enabled (if disabled)
+                if (currentCoverage > 0f)
+                {
+                    UpdateRipples(deltaTime);
+                }
+
+                UpdateCraftWetLevel(deltaTime);
+
+                UpdateTerrainAndSceneryLevels(deltaTime, activeParentTransform.localToWorldMatrix, activeParentTransform.worldToLocalMatrix);
+
+                UpdateRenderers();
             }
-            /*
-            else
-            {
-                // Set Renderer disabled (if enabled)
-                SetEnabled(false);
-            }
-            */
 
             currentCoverage = 0f;
             activeAccumulationLayerCount = 0;
-        }
-
-        
-        public void SetEnabled(bool value)
-        {
-            // If disabled, remove renderer from camera, otherwise it will get added in Update
-            if (value == false)
-            {
-                RemoveRenderer();
-            }
-        }
-
-        private void UpdateWetSurfaces()
-        {
-            var deltaTime = Tools.GetDeltaTime();
-
-            if (currentCoverage > 0f)
-            {
-                UpdateRipples(deltaTime);
-            }
-
-            UpdateCraftWetLevel(deltaTime);
-
-            UpdateTerrainAndSceneryLevels(deltaTime);
-
-            UpdateRenderers();
         }
 
         private void UpdateRenderers()
@@ -382,13 +431,13 @@ namespace Atmosphere
             }
         }
 
-        private void UpdateTerrainAndSceneryLevels(float deltaTime)
+        private void UpdateTerrainAndSceneryLevels(float deltaTime, Matrix4x4 planetToWorldMatrix, Matrix4x4 worldToPlanetMatrix)
         {
-            if (parentTransform == null || loadedConfig == null)
+            if (activeParentTransform == null || activeConfig == null)
                 return;
 
-            accumulationMaterial.SetMatrix(ShaderProperties.planetToWorldMatrix_PROPERTY, parentTransform.localToWorldMatrix);
-            wetEffectMaterial.SetMatrix(ShaderProperties.worldToPlanetMatrix_PROPERTY, parentTransform.worldToLocalMatrix);
+            accumulationMaterial.SetMatrix(ShaderProperties.planetToWorldMatrix_PROPERTY, planetToWorldMatrix);
+            wetEffectMaterial.SetMatrix(ShaderProperties.worldToPlanetMatrix_PROPERTY, worldToPlanetMatrix);
 
             for (int i = 0; i < activeAccumulationLayerCount; i++)
             {
@@ -405,18 +454,45 @@ namespace Atmosphere
 
             wetEffectMaterial.SetTexture(ShaderProperties.trackingRT_PROPERTY, trackingRT[renderToFlip, false, 0]);
 
-            
-
             renderToFlip = !renderToFlip;
+        }
+
+        private void PerformCatchup()
+        {
+            // Find the timestamp to start at, using the max drying time
+
+
+            int catchupSteps = 64;
+            
+            for (int i=0; i < catchupSteps; i++)
+            {
+                // Do that non-linear mapping to find the time
+
+                // For every time step, recompute the planet rotation using its KSP api info
+
+                // Apply planet scale matrix to it
+
+                // Invert to worldToPlanet
+
+                // Now step through the registered cloud types
+
+                // Use their time settings to fill in the time values
+
+                // Compute their worldToCloud matrices using the rotations
+
+                // Integrate the tracking map levels
+
+                // Integrate the craft/camera levels
+            }
         }
 
         private void UpdateCraftWetLevel(float deltaTime)
         {
-            if (loadedConfig == null)
+            if (activeConfig == null)
                 return;
 
-            currentCraftWetLevel += loadedConfig.Craft.WetnessAccumulationSpeed * currentCoverage * deltaTime;
-            currentCraftWetLevel -= loadedConfig.Craft.WetnessDryingSpeed * deltaTime;
+            currentCraftWetLevel += activeConfig.Craft.WetnessAccumulationSpeed * currentCoverage * deltaTime;
+            currentCraftWetLevel -= activeConfig.Craft.WetnessDryingSpeed * deltaTime;
 
             currentCraftWetLevel = Mathf.Clamp01(currentCraftWetLevel);
             currentCraftWetLevel = Mathf.Min(currentCraftWetLevel, 0.5f); // because this looked good
@@ -424,7 +500,7 @@ namespace Atmosphere
 
             wetEffectMaterial.SetFloat(ShaderProperties.craftWetness_PROPERTY, currentCraftWetLevel);
 
-            wetEffectMaterial.SetVector(ShaderProperties.upVector_PROPERTY, -parentTransform.position.normalized);
+            wetEffectMaterial.SetVector(ShaderProperties.upVector_PROPERTY, -activeParentTransform.position.normalized);
         }
 
         private void UpdateRipples(float deltaTime)
@@ -451,6 +527,16 @@ namespace Atmosphere
             */
 
             ripplesLutMaterial.SetFloat(ShaderProperties.rainRipplesAmount_PROPERTY, currentCoverage);
+        }
+
+        // TODO
+        public void SetEnabled(bool value)
+        {
+            // If disabled, remove renderer from camera, otherwise it will get added in Update
+            if (value == false)
+            {
+                RemoveRenderer();
+            }
         }
     }
 

@@ -198,11 +198,6 @@ namespace Atmosphere
                     droplets.SetDropletsEnabled(value);
                 }
 
-                if (wetSurfaces != null)
-                {
-                    wetSurfaces.SetEnabled(value);
-                }
-
                 if (screenspaceShadowMaterialKeywordsEnabled != _enabled && screenspaceShadowMaterial != null)
                 {
                     if (_enabled)
@@ -1060,12 +1055,6 @@ namespace Atmosphere
 
                 if (droplets != null)
                     droplets.Update();
-
-                // This will be updated by the wetSurfacesManager
-                /*
-                if (wetSurfaces != null)
-                    wetSurfaces.Update();
-                */
 
                 if (lightning != null)
                     lightning.Update();

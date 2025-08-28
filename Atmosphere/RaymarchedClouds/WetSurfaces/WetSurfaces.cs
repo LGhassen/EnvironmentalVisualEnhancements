@@ -1,7 +1,6 @@
 ﻿using ShaderLoader;
 using UnityEngine;
 using Utils;
-using static Targeting;
 
 namespace Atmosphere
 {
@@ -14,11 +13,11 @@ namespace Atmosphere
 
         CloudsRaymarchedVolume cloudsRaymarchedVolume = null;
 
-        Transform parentTransform;
-
         RenderTexture accumulationTexture;
 
         public CloudsRaymarchedVolume CloudsRaymarchedVolume { get => cloudsRaymarchedVolume; }
+        public WetSurfacesConfig WetSurfacesConfigObject { get => wetSurfacesConfigObject; }
+        public RenderTexture AccumulationTexture { get => accumulationTexture; }
 
         public bool Apply(Transform parent, CloudsRaymarchedVolume volume)
         {
@@ -28,9 +27,7 @@ namespace Atmosphere
                 return false;
 
             cloudsRaymarchedVolume = volume;
-            parentTransform = parent;
 
-            // This is for the catch-up mechanism
             WetSurfacesManager.RenderingManager.RegisterWetSurfacesInstanceLoaded(this);
 
             InitAccumulationTexture(volume, wetSurfacesConfigObject);
@@ -60,38 +57,6 @@ namespace Atmosphere
             accumulationTexture = RenderTextureUtils.CreateRenderTexture(2048, 1024, RenderTextureFormat.R8, false, FilterMode.Bilinear);
 
             Graphics.Blit(null, accumulationTexture, accumulationMaterial, 0);
-        }
-
-        public void Update()
-        {
-            float timeFade = cloudsRaymarchedVolume.CurrentTimeFadeCoverage * cloudsRaymarchedVolume.CurrentTimeFadeDensity;
-            if (timeFade <= 0.0f)
-                return;
-
-            Vector3 positionToSample = Vector3.zero;
-            
-            if (FlightGlobals.ActiveVessel != null)
-                positionToSample = FlightGlobals.ActiveVessel.transform.position;
-            
-            var coverageAtCraft = cloudsRaymarchedVolume.SampleCoverage(positionToSample, out float cloudType);
-
-            coverageAtCraft = Mathf.Clamp01((coverageAtCraft - wetSurfacesConfigObject.MinCoverageThreshold) / (wetSurfacesConfigObject.MaxCoverageThreshold - wetSurfacesConfigObject.MinCoverageThreshold));
-
-            if (coverageAtCraft > 0f)
-            {
-                coverageAtCraft *= cloudsRaymarchedVolume.GetInterpolatedCloudTypeWetSurfacesDensity(cloudType);
-            }
-
-            WetSurfacesManager.RenderingManager.AddFrameCoverage(coverageAtCraft, wetSurfacesConfigObject, parentTransform,
-            accumulationTexture, cloudsRaymarchedVolume.CloudRotationMatrix, cloudsRaymarchedVolume.PlanetRadius, timeFade);
-        }
-
-
-        // I think when disabled we need to stop doing updates but not register/unregister
-        // May not need actually need this
-        public void SetEnabled(bool enabled)
-        {
-
         }
 
         public void Remove()
