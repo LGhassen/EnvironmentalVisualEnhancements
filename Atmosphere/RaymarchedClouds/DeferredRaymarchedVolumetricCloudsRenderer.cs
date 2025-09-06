@@ -468,7 +468,11 @@ namespace Atmosphere
 
                 // add the frame to frame offset of the parent body, this contains both the movement of the body and the floating origin
                 Vector3d currentOffset = volumesAdded.ElementAt(0).parentCelestialBody.position - previousParentPosition;
-                previousParentPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
+                if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
+                {
+                    // don't update this until we're done drawing both eyes when in VR mode
+                    previousParentPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
+                }
 
                 //transform to camera space
                 Vector3 floatOffset = currentV.MultiplyVector(-currentOffset);
