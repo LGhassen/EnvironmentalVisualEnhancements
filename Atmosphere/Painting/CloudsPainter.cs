@@ -488,12 +488,12 @@ namespace Atmosphere
             }
         }
 
-        bool tangentFrameInitialized = false;
-        Vector3d tangentFrameTangent = new Vector3d(0, 0, 0);
-        Vector3d tangentFrameBitangent = new Vector3d(0, 0, 0);
-        Vector3d tangentFrameNormal = new Vector3d(0, 0, 0);
-        Vector3d tangentFrameOrigin = new Vector3d(0, 0, 0);
-        Vector3d cumulatedTangentFrameOffset = new Vector3d(0, 0, 0);
+        static bool tangentFrameInitialized = false;
+        static Vector3d tangentFrameTangent = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameBitangent = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameNormal = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameOrigin = new Vector3d(0, 0, 0);
+        static Vector3d cumulatedTangentFrameOffset = new Vector3d(0, 0, 0);
 
         private void UpdateTilePaintingTangentFrame(Vector3d cameraPositionInCloudSpace, double radius)
         {
