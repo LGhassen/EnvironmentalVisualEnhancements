@@ -531,7 +531,7 @@ namespace Atmosphere
             {
 				if (renderingEnabled)
                 {
-					var parentCelestialBody = particleFields.ElementAt(0).ParentCelestialBody;
+					var parentCelestialBody = particleFields.First().ParentCelestialBody;
 
                     Vector3 upVector = (targetCamera.transform.position - parentCelestialBody.transform.position).normalized;
 					particleFieldLightingMaterial.SetVector(ShaderProperties.upVector_PROPERTY, upVector);

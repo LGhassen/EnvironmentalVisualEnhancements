@@ -523,17 +523,17 @@ namespace Atmosphere
                     }
                 }
 
-                float planetRadius = volumesAdded.ElementAt(0).PlanetRadius;
+                float planetRadius = volumesAdded[0].PlanetRadius;
 
                 if (useLightVolume && mainFlightCamera)
-                    LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded.ElementAt(0).parentCelestialBody.transform, planetRadius, innerLightVolumeRadius, outerLightVolumeRadius, lightVolumeSlowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse, lightVolumeMaxRadius);
+                    LightVolume.Instance.Update(volumesAdded, cameraPosition, volumesAdded[0].parentCelestialBody.transform, planetRadius, innerLightVolumeRadius, outerLightVolumeRadius, lightVolumeSlowestRotatingLayer.PlanetOppositeFrameDeltaRotationMatrix.inverse, lightVolumeMaxRadius);
 
                 DeferredRaymarchedRendererToScreen.SetFade(cloudFade);
                 var DeferredRaymarchedRendererToScreenMaterial = DeferredRaymarchedRendererToScreen.compositeColorMaterial;
                 DeferredRaymarchedRendererToScreenMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
-                DeferredRaymarchedRendererToScreenMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0).RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
+                DeferredRaymarchedRendererToScreenMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded[0].RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
                 DeferredRaymarchedRendererToScreen.depthOcclusionMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
 
@@ -555,11 +555,11 @@ namespace Atmosphere
                 var currentV = VRUtils.GetViewMatrixForCamera(targetCamera);
 
                 // add the frame to frame offset of the parent body, this contains both the movement of the body and the floating origin
-                Vector3d currentOffset = volumesAdded.ElementAt(0).parentCelestialBody.position - previousParentPosition;
+                Vector3d currentOffset = volumesAdded[0].parentCelestialBody.position - previousParentPosition;
                 if (targetCamera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left)
                 {
                     // don't update this until we're done drawing both eyes when in VR mode
-                    previousParentPosition = volumesAdded.ElementAt(0).parentCelestialBody.position;
+                    previousParentPosition = volumesAdded[0].parentCelestialBody.position;
                 }
 
                 //transform to camera space
@@ -721,7 +721,7 @@ namespace Atmosphere
 
             bool useFlipRaysBuffer = true;
             bool useLightningFlipRaysBuffer = true;
-            var meshRenderer = volumesAdded.ElementAt(0).volumeMeshrenderer;
+            var meshRenderer = volumesAdded[0].volumeMeshrenderer;
 
             var currentVP = currentP * currentV;
 
@@ -901,8 +901,8 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetFloat(ShaderProperties.innerSphereRadius_PROPERTY, innerCloudsRadius);
             reconstructCloudsMaterial.SetFloat(ShaderProperties.outerSphereRadius_PROPERTY, outerCloudsRadius);
             
-            reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded.ElementAt(0).PlanetRadius);
-            reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded.ElementAt(0)
+            reconstructCloudsMaterial.SetFloat(ShaderProperties.planetRadius_PROPERTY, volumesAdded[0].PlanetRadius);
+            reconstructCloudsMaterial.SetVector(ShaderProperties.sphereCenter_PROPERTY, volumesAdded[0]
                 .RaymarchedCloudMaterial.GetVector(ShaderProperties.sphereCenter_PROPERTY)); //TODO: cleaner way to handle it
 
             HandleUnstableMasks();

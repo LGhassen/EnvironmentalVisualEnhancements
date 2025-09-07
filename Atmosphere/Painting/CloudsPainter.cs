@@ -844,7 +844,7 @@ namespace Atmosphere
                 selectedIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
                 selectedPainterTileName = GUIHelper.DrawSelector<String>(tileList, ref selectedIndex, 4, placementBase, ref placement);
-                selectedPainterTile = layerRaymarchedVolume.PainterTiles.ElementAt(selectedIndex);
+                selectedPainterTile = layerRaymarchedVolume.PainterTiles[selectedIndex];
 
                 // Draw tile rescale and tile rotation fields
                 DrawFloatField(placementBase, ref placement, "Rescale ", ref tileRescaleValue, 0f, 5f, "0.00");
@@ -860,7 +860,7 @@ namespace Atmosphere
                     selectedMaskIndex = selectedMaskIndex < 0 ? 0 : selectedMaskIndex;
 
                     selectedPainterTileMaskName = GUIHelper.DrawSelector<String>(tileMaskList, ref selectedMaskIndex, 4, placementBase, ref placement);
-                    selectedPainterTileMask = layerRaymarchedVolume.PainterTileMasks.ElementAt(selectedMaskIndex);
+                    selectedPainterTileMask = layerRaymarchedVolume.PainterTileMasks[selectedMaskIndex];
                 }
             }
 

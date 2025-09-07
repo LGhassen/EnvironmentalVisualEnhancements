@@ -261,7 +261,7 @@ namespace Atmosphere
 
                 for (int i = 0; i < dropletsConfigObject.SideDropletLayers.Count; i++)
                 {
-                    var sideLayerConfig = dropletsConfigObject.SideDropletLayers.ElementAt(i);
+                    var sideLayerConfig = dropletsConfigObject.SideDropletLayers[i];
                     sideDropletLayerSize[i] = 1f / sideLayerConfig.Scale;
                     sideDropletLayerSpeed[i] = sideLayerConfig.FallSpeed;
                     sideDropletLayerAspectRatio[i] = sideLayerConfig.DropletToTrailAspectRatio;
@@ -283,7 +283,7 @@ namespace Atmosphere
 
                 for (int i = 0; i < dropletsConfigObject.TopDropletLayers.Count; i++)
                 {
-                    var topLayerConfig = dropletsConfigObject.TopDropletLayers.ElementAt(i);
+                    var topLayerConfig = dropletsConfigObject.TopDropletLayers[i];
                     topDropletLayerSize[i] = 1f / topLayerConfig.Scale;
                     topDropletLayerSpeed[i] = topLayerConfig.Speed;
                 }
