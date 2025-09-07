@@ -53,7 +53,7 @@ namespace Atmosphere
 
         public string selectedPainterTileName = "";
         public PainterTile selectedPainterTile;
-        public float tileRescaleValue = 1f;
+        public Vector2 tileRescaleValue = Vector2.one;
         public float tileRotationValue = 0f; // degrees
         public float tileOffsetX, tileOffsetY;
         TextureWrapper selectedTileCoverageWrapper = null;
@@ -661,7 +661,9 @@ namespace Atmosphere
             if (editingMode == EditingMode.tile || editingMode == EditingMode.maskedTile)
             {
                 var selectedTileSize = (double)selectedPainterTile.Size;
-                var uvOffset = cumulatedTangentFrameOffset / (selectedTileSize * tileRescaleValue);
+                var uvOffset = cumulatedTangentFrameOffset / selectedTileSize;
+                uvOffset.x /= tileRescaleValue.x;
+                uvOffset.y /= tileRescaleValue.y;
                 uvOffset = new Vector3d(uvOffset.x - Math.Floor(uvOffset.x), uvOffset.y - Math.Floor(uvOffset.y), 0d);
 
                 paintMaterial.SetVector("tileFrameTangent", (Vector3)tangentFrameTangent);
@@ -669,7 +671,7 @@ namespace Atmosphere
                 paintMaterial.SetVector("tileFrameNormal", (Vector3)tangentFrameNormal);
                 paintMaterial.SetVector("tileFrameOrigin", (Vector3)tangentFrameOrigin);
                 paintMaterial.SetVector("tileFrameUVOffset", (Vector3)uvOffset);
-                paintMaterial.SetFloat("tileSize", selectedPainterTile.Size * tileRescaleValue);
+                paintMaterial.SetVector("tileSize", selectedPainterTile.Size * tileRescaleValue);
 
                 paintMaterial.SetFloat("tileRotation", tileRotationValue * Mathf.Deg2Rad);
                 paintMaterial.SetVector("tileOffset", new Vector2((float)tileOffsetX, (float)tileOffsetY));
@@ -847,7 +849,8 @@ namespace Atmosphere
                 selectedPainterTile = layerRaymarchedVolume.PainterTiles[selectedIndex];
 
                 // Draw tile rescale and tile rotation fields
-                DrawFloatField(placementBase, ref placement, "Rescale ", ref tileRescaleValue, 0f, 5f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Rescale X", ref tileRescaleValue.x, 0f, 5f, "0.00");
+                DrawFloatField(placementBase, ref placement, "Rescale Y", ref tileRescaleValue.y, 0f, 5f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Rotate ", ref tileRotationValue, -360f, 360f, "000");
                 DrawFloatField(placementBase, ref placement, "Offset X ", ref tileOffsetX, -1f, 1f, "0.00");
                 DrawFloatField(placementBase, ref placement, "Offset Y ", ref tileOffsetY, -1f, 1f, "0.00");

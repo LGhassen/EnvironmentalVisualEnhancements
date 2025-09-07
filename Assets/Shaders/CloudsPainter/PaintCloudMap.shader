@@ -281,7 +281,7 @@
 
 			sampler2D inputTile;
 			sampler2D inputTypeTile;
-			float tileSize;
+			float2 tileSize;
 			int readType;
 			int writingType;
 			int useGuideMask;
@@ -306,7 +306,7 @@
 			}
 
 			float2 GetTileUV(float3 sphereRelativePos, float3 frameOrigin, float3 frameTangent, float3 frameBitangent,
-				float3 frameNormal, float radius, float inverseTileSize, float2 tileUVOffset)
+				float3 frameNormal, float radius, float2 inverseTileSize, float2 tileUVOffset)
 			{
 				float2 projectedPos = float2(dot(sphereRelativePos - frameOrigin, frameTangent), dot(sphereRelativePos - frameOrigin, frameBitangent));
 
