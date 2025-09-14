@@ -1,4 +1,5 @@
 ﻿using ShaderLoader;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -45,7 +46,6 @@ namespace Atmosphere
             public CelestialBody body;
             public List<WetSurfaces> surfaces;
         }
-
 
         private Dictionary<WetSurfacesConfig, RegisteredWetSurfaceProperties> registeredSurfaces = new Dictionary<WetSurfacesConfig, RegisteredWetSurfaceProperties>();
 
@@ -107,7 +107,9 @@ namespace Atmosphere
             rippleNormals = RenderTextureUtils.CreateRenderTexture(rippleTextureSize, rippleTextureSize, RenderTextureFormat.RG16, true, FilterMode.Bilinear);
 
             // x y scenery puddles and wetness, z w terrain puddles and wetness
-            trackingRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, 2048, 1024, RenderTextureFormat.ARGBHalf, FilterMode.Bilinear);
+            // It's important to use 32-bit floats and not 16-bit because the additions/substractions work with very small numbers
+            // Could normalize and multiply by 65k though
+            trackingRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, 2048, 1024, RenderTextureFormat.ARGBFloat, FilterMode.Bilinear);
 
             wetEffectMaterial = new Material(WetEffectShader);
             ripplesLutMaterial = new Material(RipplesLutShader);
