@@ -400,8 +400,11 @@ namespace Atmosphere
             {
                 if (!wetSurfaces.Apply(parent, this))
                 {
-                    wetSurfaces.Remove();
-                    wetSurfaces = null;
+                    if (wetSurfaces != null)
+                    { 
+                        wetSurfaces.Remove();
+                        wetSurfaces = null;
+                    }
                 }
             }
 

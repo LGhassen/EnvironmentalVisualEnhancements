@@ -29,7 +29,7 @@ namespace Atmosphere
             cloudsRaymarchedVolume = volume;
             InitAccumulationTexture(volume, wetSurfacesConfigObject);
 
-            WetSurfacesManager.RenderingManager.RegisterWetSurfacesInstanceLoaded(this);
+            WetSurfacesManager.RenderingManager?.RegisterWetSurfacesInstanceLoaded(this);
 
             return true;
         }
@@ -60,7 +60,7 @@ namespace Atmosphere
 
         public void Remove()
         {
-            WetSurfacesManager.RenderingManager.UnregisterWetSurfacesInstanceLoaded(this);
+            WetSurfacesManager.RenderingManager?.UnregisterWetSurfacesInstanceLoaded(this);
             Cleanup();
         }
 
