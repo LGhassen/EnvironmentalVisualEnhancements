@@ -156,7 +156,8 @@ namespace Atmosphere
 
                 // Catchup conditions
                 bool fastForward = ut > (lastUpdateUT + 1000.0 * deltaTime) && deltaTime > 0.0;
-                bool timeTravel = ut < lastUpdateUT;
+                bool timeTravel = ut + 200.0d < lastUpdateUT; // Warp to next day overshoots sometimes causing this to trigger
+                                                              // Add 200s tolerance to fix
 
                 if (fastForward || timeTravel || activeConfigChanged)
                 {
@@ -422,8 +423,9 @@ namespace Atmosphere
             var lowestDryingSpeed = Mathf.Min(Mathf.Min(activeConfig.Scenery.PuddleDryingSpeed, activeConfig.Scenery.WetnessDryingSpeed),
                                               Mathf.Min(activeConfig.Terrain.PuddleDryingSpeed, activeConfig.Terrain.WetnessDryingSpeed));
 
-            // If it never dries cap to ~1 month
-            var dryingTime = lowestDryingSpeed > 0.0 ? 1.0d / lowestDryingSpeed : 2.5e6d;
+            // If it never dries or takes too long cap to ~1 month
+            var capDryingTime = 2.5e6d;
+            var dryingTime = lowestDryingSpeed > 0.0 ? Math.Min(1.0d / lowestDryingSpeed, capDryingTime) : capDryingTime;
 
             // Find the timestamp to start at, using the max drying time
             var startUt = System.Math.Max(ut - dryingTime, 0d);
