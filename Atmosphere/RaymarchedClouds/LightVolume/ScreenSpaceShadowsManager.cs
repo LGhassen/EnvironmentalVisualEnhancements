@@ -305,11 +305,33 @@ namespace Atmosphere
             }
         }
 
+        static Matrix4x4 GetGpuViewProjectionMatrix(Camera camera, bool renderIntoTexture = true)
+        {
+            Matrix4x4 viewMatrix;
+            Matrix4x4 projMatrix;
+
+            if (!camera.stereoEnabled)
+            {
+                viewMatrix = camera.worldToCameraMatrix;
+                projMatrix = camera.projectionMatrix;
+            }
+            else
+            {
+                Camera.StereoscopicEye activeEye = (Camera.StereoscopicEye)camera.stereoActiveEye;
+                viewMatrix = camera.GetStereoViewMatrix(activeEye);
+                projMatrix = camera.GetStereoProjectionMatrix(activeEye);
+            }
+
+            Matrix4x4 gpuProj = GL.GetGPUProjectionMatrix(projMatrix, renderIntoTexture);
+            return gpuProj * viewMatrix;
+        }
+
         public void OnPreCull()
         {
             if (renderingCommandBuffer != null)
             { 
                 light.AddCommandBuffer(LightEvent.AfterScreenspaceMask, renderingCommandBuffer);
+                Shader.SetGlobalMatrix(ShaderProperties.currentVP_PROPERTY, GetGpuViewProjectionMatrix(camera));
             }
 
             if (displayCommandBuffer != null)
@@ -325,7 +347,6 @@ namespace Atmosphere
 
         public void OnPostRender()
         {
-            // TODO: VR rendering finished checks?
             bool doneRendering = camera.stereoActiveEye != Camera.MonoOrStereoscopicEye.Left;
 
             if (!doneRendering)
