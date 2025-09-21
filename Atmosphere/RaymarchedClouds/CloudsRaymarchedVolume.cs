@@ -455,7 +455,6 @@ namespace Atmosphere
                 screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
                 screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
                 screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
-                screenspaceShadowMaterial.SetTexture("AccumulatedVerticalCoverageTexture", accumulatedVerticalCoverageTexture);
             }
 
             if (lightVolumeSettings.UseLightVolume)
@@ -721,6 +720,7 @@ namespace Atmosphere
             mat.SetFloat("invLayerHeight", 1f / (outerSphereRadius - innerSphereRadius));
 
             mat.SetTexture("DensityCurve", curvesTexture);
+            mat.SetTexture("AccumulatedVerticalCoverageTexture", accumulatedVerticalCoverageTexture);
 
             Vector4[] cloudTypePropertiesArray = new Vector4[cloudTypes.Count];
             float[] multipleScatteringBrightnessArray = new float[cloudTypes.Count];

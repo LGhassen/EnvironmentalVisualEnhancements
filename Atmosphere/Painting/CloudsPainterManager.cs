@@ -41,6 +41,8 @@ namespace Atmosphere
             }
         }
 
+        Vector2 objListPos;
+
         public override void DrawGUI(Rect placementBase, Rect placement)
         {
             placement.height = 1;
@@ -60,7 +62,10 @@ namespace Atmosphere
                 selectedObjIndex = 0;
             }
             selectedObjIndex = GUI.SelectionGrid(selectBoxItemsRect, selectedObjIndex, layerList.Select(x => x.Name).ToArray(), 1);
+
             placement.y += placement.height + 1 + 2.0f * GUIHelper.spacingOffset;
+
+
 
 
             if (selectedObjIndex > -1)
@@ -70,6 +75,7 @@ namespace Atmosphere
                 if (paintersDictionary.ContainsKey(key))
                 {
                     var painter = paintersDictionary[key];
+
                     painter.DrawGUI(placementBase, ref placement);
                     painter.Paint();
 

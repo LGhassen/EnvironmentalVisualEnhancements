@@ -89,10 +89,11 @@ namespace Atmosphere
             public const int RaymarchClouds = 0;
             public const int RaymarchCloudsOverlap = 1;
             public const int LightningOcclusion = 2;
-            public const int UpdateLightVolumeDirectSingleSlice = 3;
-            public const int UpdateLightVolumeAmbientSingleSlice = 4;
-            public const int UpdateLightVolumeDirectMultiSlice = 5;
-            public const int UpdateLightVolumeAmbientMultiSlice = 6;
+            public const int Generate2DTexture = 3;
+            public const int UpdateLightVolumeDirectSingleSlice = 4;
+            public const int UpdateLightVolumeAmbientSingleSlice = 5;
+            public const int UpdateLightVolumeDirectMultiSlice = 6;
+            public const int UpdateLightVolumeAmbientMultiSlice = 7;
         }
 
         public static class ReconstructionShaderPassName

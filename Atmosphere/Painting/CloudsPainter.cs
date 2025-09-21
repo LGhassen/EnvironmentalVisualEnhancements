@@ -43,6 +43,9 @@ namespace Atmosphere
 
         public EditingMode editingMode = EditingMode.coverage;
 
+        public int twoDimensionalTextureExportResolution = 16384;
+        public int twoDimensionalTextureStepCount = 256;
+
         public float brushSize = 5000f;
         public float hardness = 0f;
         public float opacity = 1f;
@@ -870,25 +873,33 @@ namespace Atmosphere
             paintEnabled = GUI.Toggle(GUIHelper.GetRect(placementBase, ref placement), paintEnabled, "Enable painting");
             placement.y += 1;
 
-            if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Reset current mode textures"))
+
+            Rect resetRect = GUIHelper.GetRect(placementBase, ref placement);
+            Rect resetAllRect = new Rect(resetRect);
+            GUIHelper.SplitRect(ref resetRect, ref resetAllRect, 0.5f);
+
+            if (GUI.Button(resetRect, "Reset current mode textures"))
             {
                 ResetCurrentTextures();
             }
-            placement.y += 1;
 
-            if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Reset all textures"))
+            if (GUI.Button(resetAllRect, "Reset all textures"))
             {
                 InitTextures();
             }
             placement.y += 1;
 
-            if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Save current mode textures"))
+
+            Rect saveRect = GUIHelper.GetRect(placementBase, ref placement);
+            Rect saveAllRect = new Rect(saveRect);
+            GUIHelper.SplitRect(ref saveRect, ref saveAllRect, 0.5f);
+
+            if (GUI.Button(saveRect, "Save current mode textures"))
             {
                 SaveCurrentTextures();
             }
-            placement.y += 1;
 
-            if (GUI.Button(GUIHelper.GetRect(placementBase, ref placement), "Save all textures"))
+            if (GUI.Button(saveAllRect, "Save all textures"))
             {
                 SaveAllTextures();
             }
@@ -902,14 +913,46 @@ namespace Atmosphere
                     GenerateAndSaveSDF();
                 }
             }
+            
+            placement.y += 2;
 
-            placement.y += 1;
+            if (cloudCoverage.IsCreated)
+            {
+                Rect buttonRect = GUIHelper.GetRect(placementBase, ref placement);
+                Rect resRect = new Rect(buttonRect);
+                Rect stepsRect = new Rect(buttonRect);
+                GUIHelper.SplitRect(ref buttonRect, ref resRect, 1 / 3f);
+                GUIHelper.SplitRect(ref resRect, ref stepsRect, 1 / 2f);
+
+                if (GUI.Button(buttonRect, "Generate 2D texture"))
+                {
+                    Generate2DTexture();
+                }
+
+                DrawIntFieldInPlace(resRect, "  Resolution", ref twoDimensionalTextureExportResolution, 0);
+                DrawIntFieldInPlace(stepsRect, "  Samples", ref twoDimensionalTextureStepCount, 0);
+            }
         }
 
         private void GenerateAndSaveSDF()
         {
             string path = CreateFileNameAndPath("sdf", "sdf");
             SDFTool.GenerateAndSaveSDFInBackground(cloudCoverage.Committed, path);
+        }
+
+        private void Generate2DTexture()
+        {
+            var targetRT = new RenderTexture(twoDimensionalTextureExportResolution,
+                twoDimensionalTextureExportResolution / 2, 0, RenderTextureFormat.R8, 0);
+            targetRT.Create();
+
+            layerRaymarchedVolume.RaymarchedCloudMaterial.SetMatrix("invCloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix.inverse);
+            layerRaymarchedVolume.RaymarchedCloudMaterial.SetInt("twoDimensionalTextureStepCount", twoDimensionalTextureStepCount);
+            Graphics.Blit(null, targetRT, layerRaymarchedVolume.RaymarchedCloudMaterial,
+                DeferredRaymarchedVolumetricCloudsRenderer.RaymarchedCloudShaderPassName.Generate2DTexture);
+
+            SaveRTToFile(targetRT, "2D");
+            targetRT.Release();
         }
 
         private void ResetCurrentTextures()
@@ -1040,6 +1083,23 @@ namespace Atmosphere
                 field = Math.Max(minValue.Value, field);
 
             placement.y += 1;
+        }
+
+        private void DrawIntFieldInPlace(Rect placement, string name, ref int field, int? minValue = null, int? maxValue = null)
+        {
+            Rect labelRect = new Rect(placement);
+            Rect fieldRect = new Rect(placement);
+            GUIHelper.SplitRect(ref labelRect, ref fieldRect, 0.55f);
+
+            GUI.Label(labelRect, name);
+
+            field = int.Parse(GUI.TextField(fieldRect, field.ToString()));
+
+            if (maxValue.HasValue)
+                field = Math.Min(maxValue.Value, field);
+
+            if (minValue.HasValue)
+                field = Math.Max(minValue.Value, field);
         }
 
         private void DrawColorField(Rect placementBase, ref Rect placement, string name, ref Color field)
