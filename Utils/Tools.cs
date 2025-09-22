@@ -189,5 +189,31 @@ namespace Utils
 
             return Time.deltaTime * timeWarpMultiplier * Time.timeScale;
         }
+
+        private static bool CheckDeferredInstalled()
+        {
+            string deferredTypeName = "Deferred.Deferred";
+
+            Type type = null;
+            AssemblyLoader.loadedAssemblies.TypeOperation(t => { if (t.FullName == deferredTypeName) type = t; });
+
+            if (type != null)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool? deferredInstalled = null;
+
+        public static bool IsDeferredInstalled()
+        {
+            if (deferredInstalled == null)
+            {
+                deferredInstalled = CheckDeferredInstalled();
+            }
+            return deferredInstalled.Value;
+        }
     }
 }

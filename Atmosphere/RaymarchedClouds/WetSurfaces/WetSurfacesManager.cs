@@ -30,7 +30,7 @@ namespace Atmosphere
             if (!preconditionsPassed)
                 return;
 
-            if (!CheckDeferredInstalled())
+            if (!Tools.IsDeferredInstalled())
             {
                 Log("[Error] Deferred not installed, wet surface effects won't be available");
                 preconditionsPassed = false;
@@ -60,20 +60,7 @@ namespace Atmosphere
             }
         }
 
-        private bool CheckDeferredInstalled()
-        {
-            string deferredTypeName = "Deferred.Deferred";
 
-            Type type = null;
-            AssemblyLoader.loadedAssemblies.TypeOperation(t => { if (t.FullName == deferredTypeName) type = t; });
-
-            if (type != null)
-            {
-                return true;
-            }
-
-            return false;
-        }
 
         bool preconditionsPassed = true;
 
