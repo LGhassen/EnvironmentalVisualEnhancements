@@ -13,7 +13,7 @@ namespace Atmosphere
         Color _Color = 255*Color.white;
         [ConfigItem, Index(1), ValueFilter("isClamped|format|type|alphaMask"), Tooltip("Main texture used with clouds.")]
         TextureWrapper _MainTex;
-        [ConfigItem, ValueFilter("isClamped|format|type"), Tooltip("Normal map texture used with clouds.")]
+        [ConfigItem, Optional, ValueFilter("isClamped|format|type"), Tooltip("Normal map texture used with clouds.")]
         TextureWrapper _BumpMap;
         [ConfigItem]
         float _BumpScale = 0.1f;
@@ -59,6 +59,17 @@ namespace Atmosphere
             {
                 material.EnableKeyword("FLOWMAP_OFF");
                 material.DisableKeyword("FLOWMAP_ON");
+            }
+
+            if (_BumpMap != null)
+            {
+                material.EnableKeyword("NORMALMAP_ON");
+                material.DisableKeyword("NORMALMAP_OFF");
+            }
+            else
+            {
+                material.EnableKeyword("NORMALMAP_OFF");
+                material.DisableKeyword("NORMALMAP_ON");
             }
         }
 
