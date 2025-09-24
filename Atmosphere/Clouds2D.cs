@@ -408,7 +408,6 @@ namespace Atmosphere
                 if (ScaledShadowProjector != null)
                 {
                     Vector3 worldSunDir = Vector3.Normalize(Sunlight.transform.forward);
-                    //Vector3 scaledWorldSunDir = Vector3.Normalize(ScaledSunLight.transform.forward);
                     Vector3 projectorSunDir = Vector3.Normalize(ScaledShadowProjector.transform.parent.InverseTransformDirection(worldSunDir));
 
                     ScaledShadowProjector.transform.localPosition = radiusScaleLocal * -projectorSunDir;
@@ -475,26 +474,27 @@ namespace Atmosphere
         private void SetRotations(Matrix4x4 World2Planet, Matrix4x4 mainRotation, Matrix4x4 detailRotation)
         {
             mainRotationMatrix = mainRotation;
-            Matrix4x4 rotation = (mainRotation * World2Planet) * CloudMesh.transform.localToWorldMatrix;
-            cloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, rotation);
+
+            Matrix4x4 worldToCloudMatrix = mainRotation * World2Planet;
+
+            cloudMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, worldToCloudMatrix * CloudMesh.transform.localToWorldMatrix);
+            cloudMaterial.SetMatrix(ShaderProperties.INVROTATION_PROPERTY, worldToCloudMatrix.inverse);
             cloudMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
 
             if (ScaledShadowProjector != null)
             {
-                //if(Scaled)
-                {
-                    ScaledShadowProjector.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation);
-                }
+                ScaledShadowProjector.material.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation);
+                ScaledShadowProjector.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
+                ScaledShadowProjector.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
+
                 if (screenSpaceShadowMaterial != null && !Scaled)
                 {
-                    screenSpaceShadowMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, mainRotation * celestialBody.transform.worldToLocalMatrix);
+                    screenSpaceShadowMaterial.SetMatrix(ShaderProperties.MAIN_ROTATION_PROPERTY, worldToCloudMatrix);
                     screenSpaceShadowMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, celestialBody.transform.position);
 
                     screenSpaceShadowMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
                     screenSpaceShadowMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
                 }
-                ScaledShadowProjector.material.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
-                ScaledShadowProjector.material.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
             }
         }
 

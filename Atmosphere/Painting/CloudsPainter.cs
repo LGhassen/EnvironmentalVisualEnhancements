@@ -918,15 +918,22 @@ namespace Atmosphere
 
             if (cloudCoverage.IsCreated)
             {
-                Rect buttonRect = GUIHelper.GetRect(placementBase, ref placement);
-                Rect resRect = new Rect(buttonRect);
-                Rect stepsRect = new Rect(buttonRect);
-                GUIHelper.SplitRect(ref buttonRect, ref resRect, 1 / 3f);
+                Rect button1Rect = GUIHelper.GetRect(placementBase, ref placement);
+                Rect button2Rect = new Rect(button1Rect);
+                Rect resRect = new Rect(button1Rect);
+                Rect stepsRect = new Rect(button1Rect);
+                GUIHelper.SplitRect(ref button1Rect, ref button2Rect, 1 / 4f);
+                GUIHelper.SplitRect(ref button2Rect, ref resRect, 1 / 3f);
                 GUIHelper.SplitRect(ref resRect, ref stepsRect, 1 / 2f);
 
-                if (GUI.Button(buttonRect, "Generate 2D texture"))
+                if (GUI.Button(button1Rect, "Generate 2D texture"))
                 {
-                    Generate2DTexture();
+                    Generate2DTexture(false);
+                }
+
+                if (GUI.Button(button2Rect, "Generate 2D normals"))
+                {
+                    Generate2DTexture(true);
                 }
 
                 DrawIntFieldInPlace(resRect, "  Resolution", ref twoDimensionalTextureExportResolution, 0);
@@ -940,18 +947,21 @@ namespace Atmosphere
             SDFTool.GenerateAndSaveSDFInBackground(cloudCoverage.Committed, path);
         }
 
-        private void Generate2DTexture()
+        private void Generate2DTexture(bool normals)
         {
             var targetRT = new RenderTexture(twoDimensionalTextureExportResolution,
-                twoDimensionalTextureExportResolution / 2, 0, RenderTextureFormat.R8, 0);
+                twoDimensionalTextureExportResolution / 2, 0, normals? RenderTextureFormat.ARGB32 : RenderTextureFormat.R8, 0);
             targetRT.Create();
 
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetMatrix("invCloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix.inverse);
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetInt("twoDimensionalTextureStepCount", twoDimensionalTextureStepCount);
+            layerRaymarchedVolume.RaymarchedCloudMaterial.SetVector("twoDimensionalTextureResolution", new Vector2(twoDimensionalTextureExportResolution, twoDimensionalTextureExportResolution / 2));
+            layerRaymarchedVolume.RaymarchedCloudMaterial.SetFloat("generateNormals", normals ? 1.0f : 0.0f);
+
             Graphics.Blit(null, targetRT, layerRaymarchedVolume.RaymarchedCloudMaterial,
                 DeferredRaymarchedVolumetricCloudsRenderer.RaymarchedCloudShaderPassName.Generate2DTexture);
 
-            SaveRTToFile(targetRT, "2D");
+            SaveRTToFile(targetRT, normals ? "2D-normals" : "2D");
             targetRT.Release();
         }
 
