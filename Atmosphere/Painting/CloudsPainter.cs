@@ -45,6 +45,7 @@ namespace Atmosphere
 
         public int twoDimensionalTextureExportResolution = 16384;
         public int twoDimensionalTextureStepCount = 256;
+        public float twoDimensionalTextureExposure = 0.8f;
 
         public float brushSize = 5000f;
         public float hardness = 0f;
@@ -922,9 +923,11 @@ namespace Atmosphere
                 Rect button2Rect = new Rect(button1Rect);
                 Rect resRect = new Rect(button1Rect);
                 Rect stepsRect = new Rect(button1Rect);
-                GUIHelper.SplitRect(ref button1Rect, ref button2Rect, 1 / 4f);
-                GUIHelper.SplitRect(ref button2Rect, ref resRect, 1 / 3f);
-                GUIHelper.SplitRect(ref resRect, ref stepsRect, 1 / 2f);
+                Rect exposureRect = new Rect(button1Rect);
+                GUIHelper.SplitRect(ref button1Rect, ref resRect, 1 / 2f);
+                GUIHelper.SplitRect(ref button1Rect, ref button2Rect, 1 / 2f);
+                GUIHelper.SplitRect(ref resRect, ref stepsRect, 1 / 3f);
+                GUIHelper.SplitRect(ref stepsRect, ref exposureRect, 1 / 2f);
 
                 if (GUI.Button(button1Rect, "Generate 2D texture"))
                 {
@@ -936,8 +939,9 @@ namespace Atmosphere
                     Generate2DTexture(true);
                 }
 
-                DrawIntFieldInPlace(resRect, "  Resolution", ref twoDimensionalTextureExportResolution, 0);
-                DrawIntFieldInPlace(stepsRect, "  Samples", ref twoDimensionalTextureStepCount, 0);
+                DrawIntFieldInPlace(resRect, "Size", ref twoDimensionalTextureExportResolution, 0);
+                DrawIntFieldInPlace(stepsRect, "Samples", ref twoDimensionalTextureStepCount, 0);
+                DrawFloatFieldInPlace(exposureRect, "Exposure", ref twoDimensionalTextureExposure, 0);
             }
         }
 
@@ -955,6 +959,7 @@ namespace Atmosphere
 
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetMatrix("invCloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix.inverse);
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetInt("twoDimensionalTextureStepCount", twoDimensionalTextureStepCount);
+            layerRaymarchedVolume.RaymarchedCloudMaterial.SetFloat("twoDimensionalTextureExposure", twoDimensionalTextureExposure);
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetVector("twoDimensionalTextureResolution", new Vector2(twoDimensionalTextureExportResolution, twoDimensionalTextureExportResolution / 2));
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetFloat("generateNormals", normals ? 1.0f : 0.0f);
 
@@ -1076,6 +1081,28 @@ namespace Atmosphere
             placement.y += 1;
         }
 
+        private void DrawFloatFieldInPlace(Rect placement, string name, ref float field, float? minValue = null, float? maxValue = null, string format = null)
+        {
+            Rect labelRect = new Rect(placement);
+            Rect fieldRect = new Rect(placement);
+            GUIHelper.SplitRect(ref labelRect, ref fieldRect, 0.55f);
+
+            GUI.Label(labelRect, name);
+
+            if (!string.IsNullOrEmpty(format))
+                field = float.Parse(GUI.TextField(fieldRect, field.ToString(format)));
+            else
+                field = float.Parse(GUI.TextField(fieldRect, field.ToString()));
+
+            if (maxValue.HasValue)
+                field = Mathf.Min(maxValue.Value, field);
+
+            if (minValue.HasValue)
+                field = Mathf.Max(minValue.Value, field);
+
+            placement.y += 1;
+        }
+
         private void DrawIntField(Rect placementBase, ref Rect placement, string name, ref int field, int? minValue = null, int? maxValue = null)
         {
             Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
@@ -1169,7 +1196,7 @@ namespace Atmosphere
         {
             RenderTexture.active = rt;
 
-            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.ARGB32, false);
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             RenderTexture.active = null;
 
