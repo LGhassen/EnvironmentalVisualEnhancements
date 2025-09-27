@@ -51,10 +51,10 @@ Shader "EVE/GeometryCloudVolumeParticleToTexture" {
 				#define MAG_ONE 1.4142135623730950488016887242097
 				#pragma fragmentoption ARB_precision_hint_fastest
 				#pragma multi_compile_fwdbase
-				#pragma multi_compile SOFT_DEPTH_OFF SOFT_DEPTH_ON
-				#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
+				#pragma multi_compile_local SOFT_DEPTH_OFF SOFT_DEPTH_ON
+				#pragma multi_compile_local MAP_TYPE_1 MAP_TYPE_CUBE2_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
 				#ifndef MAP_TYPE_CUBE2_1
-					#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
+					#pragma multi_compile_local ALPHAMAP_N_1 ALPHAMAP_1
 				#endif
 
 				#include "noiseSimplex.cginc"

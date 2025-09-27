@@ -17,7 +17,7 @@
 			#pragma fragment frag
 			#pragma target 3.0
 
-			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+			#pragma multi_compile_local PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
 
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
@@ -86,7 +86,7 @@
 			#pragma fragment frag
 			#pragma target 3.0
 
-			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+			#pragma multi_compile_local PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
 
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
@@ -178,7 +178,7 @@
 			#pragma fragment frag
 			#pragma target 3.0
 
-			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+			#pragma multi_compile_local PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
 
 			#include "UnityCG.cginc"
 			#include "../RaymarchedClouds/RaymarchedCloudUtils.cginc"
@@ -255,7 +255,7 @@
 			#pragma fragment frag
 			#pragma target 3.0
 
-			#pragma multi_compile PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
+			#pragma multi_compile_local PAINT_CUBEMAP_OFF PAINT_CUBEMAP_ON
 
 			#include "UnityLightingCommon.cginc"
 			#include "UnityCG.cginc"
@@ -286,7 +286,7 @@
 			int writingType;
 			int useGuideMask;
 
-			#pragma multi_compile MAP_TYPE_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
+			#pragma multi_compile_local MAP_TYPE_1 MAP_TYPE_CUBE6_1 MAP_TYPE_CUBE_1
 			CUBEMAP_DEF_1(inputMask);
 			int useMask;
 

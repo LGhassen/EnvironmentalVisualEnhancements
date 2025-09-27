@@ -34,7 +34,7 @@ SubShader {
 		#pragma vertex vert
 		#pragma fragment frag
 		#pragma multi_compile_fwdbase
-	    #pragma multi_compile WORLD_SPACE_OFF WORLD_SPACE_ON
+	    #pragma multi_compile_local WORLD_SPACE_OFF WORLD_SPACE_ON
 		#define MAG_ONE 1.4142135623730950488016887242097
 		#pragma fragmentoption ARB_precision_hint_fastest
 

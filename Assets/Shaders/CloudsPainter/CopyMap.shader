@@ -16,8 +16,8 @@
 			#include "UnityCG.cginc"
 			#include "../alphaMap.cginc"
 
-			#pragma multi_compile ALPHAMAP_N_1 ALPHAMAP_1
-			#pragma multi_compile CUBEMAP_MODE_OFF CUBEMAP_MODE_ON
+			#pragma multi_compile_local ALPHAMAP_N_1 ALPHAMAP_1
+			#pragma multi_compile_local CUBEMAP_MODE_OFF CUBEMAP_MODE_ON
 
 			#if defined(CUBEMAP_MODE_OFF)
 				sampler2D textureToCopy;

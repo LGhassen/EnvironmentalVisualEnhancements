@@ -60,9 +60,9 @@ Tags { "Queue"="Geometry" "RenderType"="Opaque" }
 		#pragma fragmentoption ARB_precision_hint_fastest
 		#pragma multi_compile_fwdbase
 		#pragma multi_compile_fwdadd_fullshadows
-		#pragma multi_compile CITYOVERLAY_OFF CITYOVERLAY_ON
-		#pragma multi_compile DETAIL_MAP_OFF DETAIL_MAP_ON
-	    #pragma multi_compile OCEAN_OFF OCEAN_ON
+		#pragma multi_compile_local CITYOVERLAY_OFF CITYOVERLAY_ON
+		#pragma multi_compile_local DETAIL_MAP_OFF DETAIL_MAP_ON
+	    #pragma multi_compile_local OCEAN_OFF OCEAN_ON
 	    
 		fixed4 _Color;
 		float _SpecularPower;
