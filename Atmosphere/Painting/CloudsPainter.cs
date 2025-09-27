@@ -954,7 +954,7 @@ namespace Atmosphere
         private void Generate2DTexture(bool normals)
         {
             var targetRT = new RenderTexture(twoDimensionalTextureExportResolution,
-                twoDimensionalTextureExportResolution / 2, 0, normals? RenderTextureFormat.ARGB32 : RenderTextureFormat.R8, 0);
+                twoDimensionalTextureExportResolution / 2, 0, RenderTextureFormat.ARGB32, 0);
             targetRT.Create();
 
             layerRaymarchedVolume.RaymarchedCloudMaterial.SetMatrix("invCloudRotationMatrix", layerRaymarchedVolume.CloudRotationMatrix.inverse);
