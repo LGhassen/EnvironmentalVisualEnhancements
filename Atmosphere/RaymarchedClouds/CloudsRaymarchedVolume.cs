@@ -451,10 +451,9 @@ namespace Atmosphere
 
             if (screenspaceShadowMaterial != null)
             {
-                SetShaderParams(screenspaceShadowMaterial);
                 screenspaceShadowMaterial.EnableKeyword("VOLUMETRIC_CLOUD_SHADOW_ON");
                 screenspaceShadowMaterial.DisableKeyword("VOLUMETRIC_CLOUD_SHADOW_OFF");
-                screenspaceShadowMaterial.SetTexture("DensityCurve", Texture2D.whiteTexture);
+                SetShaderParams(screenspaceShadowMaterial);
             }
 
             if (lightVolumeSettings.UseLightVolume)
@@ -903,8 +902,9 @@ namespace Atmosphere
 
             if (sunlight!=null)
             {
-                raymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
-                reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, Vector3.Normalize(-sunlight.transform.forward));
+                var sunLightDir = -sunlight.transform.forward;
+                raymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunLightDir);
+                reflectionProbeRaymarchedCloudMaterial.SetVector(ShaderProperties.SUNDIR_PROPERTY, sunLightDir);
             }
 
             if (screenspaceShadowMaterial != null && coverageMap != null)
@@ -1037,8 +1037,6 @@ namespace Atmosphere
 
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
                 reflectionProbeRaymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudRotation_PROPERTY, rotationMatrix);
-
-                // raymarchedCloudMaterial.SetMatrix("invCloudRotation", rotationMatrix.inverse); // for flowmaps reprojection but it's not really working
 
                 raymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);
                 reflectionProbeRaymarchedCloudMaterial.SetMatrix(ShaderProperties.cloudDetailRotation_PROPERTY, mainDetailRotationMatrix);

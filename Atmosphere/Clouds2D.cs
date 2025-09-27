@@ -33,19 +33,7 @@ namespace Atmosphere
         [ConfigItem]
         float _ShadowFactor = .75f;
 
-        [ConfigItem, Optional]
-        VolumetricShadowDensity _VolumetricShadowDensity = null;
-
         public float ShadowFactor { get => _ShadowFactor; }
-        public VolumetricShadowDensity VolumetricShadowDensity { get => _VolumetricShadowDensity; }
-    }
-
-    public class VolumetricShadowDensity
-    {
-        [ConfigItem]
-        float Value = 1f;
-
-        public float VolumetricShadowDensityValue { get => Value; }
     }
 
     public class Clouds2D
@@ -267,15 +255,6 @@ namespace Atmosphere
 
                 screenSpaceShadowMaterial = new Material(ScreenSpaceCloudShadowShader);
                 shadowMaterial.ApplyMaterialProperties(screenSpaceShadowMaterial); 
-
-                if (shadowMaterial.VolumetricShadowDensity == null)
-                {
-                    screenSpaceShadowMaterial.SetFloat("_VolumetricShadowDensity", shadowMaterial.ShadowFactor);
-                }
-                else
-                {
-                    screenSpaceShadowMaterial.SetFloat("_VolumetricShadowDensity", shadowMaterial.VolumetricShadowDensity.VolumetricShadowDensityValue);
-                }
             }
 
             Scaled = true;
