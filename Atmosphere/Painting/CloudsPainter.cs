@@ -1196,11 +1196,13 @@ namespace Atmosphere
         {
             RenderTexture.active = rt;
 
-            Texture2D tex = new Texture2D(rt.width, rt.height, TextureFormat.ARGB32, false);
+            var singleChannel = rt.format == RenderTextureFormat.R8 || rt.format == RenderTextureFormat.RHalf || rt.format == RenderTextureFormat.R16;
+
+            Texture2D tex = new Texture2D(rt.width, rt.height, singleChannel ? TextureFormat.RGB24 : TextureFormat.ARGB32, false);
             tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
             RenderTexture.active = null;
 
-            if (rt.format == RenderTextureFormat.R8 || rt.format == RenderTextureFormat.RHalf || rt.format == RenderTextureFormat.R16)
+            if (singleChannel)
             {
                 var pixels = tex.GetPixels();
 
@@ -1216,7 +1218,7 @@ namespace Atmosphere
             }
 
             byte[] bytes;
-            bytes = tex.EncodeToPNG(); // this is leaking memory
+            bytes = tex.EncodeToPNG();
 
             UnityEngine.Object.DestroyImmediate(tex);
 
