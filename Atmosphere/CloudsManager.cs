@@ -156,7 +156,7 @@ namespace Atmosphere
         {
             configNodes.Add(cn);
 
-            if (cn.HasNode("layerRaymarchedVolume")) hasRaymarchedVolumetrics = true;
+            if (cn.HasNode("layerRaymarchedVolumeV5")) hasRaymarchedVolumetrics = true;
         }
 
         public bool Update(List<CloudsObject> objectList)
@@ -231,7 +231,7 @@ namespace Atmosphere
 
             foreach (ConfigNode node in configNodes)
             {
-                if (!node.HasNode("layerRaymarchedVolume") && hasRaymarchedVolumetrics) continue;
+                if (!node.HasNode("layerRaymarchedVolumeV5") && hasRaymarchedVolumetrics) continue;
 
                 try
                 {

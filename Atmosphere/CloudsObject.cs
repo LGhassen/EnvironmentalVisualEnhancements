@@ -206,11 +206,11 @@ namespace Atmosphere
         CloudsVolume layerVolume = null;
 
         [ConfigItem, Optional]
-        CloudsRaymarchedVolume layerRaymarchedVolume = null;
+        CloudsRaymarchedVolume layerRaymarchedVolumeV5 = null;
 
         public Clouds2D Layer2D { get => layer2D; }
 
-        public CloudsRaymarchedVolume LayerRaymarchedVolume { get => layerRaymarchedVolume;}
+        public CloudsRaymarchedVolume LayerRaymarchedVolume { get => layerRaymarchedVolumeV5;}
 
         private CloudsPQS cloudsPQS = null;
         private CelestialBody celestialBody;
@@ -234,7 +234,7 @@ namespace Atmosphere
             rotationAxis.SetRow(0, rotationAxis0);
             rotationAxis.SetRow(1, rotationAxis1);
             rotationAxis.SetRow(2, rotationAxis2);
-            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolume, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation, timeSettings);
+            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolumeV5, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation, timeSettings);
         }
 
         public void Remove()
