@@ -9,6 +9,7 @@ namespace Utils
     public class EVEDDSValues
     {
         public static uint BC4U = MakePixelFormatFourCC("BC4U");
+        public static uint BC5U = MakePixelFormatFourCC("BC5U");
 
         // Source: https://gist.github.com/Scobalula/d9474f3fcf3d5a2ca596fceb64e16c98#file-directxtexutil-cs
         private static uint MakePixelFormatFourCC(string format)
@@ -343,6 +344,13 @@ namespace Utils
                         texture.texture.LoadRawTextureData(binaryReader.ReadBytes((int)(binaryReader.BaseStream.Length - binaryReader.BaseStream.Position)));
                         texture.texture.Apply(false, !texture.isReadable);
                     }
+                    else if (dDSHeader.ddspf.dwFourCC == EVEDDSValues.BC5U)
+                    {
+                        GameObject.DestroyImmediate(texture.texture);
+                        texture.texture = new Texture2D((int)dDSHeader.dwWidth, (int)dDSHeader.dwHeight, GraphicsFormat.RG_BC5_UNorm, mipmap ? TextureCreationFlags.MipChain : TextureCreationFlags.None);
+                        texture.texture.LoadRawTextureData(binaryReader.ReadBytes((int)(binaryReader.BaseStream.Length - binaryReader.BaseStream.Position)));
+                        texture.texture.Apply(false, !texture.isReadable);
+                    }
                     else if (dDSHeader.ddspf.dwFourCC == DDSHeaders.DDSValues.uintDXT2)
                     {
                         Debug.Log("DXT2 not supported");
@@ -391,7 +399,7 @@ namespace Utils
                     else
                     {
                         ok = false;
-                        Debug.Log("Only DXT1, DXT5, BC4U, A8, RGB24, RGBA32, RGB565, ARGB4444 and RGBA4444 are supported");
+                        Debug.Log("Only DXT1, DXT5, BC4U, BC5U, A8, RGB24, RGBA32, RGB565, ARGB4444 and RGBA4444 are supported");
                     }
                     if (ok)
                     {
