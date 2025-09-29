@@ -327,6 +327,7 @@ namespace Atmosphere
             activeAccumulationLayerCount = 0;
         }
 
+
         private void AddOrRemoveCameraScripts()
         {
             // If in pqs and active
@@ -602,9 +603,7 @@ namespace Atmosphere
             int screenWidth, screenHeight;
             GetRenderResolutions(cam, out screenWidth, out screenHeight);
 
-            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            quadMesh = Mesh.Instantiate(go.GetComponent<MeshFilter>().mesh);
-            GameObject.Destroy(go);
+            quadMesh = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
 
             wetEffectCommandBuffer = new CommandBuffer();
             wetEffectCommandBuffer.name = "EVE Wet Effects CommandBuffer";
