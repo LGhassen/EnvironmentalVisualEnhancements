@@ -144,7 +144,7 @@
 
 				float3 tangent;
 				float3 biTangent;
-				if (abs(normal.x) > 0.001) {
+				if (abs(normal.x) < 0.999999) {
 					tangent = normalize(cross(float3(0, 1, 0), normal));
 				} else {
 					tangent = normalize(cross(float3(1, 0, 0), normal));
