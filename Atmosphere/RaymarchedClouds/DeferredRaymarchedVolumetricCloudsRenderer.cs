@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using ShaderLoader;
 using Utils;
-using static Utils.Tools;
 
 namespace Atmosphere
 {
@@ -134,7 +133,7 @@ namespace Atmosphere
                                                                                     // We don't need bilinear interpolation for these so the packing works
 
         private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedWeightedDepth; // Unpacked Textures used to speed up reconstruction which does lots of lookups
-        private RenderTexture motionVectorsApproximationRT; // Additional RT to flip-flop between this and the unpackedMotionVectorsRT for dilating motion vectors
+        private RenderTexture motionVectorsApproximationRT, depthApproximationRT; // Additional RT to flip-flop between this and the unpackedMotionVectorsRT for dilating motion vectors
         private bool packedTexturesDebugMode = false;
 
         // These are simple flip flop textures
@@ -304,6 +303,7 @@ namespace Atmosphere
                 RenderTextureUtils.ResizeRT(unpackedMotionVectorsRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(unpackedWeightedDepth, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(motionVectorsApproximationRT, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeRT(depthApproximationRT, newRaysRenderWidth, newRaysRenderHeight);
 
                 RenderTextureUtils.ResizeRTHistoryManager(historyRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyMotionVectorsRT, screenWidth, screenHeight);
@@ -372,6 +372,7 @@ namespace Atmosphere
             unpackedNewRaysRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.ARGBHalf, false, FilterMode.Point);
             unpackedMotionVectorsRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
             motionVectorsApproximationRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
+            depthApproximationRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
             unpackedWeightedDepth = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
             lightningOcclusionRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
@@ -855,6 +856,10 @@ namespace Atmosphere
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
 
             int motionVectorApproximationIterations = 4;
+
+            RenderTargetIdentifier[] flipApproximationIdentifiers = { new RenderTargetIdentifier(motionVectorsApproximationRT), new RenderTargetIdentifier(depthApproximationRT)};
+            RenderTargetIdentifier[] flopApproximationIdentifiers = { new RenderTargetIdentifier(unpackedMotionVectorsRT), new RenderTargetIdentifier(unpackedWeightedDepth)};
+
             for (int i = 0; i < motionVectorApproximationIterations; i++)
             {
                 // TODO: need at least the first layer's VP matrix here to approximate with
@@ -863,7 +868,10 @@ namespace Atmosphere
                 bool writeToScratchBuffer = i % 2 == 0;
 
                 commandBuffer.SetGlobalTexture(ShaderProperties.newRaysMotionVectors_PROPERTY, writeToScratchBuffer ? unpackedMotionVectorsRT : motionVectorsApproximationRT);
-                commandBuffer.SetRenderTarget(writeToScratchBuffer ? motionVectorsApproximationRT : unpackedMotionVectorsRT);
+                commandBuffer.SetGlobalTexture(ShaderProperties.newRaysWeightedDepth_PROPERTY, writeToScratchBuffer ? unpackedWeightedDepth : depthApproximationRT);
+
+                commandBuffer.SetRenderTarget(writeToScratchBuffer ? flipApproximationIdentifiers : flopApproximationIdentifiers, packedNewRaysRT[true, false, 0].depthBuffer);
+
                 commandBuffer.SetGlobalInt(ShaderProperties.motionVectorsApproximationIteration_PROPERTY, i);
                 commandBuffer.SetGlobalInt(ShaderProperties.motionVectorsApproximationLastIteration_PROPERTY,
                     (i == motionVectorApproximationIterations - 1) ? 1 : 0);
@@ -1069,6 +1077,9 @@ namespace Atmosphere
 
             if (motionVectorsApproximationRT)
                 motionVectorsApproximationRT.Release();
+
+            if (depthApproximationRT)
+                depthApproximationRT.Release();
 
             if (unpackedWeightedDepth)
                 unpackedWeightedDepth.Release();
