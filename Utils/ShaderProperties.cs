@@ -446,11 +446,19 @@ namespace Utils
         public static int rainRipplesAmount_PROPERTY { get { return rainRipplesAmount; } }
         private static int rainRipplesAmount;
 
-        public static int floatingOriginOffset_PROPERTY { get { return floatingOriginOffset; } }
-        private static int floatingOriginOffset;
-
         public static int useRipples_PROPERTY { get { return useRipples; } }
         private static int useRipples;
+
+        public static int tangentFrameTangent_PROPERTY { get { return tangentFrameTangent; } }
+        private static int tangentFrameTangent;
+        public static int tangentFrameBitangent_PROPERTY { get { return tangentFrameBitangent; } }
+        private static int tangentFrameBitangent;
+
+        public static int tangentFrameOrigin_PROPERTY { get { return tangentFrameOrigin; } }
+        private static int tangentFrameOrigin;
+
+        public static int tangentFrameUVOffset_PROPERTY { get { return tangentFrameUVOffset; } }
+        private static int tangentFrameUVOffset;
 
         private void Awake()
         {
@@ -618,9 +626,12 @@ namespace Utils
             trackingRT = Shader.PropertyToID("trackingRT");
             craftWetness = Shader.PropertyToID("craftWetness");
             rainRipplesAmount = Shader.PropertyToID("rainRipplesAmount");
-            floatingOriginOffset = Shader.PropertyToID("floatingOriginOffset");
             useRipples = Shader.PropertyToID("useRipples");
 
+            tangentFrameTangent = Shader.PropertyToID("tangentFrameTangent");
+            tangentFrameBitangent = Shader.PropertyToID("tangentFrameBitangent");
+            tangentFrameOrigin = Shader.PropertyToID("tangentFrameOrigin");
+            tangentFrameUVOffset = Shader.PropertyToID("tangentFrameUVOffset");
         }
     }
 }

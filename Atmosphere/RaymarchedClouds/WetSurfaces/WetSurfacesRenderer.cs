@@ -167,7 +167,7 @@ namespace Atmosphere
                 else
                 {
                     UpdateActiveWetSurfaceInstances();
-                    UpdateRendering(deltaTime);
+                    UpdateRendering(deltaTime, closestActive);
                 }
 
                 lastUpdateUT = ut;
@@ -305,7 +305,14 @@ namespace Atmosphere
             }
         }
 
-        private void UpdateRendering(float deltaTime)
+        static bool tangentFrameInitialized = false;
+        static Vector3d tangentFrameTangent = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameBitangent = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameNormal = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameOrigin = new Vector3d(0, 0, 0);
+        static Vector3d cumulatedTangentFrameOffset = new Vector3d(0, 0, 0);
+
+        private void UpdateRendering(float deltaTime, WetSurfacesConfig wetSurfacesConfig)
         {
             currentCoverage = Mathf.Min(1f, currentCoverage);
 
@@ -321,10 +328,61 @@ namespace Atmosphere
                 UpdateTerrainAndSceneryLevels(deltaTime, activeParentTransform.localToWorldMatrix);
                 wetEffectMaterial.SetMatrix(ShaderProperties.worldToPlanetMatrix_PROPERTY, activeParentTransform.worldToLocalMatrix);
                 wetEffectMaterial.SetInt(ShaderProperties.useRipples_PROPERTY, currentCoverage > 0f ? 1 : 0);
+
+                UpdatePuddlesTangentFrame(activeParentTransform.worldToLocalMatrix, wetSurfacesConfig);
             }
 
             currentCoverage = 0f;
             activeAccumulationLayerCount = 0;
+        }
+
+        private void UpdatePuddlesTangentFrame(Matrix4x4 worldToPlanet, WetSurfacesConfig wetSurfacesConfig)
+        {
+            var referenceTransform = FlightGlobals.ActiveVessel ? FlightGlobals.ActiveVessel.transform : FlightCamera.fetch.mainCamera.transform;
+            var referencePosition = referenceTransform != null ? referenceTransform.position : Vector3.zero;
+
+            var positionInPlanetSpace = worldToPlanet * new Vector4(referencePosition.x, referencePosition.y, referencePosition.z, 1f);
+
+            tangentFrameNormal = new Vector3(positionInPlanetSpace.x, positionInPlanetSpace.y, positionInPlanetSpace.z).normalized;
+
+            if (tangentFrameInitialized)
+            {
+                tangentFrameTangent = Vector3d.Cross(tangentFrameBitangent, tangentFrameNormal).normalized;
+            }
+            else
+            {
+                var reference = Math.Abs(tangentFrameNormal.y) < 0.99d ? new Vector3d(0d, 1d, 0d) : new Vector3d(1d, 0d, 0d);
+                tangentFrameTangent = Vector3d.Cross(reference, tangentFrameNormal).normalized;
+                tangentFrameInitialized = true;
+            }
+
+            tangentFrameBitangent = Vector3d.Cross(tangentFrameNormal, tangentFrameTangent).normalized;
+
+            var currentFrameOrigin = tangentFrameNormal * activeCelestialBody.Radius;
+
+            var frameDelta = currentFrameOrigin - tangentFrameOrigin;
+            Vector3d projectedFrameDelta = frameDelta - Vector3d.Dot(frameDelta, tangentFrameNormal) * tangentFrameNormal;  // Remove normal component
+            Vector2d frameOffset = new Vector2d(Vector3d.Dot(tangentFrameTangent, projectedFrameDelta), Vector3d.Dot(tangentFrameBitangent, projectedFrameDelta));
+
+            var sinTheta = Vector3d.Cross(tangentFrameOrigin.normalized, currentFrameOrigin.normalized).magnitude;
+            var arcAngle = Math.Asin(Math.Max(Math.Min(sinTheta, 1.0), 0.0));
+            var arcLength = activeCelestialBody.Radius * arcAngle;
+
+            frameOffset = frameOffset.normalized * arcLength;
+
+            if (double.IsNaN(frameOffset.x) || double.IsNaN(frameOffset.y))
+            {
+                frameOffset = Vector2d.zero;
+            }
+
+            cumulatedTangentFrameOffset += frameOffset;
+
+            tangentFrameOrigin = currentFrameOrigin;
+
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameTangent_PROPERTY, (Vector3)tangentFrameTangent);
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameBitangent_PROPERTY, (Vector3)tangentFrameBitangent);
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameOrigin_PROPERTY, (Vector3)tangentFrameOrigin);
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameUVOffset_PROPERTY, (Vector3)(cumulatedTangentFrameOffset / wetSurfacesConfig.PuddleTextureScale));
         }
 
 
@@ -654,16 +712,8 @@ namespace Atmosphere
 
         private void OnPreRender()
         {
-
-            if (mat != null)
-            {
-                if (cam != null)
-                    mat.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, cam.cameraToWorldMatrix);
-
-                // TODO: remove this and do a tracked frame
-                mat.SetVector(ShaderProperties.floatingOriginOffset_PROPERTY, new Vector3((float)FloatingOrigin.TerrainShaderOffset.x,
-                    (float)FloatingOrigin.TerrainShaderOffset.y, (float)FloatingOrigin.TerrainShaderOffset.z));
-            }
+            if (mat != null && cam != null)
+                mat.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, cam.cameraToWorldMatrix);
         }
 
         void OnPostRender()
