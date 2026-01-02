@@ -160,6 +160,13 @@ namespace Atmosphere
         }
     }
 
+    public enum CloudsSpeedMode
+    {
+        Linear,
+        LinearSurface,
+        Angular
+    }
+
     [ConfigName("name")]
     public class CloudsObject : MonoBehaviour, IEVEObject
     {
@@ -182,6 +189,8 @@ namespace Atmosphere
         Vector3 speed = new Vector3(0, 30, 0);
         [ConfigItem, Tooltip("Speed of detail rotation (m/s) applied to XYZ axis of rotation.")]
         Vector3 detailSpeed = new Vector3(0,5,0);
+        [ConfigItem]
+        CloudsSpeedMode speedMode = CloudsSpeedMode.Linear;
         [ConfigItem, Tooltip("Offset of texturing in degrees around Axis below")]
         Vector3 offset = new Vector3(0, 0, 0);
         [ConfigItem, Tooltip("Axis0 [Default is X-Axis]")]
@@ -234,7 +243,8 @@ namespace Atmosphere
             rotationAxis.SetRow(0, rotationAxis0);
             rotationAxis.SetRow(1, rotationAxis1);
             rotationAxis.SetRow(2, rotationAxis2);
-            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolumeV5, altitude, arc, speed, detailSpeed, offset, rotationAxis, killBodyRotation, timeSettings);
+            cloudsPQS.Apply(body, settings, layer2D, layerVolume, layerRaymarchedVolumeV5, altitude, arc,
+                speed, detailSpeed, speedMode, offset, rotationAxis, killBodyRotation, timeSettings);
         }
 
         public void Remove()

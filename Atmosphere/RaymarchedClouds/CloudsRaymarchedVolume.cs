@@ -311,16 +311,16 @@ namespace Atmosphere
 
         private CloudsMaterial CloudsPQSMaterial;
 
-        private float linearSpeedMagnitude;
+        private float mainPeriodMagnitude;
 
-        public float LinearSpeedMagnitude { get => linearSpeedMagnitude; }
+        public float MainPeriodMagnitude { get => mainPeriodMagnitude; }
         public LightVolumeUsage LightVolumeSettings { get => lightVolumeSettings; }
         public RaymarchingSettings RaymarchingSettings { get => raymarchingSettings; }
 
         CloudsPQS cloudsPQS;
         public CloudsPQS CloudsPQS { get => cloudsPQS; }
 
-        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float linearSpeedMagnitude, CloudsPQS cloudsPQS)
+        public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float mainPeriodMagnitude, CloudsPQS cloudsPQS)
         {
             parentCelestialBody = celestialBody;
             CloudsPQSMaterial = material;
@@ -424,7 +424,7 @@ namespace Atmosphere
 
             sunlight = Sun.Instance.GetComponent<Light>();
 
-            this.linearSpeedMagnitude = linearSpeedMagnitude;
+            this.mainPeriodMagnitude = mainPeriodMagnitude;
 
             raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
             reflectionProbeRaymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);

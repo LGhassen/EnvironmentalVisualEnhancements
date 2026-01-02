@@ -365,7 +365,28 @@ namespace Atmosphere
             mainRotationMatrix = Matrix4x4.TRS(Vector3.zero, mainRotationQ, Vector3.one).inverse;
         }
 
-        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume, CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation, TimeSettings timeSettings)
+        void GetPeriods(CloudsSpeedMode speedMode, Vector3d speed, Vector3d detailSpeed, double altitude,
+            double celestialBodyRadius, out Vector3d mainPeriod, out Vector3d detailPeriod)
+        {
+            double twoPi = Math.PI * 2d;
+
+            if (speedMode == CloudsSpeedMode.Angular)
+            {
+                mainPeriod = -speed / twoPi;
+                detailPeriod = -detailSpeed / twoPi;
+                return;
+            }
+
+            var radius = speedMode == CloudsSpeedMode.LinearSurface ? celestialBodyRadius : celestialBodyRadius + altitude;
+            var circumference = twoPi * radius;
+
+            mainPeriod = -speed / circumference;
+            detailPeriod = -detailSpeed / circumference;
+        }
+
+        internal void Apply(String body, CloudsMaterial cloudsMaterial, Clouds2D layer2D, CloudsVolume layerVolume,
+            CloudsRaymarchedVolume layerRaymarchedVolume, float altitude, float arc, Vector3d speed, Vector3d detailSpeed,
+            CloudsSpeedMode speedMode, Vector3 offset, Matrix4x4 rotationAxis, bool killBodyRotation, TimeSettings timeSettings)
         {
             this.body = body;
             this.cloudsMaterial = cloudsMaterial;
@@ -400,11 +421,10 @@ namespace Atmosphere
                 this.transform.localRotation = Quaternion.identity;
                 this.transform.localScale = Vector3.one;
                 this.radius = (altitude + celestialBody.Radius);
-                
-                double circumference = 2f * Mathf.PI * radius;
-                mainPeriod = -(speed) / circumference;
-                detailPeriod = -(detailSpeed) / circumference;
-                
+
+                GetPeriods(speedMode, speed, detailSpeed, altitude, celestialBody.Radius, out mainPeriod, out detailPeriod);
+
+
                 if (layer2D != null)
                 {
                     // TODO pass timeSettings fadeMode
@@ -414,7 +434,8 @@ namespace Atmosphere
                 if (layerRaymarchedVolume != null)
                 {
                     // TODO pass timeSettings fadeMode
-                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform, (float)celestialBody.Radius, celestialBody, layer2D, (float)speed.magnitude, this);
+                    layerRaymarchedVolume.Apply(cloudsMaterial, (float)celestialBody.Radius + altitude, celestialBody.transform,
+                        (float)celestialBody.Radius, celestialBody, layer2D, (float)mainPeriod.magnitude, this);
                 }
 
                 if (!pqs.isActive || HighLogic.LoadedScene == GameScenes.TRACKSTATION)

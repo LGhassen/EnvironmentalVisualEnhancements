@@ -515,9 +515,9 @@ namespace Atmosphere
                         innerLightVolumeRadius = Mathf.Min(innerLightVolumeRadius, volumetricLayer.InnerSphereRadius);
                         outerLightVolumeRadius = Mathf.Max(outerLightVolumeRadius, volumetricLayer.OuterSphereRadius);
 
-                        if (volumetricLayer.LinearSpeedMagnitude < lightVolumeSlowestRotatingLayerSpeed)
+                        if (volumetricLayer.MainPeriodMagnitude < lightVolumeSlowestRotatingLayerSpeed)
                         {
-                            lightVolumeSlowestRotatingLayerSpeed = volumetricLayer.LinearSpeedMagnitude;
+                            lightVolumeSlowestRotatingLayerSpeed = volumetricLayer.MainPeriodMagnitude;
                             lightVolumeSlowestRotatingLayer = volumetricLayer;
                         }
 
