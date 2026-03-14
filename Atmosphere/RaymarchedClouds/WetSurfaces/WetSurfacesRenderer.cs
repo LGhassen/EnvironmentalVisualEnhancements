@@ -382,7 +382,13 @@ namespace Atmosphere
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameTangent_PROPERTY, (Vector3)tangentFrameTangent);
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameBitangent_PROPERTY, (Vector3)tangentFrameBitangent);
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameOrigin_PROPERTY, (Vector3)tangentFrameOrigin);
-            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameUVOffset_PROPERTY, (Vector3)(cumulatedTangentFrameOffset / wetSurfacesConfig.PuddleTextureScale));
+
+            var puddleTextureUVOffsets = cumulatedTangentFrameOffset / wetSurfacesConfig.PuddleTextureScale;
+
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameUVOffset_PROPERTY, new Vector3(
+                                                        (float)(puddleTextureUVOffsets.x - Math.Truncate(puddleTextureUVOffsets.x)),
+                                                        (float)(puddleTextureUVOffsets.y - Math.Truncate(puddleTextureUVOffsets.y)),
+                                                        (float)(puddleTextureUVOffsets.z - Math.Truncate(puddleTextureUVOffsets.z))));
         }
 
 
