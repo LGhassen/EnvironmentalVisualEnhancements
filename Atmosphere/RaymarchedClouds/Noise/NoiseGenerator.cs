@@ -22,7 +22,6 @@ namespace Atmosphere
             }
         }
 
-
         public static void RenderNoiseToTexture(RenderTexture RT, NoiseWrapper settings)
         {
             if (settings.GetNoiseMode() == NoiseMode.Mix || settings.GetNoiseMode() == NoiseMode.PerlinOnly)
@@ -73,6 +72,7 @@ namespace Atmosphere
             cb.name = "Normalize noise texture CB";
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
             var quadMesh = Mesh.Instantiate(go.GetComponent<MeshFilter>().sharedMesh);
+            GameObject.Destroy(go.GetComponent<Collider>());
             GameObject.Destroy(go);
 
             bool renderToFlip = false;
@@ -145,7 +145,7 @@ namespace Atmosphere
             GameObject.Destroy(halfRTFlop);
             GameObject.Destroy(quadMesh);
 
-            RT.GenerateMips();
+            Generate3DTextureMips(RT);
 
             RenderTexture.active = active;
         }
@@ -174,9 +174,75 @@ namespace Atmosphere
                 Graphics.Blit(null, RT, NoiseMaterial, 1);
             }
 
-            RT.GenerateMips();
+            Generate3DTextureMips(RT);
 
             RenderTexture.active = active;
+        }
+
+        // The built-in mip generation functions don't work correctly for 3d textures on all platforms
+        static void Generate3DTextureMips(RenderTexture RT)
+        {
+            var scratchRT = RenderTextureUtils.CreateRenderTexture(RT.width, RT.height, RT.format, true, FilterMode.Bilinear, RT.dimension, RT.volumeDepth);
+            scratchRT.name = "scratchRT";
+
+            CommandBuffer cb = new CommandBuffer();
+            cb.name = "Mips CB";
+
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            var quadMesh = Mesh.Instantiate(go.GetComponent<MeshFilter>().sharedMesh);
+            GameObject.Destroy(go.GetComponent<Collider>());
+            GameObject.Destroy(go);
+
+            Vector3 currentMipLevelDimensions = new Vector3(RT.width, RT.height, (RT.dimension == TextureDimension.Tex3D) ? RT.volumeDepth : 1);
+            Vector3 previousMipLevelDimensions = currentMipLevelDimensions;
+
+            for (int currentMipLevelToRead = 0; currentMipLevelToRead < scratchRT.mipmapCount - 1; currentMipLevelToRead++)
+            {
+                previousMipLevelDimensions = currentMipLevelDimensions;
+                currentMipLevelDimensions = new Vector3((int)(currentMipLevelDimensions.x / 2f),
+                                                        (int)(currentMipLevelDimensions.y / 2f),
+                                                        (int)(currentMipLevelDimensions.z / 2f));
+
+                cb.SetGlobalVector("previousNoiseMipLevelDimensions", previousMipLevelDimensions);
+                cb.SetGlobalVector("currentNoiseMipLevelDimensions", currentMipLevelDimensions);
+
+                cb.SetGlobalTexture("previousNoiseTexture", RT);
+                cb.SetGlobalInt("currentMipLevelToRead", currentMipLevelToRead);
+
+                // Iterate over all the slices of the current mip level
+                for (int i = 0; i < currentMipLevelDimensions.z; i++)
+                {
+                    float zUV = (i + 0.5f) / currentMipLevelDimensions.z;
+                    cb.SetGlobalFloat("_Slice", zUV);
+
+                    cb.SetRenderTarget(scratchRT, currentMipLevelToRead + 1, CubemapFace.Unknown, i);
+                    cb.DrawMesh(quadMesh, Matrix4x4.identity, noiseMaterial, 0, 4);
+                }
+
+                // When done copy back results to the original texture, we'll see if this works
+
+                // This doesn't work on all platforms and is probably the source of the original issue
+                //cb.CopyTexture(scratchRT, 0, currentMipLevelToRead + 1, RT, 0, currentMipLevelToRead + 1);
+
+                cb.SetGlobalTexture("mippedNoiseTexture", scratchRT);
+                cb.SetGlobalInt("currentMipLevelToCopy", currentMipLevelToRead + 1);
+
+                for (int i = 0; i < currentMipLevelDimensions.z; i++)
+                {
+                    float zUV = (i + 0.5f) / currentMipLevelDimensions.z;
+                    cb.SetGlobalFloat("_Slice", zUV);
+
+                    cb.SetRenderTarget(RT, currentMipLevelToRead + 1, CubemapFace.Unknown, i);
+                    cb.DrawMesh(quadMesh, Matrix4x4.identity, noiseMaterial, 0, 5);
+                }
+            }
+
+            Graphics.ExecuteCommandBuffer(cb);
+            cb.Release();
+
+            scratchRT.Release();
+            GameObject.Destroy(scratchRT);
+            GameObject.Destroy(quadMesh);
         }
     }
 }
