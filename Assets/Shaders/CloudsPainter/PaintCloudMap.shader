@@ -309,8 +309,6 @@
 				float3 frameNormal, float radius, float2 inverseTileSize, float2 tileUVOffset)
 			{
 				float2 projectedPos = float2(dot(sphereRelativePos - frameOrigin, frameTangent), dot(sphereRelativePos - frameOrigin, frameBitangent));
-
-				// Either the frameNormal or the radius are broken
 				
 				float sinTheta = length(cross(frameNormal, normalize(sphereRelativePos)));
 				float arcAngle = asin(clamp(sinTheta, 0.0, 1.0));

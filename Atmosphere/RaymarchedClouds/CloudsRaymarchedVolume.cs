@@ -478,13 +478,13 @@ namespace Atmosphere
         {
             if (noise != null && noise.GetNoiseMode() != NoiseMode.None)
             {
-                baseNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
+                baseNoiseRT = CreateVolumeRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.R8);
                 NoiseGenerator.RenderNoiseToTexture(baseNoiseRT, noise);
             }
 
             if (curlNoise != null)
             {
-                curlNoiseRT = CreateRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
+                curlNoiseRT = CreateVolumeRT(baseNoiseDimension, baseNoiseDimension, baseNoiseDimension, RenderTextureFormat.RGB565);
                 NoiseGenerator.RenderCurlNoiseToTexture(curlNoiseRT, curlNoise);
             }
         }
@@ -1165,7 +1165,7 @@ namespace Atmosphere
         }
 
         // TODO: move to utils
-        private RenderTexture CreateRT(int height, int width, int volume, RenderTextureFormat format)
+        private RenderTexture CreateVolumeRT(int height, int width, int volume, RenderTextureFormat format)
         {
             RenderTexture RT = new RenderTexture(height, width, 0, format);
             RT.filterMode = FilterMode.Bilinear;

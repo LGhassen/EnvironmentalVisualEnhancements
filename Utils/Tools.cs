@@ -157,7 +157,7 @@ namespace Utils
         {
             if (unifiedCameraMode == null)
             {
-                unifiedCameraMode = SystemInfo.graphicsDeviceVersion.Contains("Direct3D 11.0");
+                unifiedCameraMode = SystemInfo.graphicsDeviceVersion.Contains("Direct3D");
             }
             return unifiedCameraMode.Value;
         }

@@ -2,7 +2,7 @@
 {
 	SubShader 
 	{
-		Tags {"IgnoreProjector"="True" "RenderType"="Invisible"}
+		Tags {"IgnoreProjector"="True" "RenderType"="Opaque"}
 
 		Pass 
 		{
@@ -24,13 +24,14 @@
 			v2f vert(appdata_base v)
 			{
 				v2f OUT;
-				OUT.pos = float4(2.0, 2.0, 2.0, 1.0); //outside clip space => cull vertex
+				OUT.pos = float4(200.0, 200.0, 200.0, 1.0); //outside clip space => cull vertex
 				return OUT;
 			}
 
 			float4 frag(v2f IN) : COLOR
 			{
-				return float4(0.0,0.0,0.0,0.0);
+				discard;
+				return 0.0;
 			}
 
 			ENDCG
@@ -58,13 +59,14 @@
 			v2f vert(appdata_base v)
 			{
 				v2f OUT;
-				OUT.pos = float4(2.0, 2.0, 2.0, 1.0); //outside clip space => cull vertex
+				OUT.pos = float4(200.0, 200.0, 200.0, 1.0); //outside clip space => cull vertex
 				return OUT;
 			}
 
 			float4 frag(v2f IN) : COLOR
 			{
-				return float4(0.0,0.0,0.0,0.0);
+				discard;
+				return 0.0;
 			}
 
 			ENDCG
