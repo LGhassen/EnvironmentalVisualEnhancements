@@ -446,7 +446,7 @@ namespace Atmosphere
             reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.maxStepSize_PROPERTY, raymarchingSettings.MaxStepSize * 5f);
             reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.adaptiveStepSizeFactor_PROPERTY, raymarchingSettings.AdaptiveStepSizeFactor * 5f);
 
-            reflectionProbeRaymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, (int)raymarchingSettings.LightMarchSteps);
+            reflectionProbeRaymarchedCloudMaterial.SetInt(ShaderProperties.lightMarchSteps_PROPERTY, 0);
             reflectionProbeRaymarchedCloudMaterial.SetFloat(ShaderProperties.stepSizeLight_PROPERTY, 0f);
 
             if (screenspaceShadowMaterial != null)
@@ -472,6 +472,20 @@ namespace Atmosphere
                 reflectionProbeRaymarchedCloudMaterial.EnableKeyword("LIGHT_VOLUME_OFF");
                 reflectionProbeRaymarchedCloudMaterial.DisableKeyword("LIGHT_VOLUME_ON");
             }
+
+            if (raymarchingSettings.LightMarchSteps > 0)
+            {
+                raymarchedCloudMaterial.EnableKeyword("DISCRETE_LIGHT_SAMPLES_ON");
+                raymarchedCloudMaterial.DisableKeyword("DISCRETE_LIGHT_SAMPLES_OFF");
+            }
+            else
+            {
+                raymarchedCloudMaterial.DisableKeyword("DISCRETE_LIGHT_SAMPLES_ON");
+                raymarchedCloudMaterial.EnableKeyword("DISCRETE_LIGHT_SAMPLES_OFF");
+            }
+
+            reflectionProbeRaymarchedCloudMaterial.DisableKeyword("DISCRETE_LIGHT_SAMPLES_ON");
+            reflectionProbeRaymarchedCloudMaterial.EnableKeyword("DISCRETE_LIGHT_SAMPLES_OFF");
         }
 
         public void RenderNoiseTextures()
