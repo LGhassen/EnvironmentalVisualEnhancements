@@ -46,7 +46,7 @@ namespace Atmosphere
                         activeLightningShaderLights[currentIndex] = new Vector4(lightningNode.Value.lightGameObject.transform.position.x,
                             lightningNode.Value.lightGameObject.transform.position.y,
                             lightningNode.Value.lightGameObject.transform.position.z,
-                            0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime); // apply 0.25 the point light intensity to the volumetric cloud
+                            0.25f * lightningNode.Value.startIntensity * lightningNode.Value.lifeTime / lightningNode.Value.startLifeTime * 100f); // apply 0.25 the point light intensity to the volumetric cloud
 
                         activeLightningShaderUnstableMasks[currentIndex] = new Vector4(activeLightningShaderLights[currentIndex].x, activeLightningShaderLights[currentIndex].y,
                                                                                         activeLightningShaderLights[currentIndex].z, lightningNode.Value.light.range);
