@@ -285,7 +285,7 @@ namespace Utils
                     if (field.FieldType == typeof(FloatCurve))
                     {
                         fieldCount += spacingOffset;
-                        fieldCount += 6f;
+                        fieldCount += GetFloatCurveHeight(node, field.Name);
                     }
                     else if (isNode)
                     {
@@ -614,6 +614,70 @@ namespace Utils
         }
 
         private static Dictionary<ConfigNode, string> floatCurveTemporaryValues = new Dictionary<ConfigNode, string>();
+        private static Dictionary<ConfigNode, bool> floatCurveShowKeys = new Dictionary<ConfigNode, bool>();
+        private static Dictionary<ConfigNode, int> floatCurveLastHash = new Dictionary<ConfigNode, int>();
+
+        private static bool GetShowKeys(ConfigNode node)
+        {
+            bool v;
+            return floatCurveShowKeys.TryGetValue(node, out v) && v;
+        }
+
+        // Height in placement units for the FloatCurve editor block
+        public static float GetFloatCurveHeight(ConfigNode parentNode, string fieldName)
+        {
+            // 1 label + 10 curve + 1 button = 12 base
+            float h = 12f;
+            if (parentNode != null)
+            {
+                var sub = parentNode.GetNode(fieldName);
+                if (sub != null && GetShowKeys(sub))
+                    h += 6f; // textbox
+            }
+            return h;
+        }
+
+        private static int ComputeNodeValueHash(ConfigNode node)
+        {
+            unchecked
+            {
+                int h = 17;
+                foreach (string v in node.GetValuesStartsWith("key"))
+                    h = h * 31 + v.GetHashCode();
+                return h;
+            }
+        }
+
+        private static string NodeKeysToText(ConfigNode node)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (string v in node.GetValuesStartsWith("key"))
+            {
+                if (sb.Length > 0) sb.Append('\n');
+                sb.Append(v);
+            }
+            return sb.ToString();
+        }
+
+        // Returns true if every non-empty line has 2 or 4 valid floats (time value [inTangent outTangent]).
+        private static bool CanParseKeys(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return true;
+            string[] lines = text.Split(new[] { '\n', '\r' },
+                StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Length == 0) continue;
+                string[] parts = trimmed.Split(new[] { ' ', '\t' },
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 2 && parts.Length != 4) return false;
+                float dummy;
+                foreach (string p in parts)
+                    if (!float.TryParse(p, out dummy)) return false;
+            }
+            return true;
+        }
 
         public static void DrawField(Rect placementBase, ref Rect placement, object obj, FieldMeta meta, ConfigNode config)
         {
@@ -624,37 +688,94 @@ namespace Utils
             if (field.FieldType == typeof(FloatCurve))
             {
                 placement.y += spacingOffset;
-                placement.height = 1;
 
                 var subNode = config.GetNode(field.Name);
-
                 if (subNode == null)
                 {
                     subNode = config.AddNode(field.Name);
                 }
 
-                if (!floatCurveTemporaryValues.ContainsKey(subNode))
-                    floatCurveTemporaryValues.Add(subNode, subNode.ToString());
+                // label
+                placement.height = 1;
+                Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
+                String tooltipText = meta.Tooltip ?? "";
+                GUIContent gc = new GUIContent(field.Name, tooltipText);
+                GUI.Label(labelRect, gc);
+                placement.y += 1f;
 
-                string value = floatCurveTemporaryValues[subNode];
+                // curve editor, 10 lines
+                placement.height = 10;
+                Rect curveRect = GUIHelper.GetRect(placementBase, ref placement);
+                CurveEditor.DrawCurveEditor(curveRect, subNode);
+                placement.y += 10f;
 
-                placement.height = 6;
-                Rect textAreaRect = GUIHelper.GetRect(placementBase, ref placement);
-                GUIStyle fieldStyle = ConfigHelper.CanParse(field, value) ? _styleTextArea : _styleTextAreaRed;
-
-                string newValue = GUI.TextArea(textAreaRect, value, fieldStyle);
-                if (newValue != value)
-                    floatCurveTemporaryValues[subNode] = newValue;
-
-                if (newValue != value && ConfigHelper.CanParse(field, newValue))
+                // "Show Keys" / "Hide Keys" button, 1 line
+                placement.height = 1;
+                Rect btnRect = GUIHelper.GetRect(placementBase, ref placement);
+                bool showKeys = GetShowKeys(subNode);
+                if (GUI.Button(btnRect, showKeys ? "Hide Keys" : "Show Keys"))
                 {
-                    var tempCN = ConfigNode.Parse(newValue).GetNodes()[0];
-                    subNode.ClearValues();
-                    foreach (var tempValue in tempCN.GetValues())
-                        subNode.AddValue("key", tempValue);
-                }
+                    showKeys = !showKeys;
+                    floatCurveShowKeys[subNode] = showKeys;
 
-                placement.y += 6f;
+                    // when opening, seed the text from the current node
+                    if (showKeys)
+                    {
+                        floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
+                        floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
+                    }
+                }
+                placement.y += 1f;
+
+                // editable key textbox
+                if (showKeys)
+                {
+                    // detect if CurveEditor changed the node behind our back
+                    int currentHash = ComputeNodeValueHash(subNode);
+                    int lastHash;
+                    if (!floatCurveLastHash.TryGetValue(subNode, out lastHash))
+                        lastHash = 0;
+
+                    if (currentHash != lastHash)
+                    {
+                        // curve editor moved a key — refresh text
+                        floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
+                        floatCurveLastHash[subNode] = currentHash;
+                    }
+
+                    if (!floatCurveTemporaryValues.ContainsKey(subNode))
+                        floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
+
+                    string textValue = floatCurveTemporaryValues[subNode];
+
+                    placement.height = 6;
+                    Rect textAreaRect = GUIHelper.GetRect(placementBase, ref placement);
+                    GUIStyle fieldStyle = CanParseKeys(textValue) ? _styleTextArea : _styleTextAreaRed;
+
+                    string newTextValue = GUI.TextArea(textAreaRect, textValue, fieldStyle);
+
+                    if (newTextValue != textValue)
+                    {
+                        floatCurveTemporaryValues[subNode] = newTextValue;
+
+                        // if it parses, write back to the ConfigNode
+                        if (CanParseKeys(newTextValue))
+                        {
+                            subNode.ClearValues();
+                            string[] lines = newTextValue.Split(new[] { '\n', '\r' },
+                                StringSplitOptions.RemoveEmptyEntries);
+                            foreach (string line in lines)
+                            {
+                                string trimmed = line.Trim();
+                                if (trimmed.Length > 0)
+                                    subNode.AddValue("key", trimmed);
+                            }
+                            floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
+                        }
+                    }
+
+                    placement.y += 6f;
+                }
             }
             else if (!meta.IsHidden)
             {
@@ -777,7 +898,6 @@ namespace Utils
                         placement.y += placement.height;
                         continue;
                     }
-                    // --------------------------------------------------------
 
                     GUI.Box(boxRect, "", _styleTextField);
                     placement.height = 1;
@@ -1000,7 +1120,7 @@ namespace Utils
                         }
                         else if (field.FieldType == typeof(FloatCurve))
                         {
-                            fieldAdvance = spacingOffset + 6f;
+                            fieldAdvance = spacingOffset + GetFloatCurveHeight(configNode, field.Name);
                         }
                         else
                         {
@@ -1017,7 +1137,6 @@ namespace Utils
                                 continue;
                             }
                         }
-                        // --------------------------------------------------
 
                         GUIHelper.DrawField(placementBase, ref placement, obj, meta, configNode);
                     }
