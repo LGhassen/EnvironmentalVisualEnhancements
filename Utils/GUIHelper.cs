@@ -214,6 +214,21 @@ namespace Utils
         private static GUIStyle _styleTextArea;
         private static GUIStyle _styleTextAreaRed;
 
+        private static Texture2D _separatorTexture;
+
+        private static Texture2D GetSeparatorTexture()
+        {
+            if (_separatorTexture == null)
+            {
+                _separatorTexture = new Texture2D(1, 1);
+                _separatorTexture.hideFlags = HideFlags.HideAndDontSave;
+                _separatorTexture.SetPixel(0, 0, Color.white);
+                _separatorTexture.Apply();
+            }
+
+            return _separatorTexture;
+        }
+
         public static void EnsureStyles()
         {
             if (_cachedSkin == GUI.skin) return;
@@ -1081,6 +1096,24 @@ namespace Utils
                                         var itemNode = itemNodes[i];
 
                                         HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
+
+                                        if (i < itemList.Count - 1)
+                                        {
+                                            Rect separatorPlacement = new Rect(boxPlacement);
+                                            separatorPlacement.y += 2f * spacingOffset;
+                                            separatorPlacement.height = 1f / elementHeight;
+
+                                            Rect separatorRect = GUIHelper.GetRect(boxPlacementBase, ref separatorPlacement);
+                                            separatorRect.x += 10f;
+                                            separatorRect.width -= 20f;
+                                            separatorRect.height = 1f;
+
+                                            Color previousColor = GUI.color;
+                                            GUI.color = new Color(1f, 1f, 1f, 0.35f);
+                                            GUI.DrawTexture(separatorRect, GetSeparatorTexture());
+                                            GUI.color = previousColor;
+                                        }
+
                                         boxPlacement.y += 4 * spacingOffset;
                                     }
                                 }
