@@ -142,7 +142,7 @@ namespace EVEManager
 
         #pragma warning disable 0649
         private GUISkin _mySkin;
-        private Rect _mainWindowRect = new Rect(0, 0, 600, 720);
+        private Rect _mainWindowRect = new Rect(0, 0, 700, 900);
 
         protected static int selectedManagerIndex = 0;
         
@@ -151,8 +151,8 @@ namespace EVEManager
             GUI.skin = _mySkin;
             if (useEditor)
             {
-                _mainWindowRect.width = 600;
-                _mainWindowRect.height = 720;
+                _mainWindowRect.width = 700;
+                _mainWindowRect.height = 900;
                 var versionInfo = Assembly.GetExecutingAssembly().GetName().Version.ToString();
                 _mainWindowRect = GUI.Window(0x8100, _mainWindowRect, DrawMainWindow, "EVE "+versionInfo+" Config Editor");
             }
