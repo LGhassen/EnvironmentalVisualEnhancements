@@ -69,12 +69,23 @@ namespace Utils
                         if (typeof(IList).IsAssignableFrom(field.FieldType) && node.HasNode(field.Name))
                         {
                             var itemNodes = node.GetNode(field.Name).GetNodes();
+                            Type innerType = field.FieldType.GetGenericArguments()[0];
+
+                            fieldCount += 1f + spacingOffset;
 
                             for (int i = 0; i < itemNodes.Length; i++)
                             {
-                                var itemNode = itemNodes[i];
-                                fieldCount += GetNodeHeightCount(itemNode, field.FieldType.GetGenericArguments()[0], null);
+                                fieldCount += GetNodeHeightCount(itemNodes[i], innerType, null);
+
+                                if (i < itemNodes.Length - 1)
+                                {
+                                    fieldCount += 4f * spacingOffset;
+                                }
                             }
+                        }
+                        else
+                        {
+                            fieldCount += 1f + spacingOffset;
                         }
                     }
                     else if(!Attribute.IsDefined(field, typeof(GUIHidden)))
@@ -586,8 +597,9 @@ namespace Utils
                     bool removeable = node == null ? false : true;
 
                     bool conditionsMet = true;
+
                     if (objInfo != null)
-                        ConfigHelper.ConditionsMet(field, objInfo, configNode);
+                        conditionsMet = ConfigHelper.ConditionsMet(field, objInfo, configNode);
 
                     if (conditionsMet)
                     {
@@ -727,9 +739,21 @@ namespace Utils
 
                                     var innerType = field.FieldType.GetGenericArguments()[0];
 
+                                    /*
                                     foreach (var cn in itemNodes)
                                     {
                                         itemList.Add(Activator.CreateInstance(innerType));   
+                                    }
+                                    */
+
+                                    while (itemList.Count < itemNodes.Length)
+                                    {
+                                        itemList.Add(Activator.CreateInstance(innerType));
+                                    }
+
+                                    while (itemList.Count > itemNodes.Length)
+                                    {
+                                        itemList.RemoveAt(itemList.Count - 1);
                                     }
 
                                     for (int i = 0; i < itemList.Count; i++)
@@ -737,7 +761,9 @@ namespace Utils
                                         var itemNode = itemNodes[i];
 
                                         HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
-                                        boxPlacement.y += 4 * spacingOffset;
+
+                                        if (i < itemList.Count - 1)
+                                            boxPlacement.y += 4 * spacingOffset;
                                     }
                                 }
                             }
