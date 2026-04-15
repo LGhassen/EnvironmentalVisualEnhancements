@@ -135,6 +135,7 @@ namespace EVEManager
             selectBoxItemsRect.width = selectBoxRect.width - 20;
 
             configListPos = GUI.BeginScrollView(selectBoxRect, configListPos, selectBoxItemsRect);
+            GUIHelper.SetScrollViewport(configListPos, selectBoxRect.height);
             placement.y = 0;
             placement.height = 1;
             if (this.configNode != null)
@@ -147,6 +148,7 @@ namespace EVEManager
                 T obj = new T();
                 GUIHelper.HandleGUI(obj, null, objNode, selectBoxItemsRect, ref placement);
             }
+            GUIHelper.ClearScrollViewport();
             GUI.EndScrollView();
 
         }
@@ -189,6 +191,8 @@ namespace EVEManager
 
         public override void DrawGUI(Rect placementBase, Rect placement)
         {
+            GUIHelper.ValidateHeightCache();
+
             string body = null;
             ConfigNode objNode = null;
             ConfigWrapper selectedConfig = null;

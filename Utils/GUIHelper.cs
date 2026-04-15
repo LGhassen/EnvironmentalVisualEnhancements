@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using UnityEngine;
 
 namespace Utils
@@ -23,6 +22,15 @@ namespace Utils
         }
     }
 
+
+    public struct FieldMeta
+    {
+        public FieldInfo Field;
+        public bool IsHidden;
+        public bool IsOptional;
+        public string Tooltip;
+    }
+
     public static class GUIHelper
     {
         public const float spacingOffset = .25f;
@@ -34,59 +42,278 @@ namespace Utils
         public const string LEFT_ARROW = "\u2190";//"\u23f4";
         public const string RIGHT_ARROW = "\u2192";//"\u23f5";
 
-        public static float GetNodeHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        private static readonly Dictionary<Type, FieldMeta[]> _configFieldCache =
+            new Dictionary<Type, FieldMeta[]>();
+
+        private static readonly Dictionary<Type, string[]> _enumNameCache =
+            new Dictionary<Type, string[]>();
+
+        private static readonly Dictionary<Type, string> _nodeValueFieldCache =
+            new Dictionary<Type, string>();
+
+        private static readonly Dictionary<Type, string> _configNameCache =
+            new Dictionary<Type, string>();
+
+        private static readonly Dictionary<Type, Type> _genericArgCache =
+            new Dictionary<Type, Type>();
+
+        public static FieldMeta[] GetCachedConfigFields(Type t)
         {
-            return 1f + (2f * spacingOffset) + GetFieldsHeightCount(node, T, parent);
+            if (!_configFieldCache.TryGetValue(t, out var metas))
+            {
+                var fields = t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                    .Where(f => Attribute.IsDefined(f, typeof(ConfigItem)))
+                    .ToArray();
+
+                metas = new FieldMeta[fields.Length];
+                for (int i = 0; i < fields.Length; i++)
+                {
+                    var f = fields[i];
+                    string tip = null;
+                    if (Attribute.IsDefined(f, typeof(TooltipAttribute)))
+                    {
+                        tip = ((TooltipAttribute)Attribute.GetCustomAttribute(
+                            f, typeof(TooltipAttribute))).tooltip;
+                    }
+                    metas[i] = new FieldMeta
+                    {
+                        Field = f,
+                        IsHidden = Attribute.IsDefined(f, typeof(GUIHidden)),
+                        IsOptional = Attribute.IsDefined(f, typeof(Optional)),
+                        Tooltip = tip,
+                    };
+                }
+                _configFieldCache[t] = metas;
+            }
+            return metas;
         }
 
-        private static float GetFieldsHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        public static string[] GetCachedEnumNames(Type enumType)
         {
-            float fieldCount = 0f;
-            var objfields = T.GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(
-                    f => Attribute.IsDefined(f, typeof(ConfigItem)));
-
-            foreach (FieldInfo field in objfields)
+            if (!_enumNameCache.TryGetValue(enumType, out var names))
             {
+                names = enumType.GetFields()
+                    .Where(m => m.IsLiteral && !Attribute.IsDefined(m, typeof(EnumMask)))
+                    .Select(m => m.Name)
+                    .ToArray();
+                _enumNameCache[enumType] = names;
+            }
+            return names;
+        }
+
+        public static string GetCachedNodeValueField(Type t)
+        {
+            if (!_nodeValueFieldCache.TryGetValue(t, out var name))
+            {
+                name = t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                    .First(f => Attribute.IsDefined(f, typeof(NodeValue))).Name;
+                _nodeValueFieldCache[t] = name;
+            }
+            return name;
+        }
+
+        public static string GetCachedConfigName(Type t)
+        {
+            if (!_configNameCache.TryGetValue(t, out var name))
+            {
+                name = ((ConfigName)Attribute.GetCustomAttribute(t, typeof(ConfigName))).Name;
+                _configNameCache[t] = name;
+            }
+            return name;
+        }
+
+        private static Type GetCachedGenericArg(Type t)
+        {
+            if (!_genericArgCache.TryGetValue(t, out var arg))
+            {
+                arg = t.GetGenericArguments()[0];
+                _genericArgCache[t] = arg;
+            }
+            return arg;
+        }
+
+        private struct HeightCacheKey : IEquatable<HeightCacheKey>
+        {
+            private readonly ConfigNode _node;
+            private readonly Type _type;
+            private readonly FieldInfo _parent;
+            private readonly int _hash;
+
+            public HeightCacheKey(ConfigNode node, Type type, FieldInfo parent)
+            {
+                _node = node;
+                _type = type;
+                _parent = parent;
+                unchecked
+                {
+                    int h = node != null
+                        ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(node)
+                        : 0;
+                    h = h * 31 + (type != null ? type.GetHashCode() : 0);
+                    h = h * 31 + (parent != null ? parent.GetHashCode() : 0);
+                    _hash = h;
+                }
+            }
+
+            public bool Equals(HeightCacheKey other)
+            {
+                return ReferenceEquals(_node, other._node)
+                    && _type == other._type
+                    && _parent == other._parent;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is HeightCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode() { return _hash; }
+        }
+
+        private static readonly Dictionary<HeightCacheKey, float> _heightCache =
+            new Dictionary<HeightCacheKey, float>();
+
+        private static int _lastHeightCacheFrame = -1;
+
+        public static void ValidateHeightCache()
+        {
+            int frame = Time.frameCount;
+            if (frame != _lastHeightCacheFrame)
+            {
+                _heightCache.Clear();
+                _lastHeightCacheFrame = frame;
+            }
+        }
+
+
+        private static float _vpTop = float.NegativeInfinity;
+        private static float _vpBottom = float.PositiveInfinity;
+
+        public static void SetScrollViewport(Vector2 scrollPos, float viewportHeight)
+        {
+            _vpTop = scrollPos.y;
+            _vpBottom = scrollPos.y + viewportHeight;
+        }
+
+        public static void ClearScrollViewport()
+        {
+            _vpTop = float.NegativeInfinity;
+            _vpBottom = float.PositiveInfinity;
+        }
+
+        private static bool IsRangeVisible(float top, float bottom)
+        {
+            return bottom > _vpTop && top < _vpBottom;
+        }
+
+        private static GUISkin _cachedSkin;
+        private static GUIStyle _styleLabel;
+        private static GUIStyle _styleLabelCenter;
+        private static GUIStyle _styleTextField;
+        private static GUIStyle _styleTextFieldRed;
+        private static GUIStyle _styleTextArea;
+        private static GUIStyle _styleTextAreaRed;
+
+        public static void EnsureStyles()
+        {
+            if (_cachedSkin == GUI.skin) return;
+            _cachedSkin = GUI.skin;
+
+            _styleLabel = new GUIStyle(GUI.skin.label);
+            _styleLabelCenter = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter
+            };
+            _styleTextField = new GUIStyle(GUI.skin.textField);
+
+            _styleTextFieldRed = new GUIStyle(GUI.skin.textField);
+            _styleTextFieldRed.normal.textColor = Color.red;
+            _styleTextFieldRed.active.textColor = Color.red;
+            _styleTextFieldRed.focused.textColor = Color.red;
+            _styleTextFieldRed.hover.textColor = Color.red;
+
+            _styleTextArea = new GUIStyle(GUI.skin.textArea);
+
+            _styleTextAreaRed = new GUIStyle(GUI.skin.textArea);
+            _styleTextAreaRed.normal.textColor = Color.red;
+            _styleTextAreaRed.active.textColor = Color.red;
+            _styleTextAreaRed.focused.textColor = Color.red;
+            _styleTextAreaRed.hover.textColor = Color.red;
+        }
+
+
+        public static float GetNodeHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        {
+            var key = new HeightCacheKey(node, T, parent);
+            float cached;
+            if (_heightCache.TryGetValue(key, out cached))
+                return cached;
+
+            float result = ComputeNodeHeightCount(node, T, parent);
+            _heightCache[key] = result;
+            return result;
+        }
+
+        private static float ComputeNodeHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        {
+            float fieldCount = 1f + (2f * spacingOffset);
+
+            // When T itself is a list type (e.g. List<X>), compute height from
+            // its item nodes rather than looking for ConfigItem fields on List<X>
+            // (which has none).  HandleGUI adds 4*spacingOffset between items.
+            if (typeof(IList).IsAssignableFrom(T) && T.IsGenericType && node != null)
+            {
+                var innerType = GetCachedGenericArg(T);
+                var itemNodes = node.GetNodes();
+                for (int i = 0; i < itemNodes.Length; i++)
+                {
+                    fieldCount += GetNodeHeightCount(itemNodes[i], innerType, null);
+                    fieldCount += 4 * spacingOffset;
+                }
+                return fieldCount;
+            }
+
+            FieldMeta[] metas = GetCachedConfigFields(T);
+
+            foreach (FieldMeta meta in metas)
+            {
+                FieldInfo field = meta.Field;
                 bool isNode = ConfigHelper.IsNode(field, node, false);
 
                 if (node != null && (parent == null || ConfigHelper.ConditionsMet(field, parent, node)))
                 {
                     if (field.FieldType == typeof(FloatCurve))
                     {
-                        fieldCount += spacingOffset + 6f;
+                        fieldCount += spacingOffset;
+                        fieldCount += 6f;
                     }
                     else if (isNode)
                     {
-                        ConfigNode subNode = node.HasNode(field.Name) ? node.GetNode(field.Name) : null;
-                        fieldCount += GetNodeHeightCount(subNode, field.FieldType, field) + spacingOffset;
+                        if (node.HasNode(field.Name))
+                        {
+                            fieldCount += GetNodeHeightCount(node.GetNode(field.Name), field.FieldType, field);
+                        }
+                        else
+                        {
+                            fieldCount += GetNodeHeightCount(null, field.FieldType, field);
+                        }
+                        fieldCount += spacingOffset;
                     }
                     else if (ConfigHelper.IsList(field))
                     {
                         if (typeof(IList).IsAssignableFrom(field.FieldType) && node.HasNode(field.Name))
                         {
                             var itemNodes = node.GetNode(field.Name).GetNodes();
-                            Type innerType = field.FieldType.GetGenericArguments()[0];
-
-                            fieldCount += 1f + spacingOffset;
 
                             for (int i = 0; i < itemNodes.Length; i++)
                             {
-                                // List items are rendered inline (HandleGUI iterates
-                                // their fields directly), so use fields-only height.
-                                fieldCount += GetFieldsHeightCount(itemNodes[i], innerType, null);
-
-                                if (i < itemNodes.Length - 1)
-                                {
-                                    fieldCount += 4f * spacingOffset;
-                                }
+                                var itemNode = itemNodes[i];
+                                fieldCount += GetNodeHeightCount(itemNode, GetCachedGenericArg(field.FieldType), null);
+                                fieldCount += 4 * spacingOffset;
                             }
                         }
-                        else
-                        {
-                            fieldCount += 1f + spacingOffset;
-                        }
                     }
-                    else if (!Attribute.IsDefined(field, typeof(GUIHidden)))
+                    else if (!meta.IsHidden)
                     {
                         fieldCount += 1f + spacingOffset;
                     }
@@ -179,6 +406,8 @@ namespace Utils
 
         public static ConfigNode DrawObjectSelector<T>(ConfigNode sourceNode, ref int selectedObjIndex, ref String objString, ref Vector2 objListPos, Rect placementBase, ref Rect placement, ConfigNode.Value filter = null)
         {
+            EnsureStyles();
+
             List<ConfigNode> nodeList;
             if (filter != null)
             {
@@ -189,7 +418,7 @@ namespace Utils
                 nodeList = sourceNode.GetNodes().ToList();
             }
 
-            string configName = ((ConfigName)Attribute.GetCustomAttribute(typeof(T), typeof(ConfigName))).Name;
+            string configName = GetCachedConfigName(typeof(T));
 
             String[] objList = nodeList.Select(node => node.GetValue(configName)).ToArray();
             float nodeHeight = placement.height;
@@ -346,6 +575,8 @@ namespace Utils
 
         public static T DrawSelector<T>(List<T> objList, ref int selectedIndex, float ratio, Rect placementBase, ref Rect placement)
         {
+            EnsureStyles();
+
             Rect leftRect = GUIHelper.GetRect(placementBase, ref placement);
             Rect centerRect = GUIHelper.GetRect(placementBase, ref placement);
             Rect rightRect = GUIHelper.GetRect(placementBase, ref placement);
@@ -374,9 +605,7 @@ namespace Utils
                 currentObj = objList[selectedIndex];
                 if (currentObj != null)
                 {
-                    GUIStyle gsCenter = new GUIStyle(GUI.skin.label);
-                    gsCenter.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(centerRect, currentObj.ToString(), gsCenter);
+                    GUI.Label(centerRect, currentObj.ToString(), _styleLabelCenter);
                 }
 
             }
@@ -386,8 +615,12 @@ namespace Utils
 
         private static Dictionary<ConfigNode, string> floatCurveTemporaryValues = new Dictionary<ConfigNode, string>();
 
-        public static void DrawField(Rect placementBase, ref Rect placement, object obj, FieldInfo field, ConfigNode config)
+        public static void DrawField(Rect placementBase, ref Rect placement, object obj, FieldMeta meta, ConfigNode config)
         {
+            EnsureStyles();
+
+            FieldInfo field = meta.Field;
+
             if (field.FieldType == typeof(FloatCurve))
             {
                 placement.y += spacingOffset;
@@ -407,12 +640,7 @@ namespace Utils
 
                 placement.height = 6;
                 Rect textAreaRect = GUIHelper.GetRect(placementBase, ref placement);
-                GUIStyle fieldStyle = new GUIStyle(GUI.skin.textArea);
-
-                if (!ConfigHelper.CanParse(field, value))
-                {
-                    fieldStyle.normal.textColor = Color.red; fieldStyle.active.textColor = Color.red; fieldStyle.focused.textColor = Color.red; fieldStyle.hover.textColor = Color.red;
-                }
+                GUIStyle fieldStyle = ConfigHelper.CanParse(field, value) ? _styleTextArea : _styleTextAreaRed;
 
                 string newValue = GUI.TextArea(textAreaRect, value, fieldStyle);
                 if (newValue != value)
@@ -428,7 +656,7 @@ namespace Utils
 
                 placement.y += 6f;
             }
-            else if (!Attribute.IsDefined(field, typeof(GUIHidden)))
+            else if (!meta.IsHidden)
             {
                 placement.y += spacingOffset;
                 placement.height = 1;
@@ -447,35 +675,24 @@ namespace Utils
                 Rect labelRect = GUIHelper.GetRect(placementBase, ref placement);
                 Rect fieldRect = GUIHelper.GetRect(placementBase, ref placement);
                 GUIHelper.SplitRect(ref labelRect, ref fieldRect, valueRatio);
-                String tooltipText = "";
-                if (Attribute.IsDefined(field, typeof(TooltipAttribute)))
-                {
-                    TooltipAttribute tt = (TooltipAttribute)Attribute.GetCustomAttribute(field, typeof(TooltipAttribute));
-                    tooltipText = tt.tooltip;
-                }
-                GUIStyle style = new GUIStyle(GUI.skin.label);
+
+                String tooltipText = meta.Tooltip ?? "";
                 GUIContent gc = new GUIContent(field.Name, tooltipText);
 
-                Vector2 labelSize = style.CalcSize(gc);
+                Vector2 labelSize = _styleLabel.CalcSize(gc);
                 labelRect.width = Mathf.Min(labelSize.x, labelRect.width);
                 GUI.Label(labelRect, gc);
 
                 string newValue = value;
                 if (field.FieldType.IsEnum)
                 {
-                    newValue = ComboBox(fieldRect, value, field.FieldType.GetFields().Where(
-                        m => (m.IsLiteral) && !Attribute.IsDefined(m, typeof(EnumMask))).Select(m => m.Name).ToArray());
+                    newValue = ComboBox(fieldRect, value, GetCachedEnumNames(field.FieldType));
                 }
                 else
                 {
-                    GUIStyle fieldStyle = new GUIStyle(GUI.skin.textField);
-                    if (value != "" && !ConfigHelper.CanParse(field, value))
-                    {
-                        fieldStyle.normal.textColor = Color.red;
-                        fieldStyle.active.textColor = Color.red;
-                        fieldStyle.focused.textColor = Color.red;
-                        fieldStyle.hover.textColor = Color.red;
-                    }
+                    GUIStyle fieldStyle = (value != "" && !ConfigHelper.CanParse(field, value))
+                        ? _styleTextFieldRed
+                        : _styleTextField;
                     newValue = GUI.TextField(fieldRect, value, fieldStyle);
                 }
 
@@ -494,7 +711,7 @@ namespace Utils
 
         private static string ComboBox(Rect fieldRect, string value, string[] list)
         {
-            GUIStyle gs = new GUIStyle(GUI.skin.textField);
+            EnsureStyles();
 
             Rect fieldRectUp = new Rect(fieldRect);
             fieldRectUp.x += fieldRect.width - (2 * elementHeight);
@@ -502,9 +719,9 @@ namespace Utils
             Rect fieldRectDown = new Rect(fieldRectUp);
             fieldRectDown.x += fieldRectDown.width;
             fieldRect.width -= 2 * fieldRectUp.width;
-            GUI.Box(fieldRect, value, gs);
+            GUI.Box(fieldRect, value, _styleTextField);
 
-            if (GUI.Button(fieldRectUp, LEFT_ARROW, gs))
+            if (GUI.Button(fieldRectUp, LEFT_ARROW, _styleTextField))
             {
                 int index = Array.IndexOf(list, value);
                 index--;
@@ -514,7 +731,7 @@ namespace Utils
                 }
                 value = list[index];
             }
-            if (GUI.Button(fieldRectDown, RIGHT_ARROW, gs))
+            if (GUI.Button(fieldRectDown, RIGHT_ARROW, _styleTextField))
             {
                 int index = Array.IndexOf(list, value);
                 index++;
@@ -530,10 +747,14 @@ namespace Utils
 
         public static void HandleGUI(object obj, FieldInfo objInfo, ConfigNode configNode, Rect placementBase, ref Rect placement)
         {
-            var objfields = obj.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(
-                    field => Attribute.IsDefined(field, typeof(ConfigItem)));
-            foreach (FieldInfo field in objfields)
+            EnsureStyles();
+
+            FieldMeta[] metas = GetCachedConfigFields(obj.GetType());
+
+            foreach (FieldMeta meta in metas)
             {
+                FieldInfo field = meta.Field;
+
                 bool isNode = ConfigHelper.IsNode(field, configNode);
 
                 bool isValueNode = ConfigHelper.IsValueNode(field);
@@ -543,16 +764,22 @@ namespace Utils
                 if (isNode || isValueNode || isList)
                 {
                     placement.y += spacingOffset;
-                    bool isOptional = Attribute.IsDefined(field, typeof(Optional));
 
                     ConfigNode node = configNode.GetNode(field.Name);
 
-                    GUIStyle gsRight = new GUIStyle(GUI.skin.label);
-                    gsRight.alignment = TextAnchor.MiddleCenter;
-
                     Rect boxRect = GUIHelper.GetRect(placementBase, ref placement, node, field.FieldType, field);
-                    GUIStyle gs = new GUIStyle(GUI.skin.textField);
-                    GUI.Box(boxRect, "", gs);
+
+                    // viewport culling: skip entire node section
+                    if (!IsRangeVisible(boxRect.y, boxRect.y + boxRect.height))
+                    {
+                        // placement.height == H (set by GetRect).
+                        // Total advance from (y0+spacingOffset) = H, landing at y0+H+spacingOffset.
+                        placement.y += placement.height;
+                        continue;
+                    }
+                    // --------------------------------------------------------
+
+                    GUI.Box(boxRect, "", _styleTextField);
                     placement.height = 1;
                     placement.y += spacingOffset;
 
@@ -579,37 +806,29 @@ namespace Utils
                         GUIHelper.SplitRect(ref listPlusRec, ref listMinusRec, (1f / 2f));
                     }
 
-                    String tooltipText = "";
-                    if (Attribute.IsDefined(field, typeof(TooltipAttribute)))
-                    {
-                        TooltipAttribute tt = (TooltipAttribute)Attribute.GetCustomAttribute(field, typeof(TooltipAttribute));
-                        tooltipText = tt.tooltip;
-                    }
-                    GUIStyle style = new GUIStyle(GUI.skin.label);
+                    String tooltipText = meta.Tooltip ?? "";
                     GUIContent gc = new GUIContent(field.Name, tooltipText);
 
-                    Vector2 labelSize = style.CalcSize(gc);
+                    Vector2 labelSize = _styleLabel.CalcSize(gc);
                     titleRect.width = Mathf.Min(labelSize.x, titleRect.width);
                     GUI.Label(titleRect, gc);
 
                     bool removeable = node == null ? false : true;
 
                     bool conditionsMet = true;
-
                     if (objInfo != null)
-                        conditionsMet = ConfigHelper.ConditionsMet(field, objInfo, configNode);
+                        ConfigHelper.ConditionsMet(field, objInfo, configNode);
 
                     if (conditionsMet)
                     {
-                        if (isOptional || isValueNode)
+                        if (meta.IsOptional || isValueNode)
                         {
                             String value = null;
                             String defaultValue = ConfigHelper.GetConfigValue(obj, field);
                             String valueField = "";
                             if (isValueNode)
                             {
-                                valueField = field.FieldType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic).First(
-                                    f => Attribute.IsDefined(f, typeof(NodeValue))).Name;
+                                valueField = GetCachedNodeValueField(field.FieldType);
                             }
                             String newValue = "";
                             if (isValueNode)
@@ -632,14 +851,9 @@ namespace Utils
                                     value = defaultValue;
                                 }
 
-                                GUIStyle fieldStyle = new GUIStyle(GUI.skin.textField);
-                                if (value != "" && !ConfigHelper.CanParse(field, value, node))
-                                {
-                                    fieldStyle.normal.textColor = Color.red;
-                                    fieldStyle.active.textColor = Color.red;
-                                    fieldStyle.focused.textColor = Color.red;
-                                    fieldStyle.hover.textColor = Color.red;
-                                }
+                                GUIStyle fieldStyle = (value != "" && !ConfigHelper.CanParse(field, value, node))
+                                    ? _styleTextFieldRed
+                                    : _styleTextField;
                                 newValue = GUI.TextField(fieldRect, value, fieldStyle);
 
                             }
@@ -735,23 +949,11 @@ namespace Utils
 
                                     var itemList = subObj as IList;
 
-                                    var innerType = field.FieldType.GetGenericArguments()[0];
+                                    var innerType = GetCachedGenericArg(field.FieldType);
 
-                                    /*
                                     foreach (var cn in itemNodes)
                                     {
-                                        itemList.Add(Activator.CreateInstance(innerType));   
-                                    }
-                                    */
-
-                                    while (itemList.Count < itemNodes.Length)
-                                    {
                                         itemList.Add(Activator.CreateInstance(innerType));
-                                    }
-
-                                    while (itemList.Count > itemNodes.Length)
-                                    {
-                                        itemList.RemoveAt(itemList.Count - 1);
                                     }
 
                                     for (int i = 0; i < itemList.Count; i++)
@@ -759,9 +961,7 @@ namespace Utils
                                         var itemNode = itemNodes[i];
 
                                         HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
-
-                                        if (i < itemList.Count - 1)
-                                            boxPlacement.y += 4 * spacingOffset;
+                                        boxPlacement.y += 4 * spacingOffset;
                                     }
                                 }
                             }
@@ -792,7 +992,34 @@ namespace Utils
                 {
                     if (objInfo == null || ConfigHelper.ConditionsMet(field, objInfo, configNode))
                     {
-                        GUIHelper.DrawField(placementBase, ref placement, obj, field, configNode);
+                        // viewport culling: skip simple fields
+                        float fieldAdvance;
+                        if (meta.IsHidden)
+                        {
+                            fieldAdvance = 0f;
+                        }
+                        else if (field.FieldType == typeof(FloatCurve))
+                        {
+                            fieldAdvance = spacingOffset + 6f;
+                        }
+                        else
+                        {
+                            fieldAdvance = spacingOffset + 1f;
+                        }
+
+                        if (fieldAdvance > 0f)
+                        {
+                            float topPx = placement.y * elementHeight + placementBase.y;
+                            float bottomPx = topPx + fieldAdvance * elementHeight;
+                            if (!IsRangeVisible(topPx, bottomPx))
+                            {
+                                placement.y += fieldAdvance;
+                                continue;
+                            }
+                        }
+                        // --------------------------------------------------
+
+                        GUIHelper.DrawField(placementBase, ref placement, obj, meta, configNode);
                     }
                     else if (configNode.HasValue(field.Name))
                     {
