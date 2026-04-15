@@ -33,36 +33,32 @@ namespace Utils
         public const string DOWN_ARROW = "\u2193";//"\u23f7";
         public const string LEFT_ARROW = "\u2190";//"\u23f4";
         public const string RIGHT_ARROW = "\u2192";//"\u23f5";
-    
+
         public static float GetNodeHeightCount(ConfigNode node, Type T, FieldInfo parent)
         {
-            float fieldCount = 1f+ (2f*spacingOffset);
+            return 1f + (2f * spacingOffset) + GetFieldsHeightCount(node, T, parent);
+        }
+
+        private static float GetFieldsHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        {
+            float fieldCount = 0f;
             var objfields = T.GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(
                     f => Attribute.IsDefined(f, typeof(ConfigItem)));
-            
 
             foreach (FieldInfo field in objfields)
             {
                 bool isNode = ConfigHelper.IsNode(field, node, false);
 
-                if ( node != null && (parent == null || ConfigHelper.ConditionsMet(field, parent, node)))
+                if (node != null && (parent == null || ConfigHelper.ConditionsMet(field, parent, node)))
                 {
                     if (field.FieldType == typeof(FloatCurve))
                     {
-                        fieldCount += spacingOffset;
-                        fieldCount += 6f;
+                        fieldCount += spacingOffset + 6f;
                     }
                     else if (isNode)
                     {
-                        if (node.HasNode(field.Name))
-                        {
-                            fieldCount += GetNodeHeightCount(node.GetNode(field.Name), field.FieldType, field);
-                        }
-                        else
-                        {
-                            fieldCount += GetNodeHeightCount(null, field.FieldType, field);
-                        }
-                        fieldCount += spacingOffset;
+                        ConfigNode subNode = node.HasNode(field.Name) ? node.GetNode(field.Name) : null;
+                        fieldCount += GetNodeHeightCount(subNode, field.FieldType, field) + spacingOffset;
                     }
                     else if (ConfigHelper.IsList(field))
                     {
@@ -75,7 +71,9 @@ namespace Utils
 
                             for (int i = 0; i < itemNodes.Length; i++)
                             {
-                                fieldCount += GetNodeHeightCount(itemNodes[i], innerType, null);
+                                // List items are rendered inline (HandleGUI iterates
+                                // their fields directly), so use fields-only height.
+                                fieldCount += GetFieldsHeightCount(itemNodes[i], innerType, null);
 
                                 if (i < itemNodes.Length - 1)
                                 {
@@ -88,16 +86,16 @@ namespace Utils
                             fieldCount += 1f + spacingOffset;
                         }
                     }
-                    else if(!Attribute.IsDefined(field, typeof(GUIHidden)))
+                    else if (!Attribute.IsDefined(field, typeof(GUIHidden)))
                     {
-                        fieldCount += 1f+ spacingOffset;
+                        fieldCount += 1f + spacingOffset;
                     }
                 }
             }
 
             return fieldCount;
         }
-        
+
         public static Rect GetRect(Rect placementBase, ref Rect placement, ConfigNode node, Type T, FieldInfo field)
         {
             placement.height = GetNodeHeightCount(node, T, field);
@@ -193,7 +191,7 @@ namespace Utils
 
             string configName = ((ConfigName)Attribute.GetCustomAttribute(typeof(T), typeof(ConfigName))).Name;
 
-            String[] objList = nodeList.Select(node=>node.GetValue(configName)).ToArray();
+            String[] objList = nodeList.Select(node => node.GetValue(configName)).ToArray();
             float nodeHeight = placement.height;
             Rect selectBoxOutlineRect = GetRect(placementBase, ref placement);
             placement.height = nodeHeight - 1;
@@ -308,7 +306,7 @@ namespace Utils
                 {
                     ConfigNode newNode = new ConfigNode(ConfigHelper.OBJECT_NODE);
                     newNode.SetValue(configName, objString, true);
-                    if( filter != null)
+                    if (filter != null)
                     {
                         newNode.SetValue(filter.name, filter.value, true);
                     }
@@ -399,7 +397,7 @@ namespace Utils
 
                 if (subNode == null)
                 {
-                    subNode = config.AddNode(field.Name);                    
+                    subNode = config.AddNode(field.Name);
                 }
 
                 if (!floatCurveTemporaryValues.ContainsKey(subNode))
@@ -497,7 +495,7 @@ namespace Utils
         private static string ComboBox(Rect fieldRect, string value, string[] list)
         {
             GUIStyle gs = new GUIStyle(GUI.skin.textField);
-            
+
             Rect fieldRectUp = new Rect(fieldRect);
             fieldRectUp.x += fieldRect.width - (2 * elementHeight);
             fieldRectUp.width = elementHeight;
@@ -510,13 +508,13 @@ namespace Utils
             {
                 int index = Array.IndexOf(list, value);
                 index--;
-                if(index < 0)
+                if (index < 0)
                 {
-                    index = list.Length-1;
+                    index = list.Length - 1;
                 }
                 value = list[index];
             }
-            if(GUI.Button(fieldRectDown, RIGHT_ARROW, gs))
+            if (GUI.Button(fieldRectDown, RIGHT_ARROW, gs))
             {
                 int index = Array.IndexOf(list, value);
                 index++;
@@ -529,7 +527,7 @@ namespace Utils
             return value;
         }
 
-        
+
         public static void HandleGUI(object obj, FieldInfo objInfo, ConfigNode configNode, Rect placementBase, ref Rect placement)
         {
             var objfields = obj.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic).Where(
@@ -706,7 +704,7 @@ namespace Utils
                         if (node != null)
                         {
                             object subObj = field.GetValue(obj);
-                            
+
 
                             if (subObj == null)
                             {
@@ -719,7 +717,7 @@ namespace Utils
                                 if (typeof(IList).IsAssignableFrom(field.FieldType))
                                 {
                                     var itemNodes = node.GetNodes();
-                                    
+
                                     if (GUI.Button(listPlusRec, "+"))
                                     {
                                         node.AddNode("Item");
@@ -802,7 +800,7 @@ namespace Utils
                     }
                 }
             }
-            
+
         }
 
     }
