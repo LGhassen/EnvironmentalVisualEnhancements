@@ -271,7 +271,12 @@ namespace Utils
 
         private static float ComputeNodeHeightCount(ConfigNode node, Type T, FieldInfo parent)
         {
-            float fieldCount = 1f + (2f * spacingOffset);
+            return 1f + (2f * spacingOffset) + ComputeFieldsHeightCount(node, T, parent);
+        }
+
+        private static float ComputeFieldsHeightCount(ConfigNode node, Type T, FieldInfo parent)
+        {
+            float fieldCount = 0f;
 
             // When T itself is a list type (e.g. List<X>), compute height from
             // its item nodes rather than looking for ConfigItem fields on List<X>
@@ -282,8 +287,11 @@ namespace Utils
                 var itemNodes = node.GetNodes();
                 for (int i = 0; i < itemNodes.Length; i++)
                 {
-                    fieldCount += GetNodeHeightCount(itemNodes[i], innerType, null);
-                    fieldCount += 4 * spacingOffset;
+                    fieldCount += ComputeFieldsHeightCount(itemNodes[i], innerType, null);
+                    if (i < itemNodes.Length - 1)
+                    {
+                        fieldCount += 4 * spacingOffset;
+                    }
                 }
                 return fieldCount;
             }
@@ -319,13 +327,25 @@ namespace Utils
                         if (typeof(IList).IsAssignableFrom(field.FieldType) && node.HasNode(field.Name))
                         {
                             var itemNodes = node.GetNode(field.Name).GetNodes();
+                            Type innerType = GetCachedGenericArg(field.FieldType);
+
+                            fieldCount += 1f + spacingOffset;
 
                             for (int i = 0; i < itemNodes.Length; i++)
                             {
-                                var itemNode = itemNodes[i];
-                                fieldCount += GetNodeHeightCount(itemNode, GetCachedGenericArg(field.FieldType), null);
-                                fieldCount += 4 * spacingOffset;
+                                // List items are rendered inline (HandleGUI iterates
+                                // their fields directly), so use fields-only height.
+                                fieldCount += ComputeFieldsHeightCount(itemNodes[i], innerType, null);
+
+                                if (i < itemNodes.Length - 1)
+                                {
+                                    fieldCount += 4f * spacingOffset;
+                                }
                             }
+                        }
+                        else
+                        {
+                            fieldCount += 1f + spacingOffset;
                         }
                     }
                     else if (!meta.IsHidden)
@@ -952,7 +972,7 @@ namespace Utils
 
                     bool conditionsMet = true;
                     if (objInfo != null)
-                        ConfigHelper.ConditionsMet(field, objInfo, configNode);
+                        conditionsMet = ConfigHelper.ConditionsMet(field, objInfo, configNode);
 
                     if (conditionsMet)
                     {
@@ -1086,9 +1106,14 @@ namespace Utils
 
                                     var innerType = GetCachedGenericArg(field.FieldType);
 
-                                    foreach (var cn in itemNodes)
+                                    while (itemList.Count < itemNodes.Length)
                                     {
                                         itemList.Add(Activator.CreateInstance(innerType));
+                                    }
+
+                                    while (itemList.Count > itemNodes.Length)
+                                    {
+                                        itemList.RemoveAt(itemList.Count - 1);
                                     }
 
                                     for (int i = 0; i < itemList.Count; i++)
@@ -1112,9 +1137,9 @@ namespace Utils
                                             GUI.color = new Color(1f, 1f, 1f, 0.35f);
                                             GUI.DrawTexture(separatorRect, GetSeparatorTexture());
                                             GUI.color = previousColor;
-                                        }
 
-                                        boxPlacement.y += 4 * spacingOffset;
+                                            boxPlacement.y += 4 * spacingOffset;
+                                        }
                                     }
                                 }
                             }
