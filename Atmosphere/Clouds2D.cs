@@ -436,11 +436,8 @@ namespace Atmosphere
                     scaledCelestialTransform.position,
                     scaledPlanetRadius);
 
-                if (intersectDistance != Mathf.Infinity)
-                {
                     mapViewParting = 1;
                     scaledIntersect = scaledCameraPos + rayDirection * intersectDistance;
-                }
             }
 
             SetMapViewPartingShaderProperties(cloudMaterial, mapViewParting, scaledIntersect);

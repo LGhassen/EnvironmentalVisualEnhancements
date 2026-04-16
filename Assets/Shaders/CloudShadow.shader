@@ -154,8 +154,9 @@
 					float invScaledPlanetRadius = 1.0 / scaledPlanetRadius;
 
 					float mouseDistance = distance(scaledMouseCloudIntersect, IN.worldPos.xyz);
+					float camDistance   = distance(_WorldSpaceCameraPos, IN.worldPos.xyz);
 
-					float fade = 1.0 - saturate(mouseDistance * (invScaledPlanetRadius * 4.0) - 0.5);
+					float fade = 1.0 - saturate(min(mouseDistance, camDistance) * (invScaledPlanetRadius * 4.0) - 0.5);
 					color.rgb = lerp(color.rgb, 1.0.xxx, fade);
 				}
 

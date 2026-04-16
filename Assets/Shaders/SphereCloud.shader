@@ -264,8 +264,9 @@ Shader "EVE/Cloud" {
 						float3 relativePosition = worldPosition - _PlanetOrigin;
 
 						float mouseDistance = distance(scaledMouseCloudIntersect, worldPosition);
+						float camDistance   = distance(_WorldSpaceCameraPos, worldPosition);
 
-						float fade = 1.0 - saturate(mouseDistance * (invScaledPlanetRadius * 2.0) - 0.5);
+						float fade = 1.0 - saturate(min(mouseDistance, camDistance) * (invScaledPlanetRadius * 2.0) - 0.5);
 
 						if (fade > 0.0)
 						{
