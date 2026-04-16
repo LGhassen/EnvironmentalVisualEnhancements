@@ -145,7 +145,7 @@ namespace Utils
             else
             {
                 GUI.Label(new Rect(x, r.y, r.width - (x - r.x), r.height),
-                    "Click to add | Drag handles | Right-click delete | Middle-clidk pan | Scroll zoom");
+                    "Click to add | Drag handles | Right-click delete | Middle-click pan | Scroll zoom");
             }
         }
 
