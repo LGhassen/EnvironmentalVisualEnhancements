@@ -61,31 +61,42 @@ as they are not too small or too close to the noise lattice period
 // 1 / 289
 #define NOISE_SIMPLEX_1_DIV_289 0.00346020761245674740484429065744f
 
-
-// ( x*34.0 + 1.0 )*x =
-// x*x*34.0 + x
-float permute(float x) {
-	return fmod(
-		x*x*34.0 + x,
-		289.0
-		);
+float mod289(float x)
+{
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
 
-float3 permute(float3 x) {
-	return fmod(
-		x*x*34.0 + x,
-		289.0
-		);
+float2 mod289(float2 x)
+{
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
 
-float4 permute(float4 x) {
-	return fmod(
-		x*x*34.0 + x,
-		289.0
-		);
+float3 mod289(float3 x)
+{
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+float4 mod289(float4 x)
+{
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
 
 
+
+float permute(float x)
+{
+    return mod289(((x * 34.0) + 1.0) * x);
+}
+
+float3 permute(float3 x)
+{
+    return mod289(((x * 34.0) + 1.0) * x);
+}
+
+float4 permute(float4 x)
+{
+    return mod289(((x * 34.0) + 1.0) * x);
+}
 
 float taylorInvSqrt(float r) {
 	return 1.79284291400159 - 0.85373472095314 * r;
@@ -152,7 +163,7 @@ float snoise(float2 v)
 	x12.xy -= i1;
 
 	// Permutations
-	i = fmod(i, 289.0); // Avoid truncation effects in permutation
+    i = mod289(i);
 	float3 p = permute(
 		permute(
 			i.y + float3(0.0, i1.y, 1.0)
@@ -214,7 +225,7 @@ float snoise(float3 v)
 	float3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
 
 								 // Permutations
-	i = fmod(i, 289.0);
+    i = mod289(i);
 	float4 p = permute(
 		permute(
 			permute(
@@ -338,7 +349,7 @@ float snoise(float4 v)
 	float4 x4 = x0 + C.wwww;
 
 	// Permutations
-	i = fmod(i, 289.0);
+    i = mod289(i);
 	float j0 = permute(
 		permute(
 			permute(

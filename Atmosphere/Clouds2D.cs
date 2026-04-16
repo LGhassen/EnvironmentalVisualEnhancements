@@ -370,15 +370,18 @@ namespace Atmosphere
 
             if (shadowMaterial != null) shadowMaterial.Remove();
             if (macroCloudMaterial != null) macroCloudMaterial.Remove();
-        }
+        }        
 
         internal void UpdateRotation(QuaternionD rotation, Matrix4x4 World2Planet, Matrix4x4 mainRotationMatrix, Matrix4x4 detailRotationMatrix)
         {
             if (rotation != null)
             {
-                if (arc == 360) {
+                if (arc == 360)
+                {
                     CloudMesh.transform.localRotation = rotation;
-                } else {
+                }
+                else
+                {
                     var mat = mainRotationMatrix;
                     float w = Mathf.Sqrt(1.0f + mat.m00 + mat.m11 + mat.m22) / 2.0f;
                     CloudMesh.transform.localRotation = new Quaternion((mat.m21 - mat.m12) / (4.0f * w), (mat.m02 - mat.m20) / (4.0f * w), (mat.m10 - mat.m01) / (4.0f * w), w);
@@ -401,7 +404,7 @@ namespace Atmosphere
             }
             cloudMaterial.SetVector(ShaderProperties.PLANET_ORIGIN_PROPERTY, CloudMesh.transform.position);
             cloudMaterial.SetVector(ShaderProperties._UniveralTime_PROPERTY, UniversalTimeVector());
-            
+
             SetRotations(World2Planet, mainRotationMatrix, detailRotationMatrix);
 
             if (cloudsMat.FlowMap != null && cloudsMat.FlowMap.Texture != null)
@@ -410,6 +413,51 @@ namespace Atmosphere
                 flowLoopTime = flowLoopTime % 1;
 
                 cloudMaterial.SetFloat(ShaderProperties.flowLoopTime_PROPERTY, flowLoopTime);
+            }
+
+
+            Vector3 scaledCameraPos = ScaledCamera.Instance.cam.transform.position;
+            float scaledPlanetRadius = radius / ScaledSpace.ScaleFactor;
+
+            SetMapViewParting(scaledCameraPos, scaledPlanetRadius);
+        }
+
+        private void SetMapViewParting(Vector3 scaledCameraPos, float scaledPlanetRadius)
+        {
+            int mapViewParting = 0; Vector3 scaledIntersect = default;
+
+            if (MapView.MapIsEnabled &&
+                (scaledCameraPos - scaledCelestialTransform.position).magnitude < 4.0f * scaledPlanetRadius)
+            {
+                Vector3 rayDirection = GetCursorRayDirection(ScaledCamera.Instance.cam);
+                float intersectDistance = IntersectSphere(
+                    scaledCameraPos,
+                    rayDirection,
+                    scaledCelestialTransform.position,
+                    scaledPlanetRadius);
+
+                if (intersectDistance != Mathf.Infinity)
+                {
+                    mapViewParting = 1;
+                    scaledIntersect = scaledCameraPos + rayDirection * intersectDistance;
+                }
+            }
+
+            SetMapViewPartingShaderProperties(cloudMaterial, mapViewParting, scaledIntersect);
+
+            if (ScaledShadowProjector != null)
+            {
+                SetMapViewPartingShaderProperties(ScaledShadowProjector.material, mapViewParting, scaledIntersect);
+            }
+        }
+
+        private void SetMapViewPartingShaderProperties(Material material, int mapViewParting, Vector3 scaledMouseCloudIntersect)
+        {
+            material.SetInt(ShaderProperties.mapViewParting_PROPERTY, mapViewParting);
+
+            if (mapViewParting == 1)
+            {
+                material.SetVector(ShaderProperties.scaledMouseCloudIntersect_PROPERTY, scaledMouseCloudIntersect);
             }
         }
 
@@ -475,6 +523,45 @@ namespace Atmosphere
                     screenSpaceShadowMaterial.SetMatrix(ShaderProperties.DETAIL_ROTATION_PROPERTY, detailRotation);
                 }
             }
+        }
+
+        private static Vector3d GetCursorRayDirection(Camera cam)
+        {
+            // this code is very bad but the built-in Unity ScreenPointToRay jitters
+            var viewPortPoint = cam.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, Tools.IsUnifiedCameraMode() ? -10f : 10f));
+            viewPortPoint.x = 2.0f * viewPortPoint.x - 1.0f;
+            viewPortPoint.x = -viewPortPoint.x;
+            viewPortPoint.y = 2.0f * viewPortPoint.y - 1.0f;
+
+            var screenToCamera = GL.GetGPUProjectionMatrix(cam.projectionMatrix, true).inverse;
+            var cameraSpacePoint = screenToCamera.MultiplyPoint(viewPortPoint);
+
+            var cameraSpacePointNormalized = cameraSpacePoint.normalized;
+            cameraSpacePointNormalized.y = Tools.IsUnifiedCameraMode() ? cameraSpacePointNormalized.y : -cameraSpacePointNormalized.y;
+
+            Vector3d rayDir = cam.transform.TransformDirection(cameraSpacePointNormalized);
+            return rayDir;
+        }
+
+
+        private float IntersectSphere(Vector3 origin, Vector3 d, Vector3 sphereCenter, float r)
+        {
+            var a = Vector3.Dot(d, d);
+            var b = 2.0f * Vector3.Dot(d, origin - sphereCenter);
+            var c = Vector3.Dot(sphereCenter, sphereCenter) + Vector3.Dot(origin, origin) - 2.0f * Vector3.Dot(sphereCenter, origin) - r * r;
+
+            var test = b * b - 4.0f * a * c;
+
+            if (test < 0)
+            {
+                return Mathf.Infinity;
+            }
+
+            var u = (-b - Mathf.Sqrt(test)) / (2.0f * a);
+
+            u = (u < 0f) ? (-b + Mathf.Sqrt(test)) / (2.0f * a) : u;
+
+            return u;
         }
 
     }

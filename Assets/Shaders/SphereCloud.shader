@@ -65,6 +65,7 @@ Shader "EVE/Cloud" {
 #endif
 				#include "alphaMap.cginc"
 				#include "cubeMap.cginc"
+				#include "noiseSimplex.cginc"
 
 				CUBEMAP_DEF_1(_MainTex)
 				CUBEMAP_DEF_1(_BumpMap)
@@ -97,6 +98,9 @@ Shader "EVE/Cloud" {
 
 				float cloudTimeFadeDensity;
 				float cloudTimeFadeCoverage;
+
+				int mapViewParting;
+				float3 scaledMouseCloudIntersect;
 
 				struct appdata_t {
 					float4 vertex : POSITION;
@@ -250,6 +254,29 @@ Shader "EVE/Cloud" {
 #if !(SHADER_API_D3D11 && WORLD_SPACE_ON) //fixes clouds fading into the planet when zooming out
 					OUT.depth = (1.0 - depthWithOffset * _ZBufferParams.w) / (depthWithOffset * _ZBufferParams.z);
 #endif
+
+					if (mapViewParting > 0.0)
+					{
+						float scaledPlanetRadius = _OceanRadius / 6000.0;
+						float invScaledPlanetRadius = 1.0 / scaledPlanetRadius;
+
+						float3 worldPosition = IN.worldVert.xyz;
+						float3 relativePosition = worldPosition - _PlanetOrigin;
+
+						float mouseDistance = distance(scaledMouseCloudIntersect, worldPosition);
+
+						float fade = 1.0 - saturate(mouseDistance * (invScaledPlanetRadius * 2.0) - 0.5);
+
+						if (fade > 0.0)
+						{
+							float3 noisePosition = relativePosition * invScaledPlanetRadius * 20.0;
+							float noiseValue = snoise(noisePosition) * 0.5 + 0.5;
+
+							OUT.color.a *= step(fade, noiseValue);
+						}
+					}
+
+
 					return OUT;
 				}
 				ENDCG

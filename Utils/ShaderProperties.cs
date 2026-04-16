@@ -460,6 +460,12 @@ namespace Utils
         public static int tangentFrameUVOffset_PROPERTY { get { return tangentFrameUVOffset; } }
         private static int tangentFrameUVOffset;
 
+        public static int mapViewParting_PROPERTY { get { return mapViewParting; } }
+        private static int mapViewParting;
+
+        public static int scaledMouseCloudIntersect_PROPERTY { get { return scaledMouseCloudIntersect; } }
+        private static int scaledMouseCloudIntersect;
+
         private void Awake()
         {
             _PosRotation = Shader.PropertyToID("_PosRotation");
@@ -632,6 +638,9 @@ namespace Utils
             tangentFrameBitangent = Shader.PropertyToID("tangentFrameBitangent");
             tangentFrameOrigin = Shader.PropertyToID("tangentFrameOrigin");
             tangentFrameUVOffset = Shader.PropertyToID("tangentFrameUVOffset");
+
+            mapViewParting = Shader.PropertyToID("mapViewParting");
+            scaledMouseCloudIntersect = Shader.PropertyToID("scaledMouseCloudIntersect");
         }
     }
 }

@@ -1,9 +1,4 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
-
-// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
-// Upgrade NOTE: replaced '_Projector' with 'unity_Projector'
-
-Shader "EVE/CloudShadow" {
+﻿Shader "EVE/CloudShadow" {
 	Properties{
 		_Color("Color Tint", Color) = (1,1,1,1)
 		_MainTex("Main (RGB)", 2D) = "white" {}
@@ -42,8 +37,9 @@ Shader "EVE/CloudShadow" {
 				#pragma multi_compile_local ALPHAMAP_N_1 ALPHAMAP_1
 			#endif
 
-#include "alphaMap.cginc"
-#include "cubeMap.cginc"
+			#include "alphaMap.cginc"
+			#include "cubeMap.cginc"
+			#include "noiseSimplex.cginc"
 
 			CUBEMAP_DEF_1(_MainTex)
 
@@ -66,6 +62,9 @@ Shader "EVE/CloudShadow" {
 
 			float3 _PlanetOrigin;
 			uniform float4x4 unity_Projector;
+
+			int mapViewParting;
+			float3 scaledMouseCloudIntersect;
 
 			struct appdata_t {
 				float4 vertex : POSITION;
@@ -147,6 +146,20 @@ Shader "EVE/CloudShadow" {
 
 				color.rgb = saturate(color.rgb * (1- color.a));
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
+
+
+				if (mapViewParting > 0.0)
+				{
+					float scaledPlanetRadius = _PlanetRadius;
+					float invScaledPlanetRadius = 1.0 / scaledPlanetRadius;
+
+					float mouseDistance = distance(scaledMouseCloudIntersect, IN.worldPos.xyz);
+
+					float fade = 1.0 - saturate(mouseDistance * (invScaledPlanetRadius * 4.0) - 0.5);
+					color.rgb = lerp(color.rgb, 1.0.xxx, fade);
+				}
+
+
 				return lerp(1, color, shadowCheck*cloudTimeFadeDensity);
 			}
 
