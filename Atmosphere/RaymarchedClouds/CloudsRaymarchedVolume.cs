@@ -320,6 +320,72 @@ namespace Atmosphere
         CloudsPQS cloudsPQS;
         public CloudsPQS CloudsPQS { get => cloudsPQS; }
 
+        // ConfigNode for this volume, stored so the GUI-change handler can re-read
+        // FloatCurve data without triggering a full Apply().
+        private ConfigNode storedConfigNode;
+
+        public void StoreConfigNode(ConfigNode node)
+        {
+            storedConfigNode = node;
+        }
+
+        // Lightweight update: re-reads FloatCurve data from the stored ConfigNode
+        // into the live CloudType objects, then rebakes the curves texture and
+        // pushes the updated shader params.  Does NOT rebuild GameObjects, noise
+        // textures, coverage maps, particle systems, etc.
+        public void RebuildCurvesFromConfig()
+        {
+            if (storedConfigNode == null) return;
+
+            ConfigNode cloudTypesNode = storedConfigNode.GetNode("cloudTypes");
+            if (cloudTypesNode != null)
+            {
+                ConfigNode[] itemNodes = cloudTypesNode.GetNodes();
+                int count = Math.Min(itemNodes.Length, cloudTypes.Count);
+                for (int i = 0; i < count; i++)
+                {
+                    ConfigNode coverageNode = itemNodes[i].GetNode("coverageCurve");
+                    if (coverageNode != null && cloudTypes[i].CoverageCurve != null)
+                        cloudTypes[i].CoverageCurve.Load(coverageNode);
+
+                    ConfigNode densityNode = itemNodes[i].GetNode("densityCurve");
+                    if (densityNode != null && cloudTypes[i].DensityCurve != null)
+                        cloudTypes[i].DensityCurve.Load(densityNode);
+                }
+            }
+
+            ProcessCloudTypes();
+
+            if (raymarchedCloudMaterial != null)
+            {
+                bool _;
+                SetCloudTypesShaderParams(raymarchedCloudMaterial, out _);
+                SetCloudTypesShaderParams(reflectionProbeRaymarchedCloudMaterial, out _);
+                if (screenspaceShadowMaterial != null)
+                    SetCloudTypesShaderParams(screenspaceShadowMaterial, out _);
+            }
+        }
+
+        // Checks whether changedParentNode is one of this volume's cloudType item nodes.
+        private bool OwnsCloudTypeNode(ConfigNode changedParentNode)
+        {
+            if (storedConfigNode == null) return false;
+            ConfigNode cloudTypesNode = storedConfigNode.GetNode("cloudTypes");
+            if (cloudTypesNode == null) return false;
+            foreach (ConfigNode itemNode in cloudTypesNode.GetNodes())
+            {
+                if (ReferenceEquals(itemNode, changedParentNode))
+                    return true;
+            }
+            return false;
+        }
+
+        private void OnGuiFloatCurveChanged(ConfigNode changedParentNode)
+        {
+            if (OwnsCloudTypeNode(changedParentNode))
+                RebuildCurvesFromConfig();
+        }
+
         public void Apply(CloudsMaterial material, float cloudLayerRadius, Transform parent, float parentRadius, CelestialBody celestialBody, Clouds2D layer2d, float mainPeriodMagnitude, CloudsPQS cloudsPQS)
         {
             parentCelestialBody = celestialBody;
@@ -428,6 +494,8 @@ namespace Atmosphere
 
             raymarchedCloudMaterial.EnableKeyword(mainCameraNoiseKeywords);
             reflectionProbeRaymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
+
+            GUIHelper.OnFloatCurveNodeChanged += OnGuiFloatCurveChanged;
         }
 
         public void ApplyShaderParams()
@@ -985,6 +1053,8 @@ namespace Atmosphere
 
         public void Remove()
         {
+            GUIHelper.OnFloatCurveNodeChanged -= OnGuiFloatCurveChanged;
+
             if (volumeHolder != null)
             {
                 volumeHolder.transform.parent = null;

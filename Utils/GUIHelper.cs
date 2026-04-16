@@ -706,6 +706,11 @@ namespace Utils
         private static Dictionary<ConfigNode, bool> floatCurveShowKeys = new Dictionary<ConfigNode, bool>();
         private static Dictionary<ConfigNode, int> floatCurveLastHash = new Dictionary<ConfigNode, int>();
 
+        // Fired whenever a FloatCurve's ConfigNode is modified via the GUI.
+        // The argument is the *parent* ConfigNode that owns the FloatCurve field
+        // (i.e. the CloudType item node, not the curve sub-node itself).
+        public static event Action<ConfigNode> OnFloatCurveNodeChanged;
+
         private static bool GetShowKeys(ConfigNode node)
         {
             bool v;
@@ -795,8 +800,27 @@ namespace Utils
                 // curve editor, 10 lines
                 placement.height = 10;
                 Rect curveRect = GUIHelper.GetRect(placementBase, ref placement);
+
+                // Establish a baseline hash before the curve editor draws so we can
+                // detect any drag/move the editor makes to the node this frame.
+                if (!floatCurveLastHash.ContainsKey(subNode))
+                    floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
+
                 CurveEditor.DrawCurveEditor(curveRect, subNode);
                 placement.y += 10f;
+
+                // Detect changes made by the curve editor (fires regardless of showKeys).
+                {
+                    int newHash = ComputeNodeValueHash(subNode);
+                    if (newHash != floatCurveLastHash[subNode])
+                    {
+                        floatCurveLastHash[subNode] = newHash;
+                        // Keep text box in sync if it is open.
+                        if (floatCurveShowKeys.TryGetValue(subNode, out bool sk) && sk)
+                            floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
+                        OnFloatCurveNodeChanged?.Invoke(config);
+                    }
+                }
 
                 // "Show Keys" / "Hide Keys" button, 1 line
                 placement.height = 1;
@@ -809,29 +833,13 @@ namespace Utils
 
                     // when opening, seed the text from the current node
                     if (showKeys)
-                    {
                         floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
-                        floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
-                    }
                 }
                 placement.y += 1f;
 
                 // editable key textbox
                 if (showKeys)
                 {
-                    // detect if CurveEditor changed the node behind our back
-                    int currentHash = ComputeNodeValueHash(subNode);
-                    int lastHash;
-                    if (!floatCurveLastHash.TryGetValue(subNode, out lastHash))
-                        lastHash = 0;
-
-                    if (currentHash != lastHash)
-                    {
-                        // curve editor moved a key — refresh text
-                        floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
-                        floatCurveLastHash[subNode] = currentHash;
-                    }
-
                     if (!floatCurveTemporaryValues.ContainsKey(subNode))
                         floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
 
@@ -860,6 +868,7 @@ namespace Utils
                                     subNode.AddValue("key", trimmed);
                             }
                             floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
+                            OnFloatCurveNodeChanged?.Invoke(config);
                         }
                     }
 

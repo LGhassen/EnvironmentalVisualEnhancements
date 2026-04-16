@@ -229,6 +229,15 @@ namespace Atmosphere
         public void LoadConfigNode(ConfigNode node)
         {
             ConfigHelper.LoadObjectFromConfig(this, node);
+
+            // Give the raymarched volume a reference to its config sub-node so it
+            // can do lightweight curve-only updates when the GUI edits a FloatCurve.
+            if (layerRaymarchedVolumeV5 != null)
+            {
+                ConfigNode volumeNode = node.GetNode("layerRaymarchedVolumeV5");
+                if (volumeNode != null)
+                    layerRaymarchedVolumeV5.StoreConfigNode(volumeNode);
+            }
         }
 
         public void Apply()
