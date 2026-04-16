@@ -41,6 +41,10 @@ namespace Utils
     }
     
 
+    public class CollapsedList : System.Attribute
+    {
+    }
+
     public class EnumMask : System.Attribute
     {
     }

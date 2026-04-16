@@ -29,6 +29,7 @@ namespace Utils
         public bool IsHidden;
         public bool IsOptional;
         public string Tooltip;
+        public bool StartsCollapsed;
     }
 
     public static class GUIHelper
@@ -81,6 +82,7 @@ namespace Utils
                         IsHidden = Attribute.IsDefined(f, typeof(GUIHidden)),
                         IsOptional = Attribute.IsDefined(f, typeof(Optional)),
                         Tooltip = tip,
+                        StartsCollapsed = Attribute.IsDefined(f, typeof(CollapsedList)),
                     };
                 }
                 _configFieldCache[t] = metas;
@@ -174,6 +176,56 @@ namespace Utils
             new Dictionary<HeightCacheKey, float>();
 
         private static int _lastHeightCacheFrame = -1;
+
+        private struct ListStateKey : IEquatable<ListStateKey>
+        {
+            private readonly ConfigNode _node;
+            private readonly string _fieldName;
+            private readonly int _hash;
+
+            public ListStateKey(ConfigNode node, string fieldName)
+            {
+                _node = node;
+                _fieldName = fieldName;
+                unchecked
+                {
+                    int h = node != null
+                        ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(node)
+                        : 0;
+                    h = h * 31 + (fieldName != null ? fieldName.GetHashCode() : 0);
+                    _hash = h;
+                }
+            }
+
+            public bool Equals(ListStateKey other)
+                => ReferenceEquals(_node, other._node) && _fieldName == other._fieldName;
+
+            public override bool Equals(object obj)
+                => obj is ListStateKey other && Equals(other);
+
+            public override int GetHashCode() { return _hash; }
+        }
+
+        // Persistent per-list collapsed/expanded state. Keyed by (parent config node, field name).
+        private static readonly Dictionary<ListStateKey, bool> _listExpandedState =
+            new Dictionary<ListStateKey, bool>();
+
+        private static bool IsListExpanded(ConfigNode parentNode, FieldInfo field, bool startsCollapsed)
+        {
+            var key = new ListStateKey(parentNode, field.Name);
+            bool expanded;
+            if (!_listExpandedState.TryGetValue(key, out expanded))
+            {
+                expanded = !startsCollapsed;
+                _listExpandedState[key] = expanded;
+            }
+            return expanded;
+        }
+
+        private static void SetListExpanded(ConfigNode parentNode, FieldInfo field, bool expanded)
+        {
+            _listExpandedState[new ListStateKey(parentNode, field.Name)] = expanded;
+        }
 
         public static void ValidateHeightCache()
         {
@@ -324,7 +376,13 @@ namespace Utils
                     }
                     else if (ConfigHelper.IsList(field))
                     {
-                        if (typeof(IList).IsAssignableFrom(field.FieldType) && node.HasNode(field.Name))
+                        bool expanded = IsListExpanded(node, field, meta.StartsCollapsed);
+                        if (!expanded || !typeof(IList).IsAssignableFrom(field.FieldType) || !node.HasNode(field.Name))
+                        {
+                            // Collapsed or no data: only the header row.
+                            fieldCount += 1f + spacingOffset;
+                        }
+                        else
                         {
                             var itemNodes = node.GetNode(field.Name).GetNodes();
                             Type innerType = GetCachedGenericArg(field.FieldType);
@@ -342,10 +400,6 @@ namespace Utils
                                     fieldCount += 4f * spacingOffset;
                                 }
                             }
-                        }
-                        else
-                        {
-                            fieldCount += 1f + spacingOffset;
                         }
                     }
                     else if (!meta.IsHidden)
@@ -952,20 +1006,38 @@ namespace Utils
                     }
                     GUIHelper.SplitRect(ref toggleRect, ref titleRect, (1f / 16));
 
+                    String tooltipText = meta.Tooltip ?? "";
+                    GUIContent gc = new GUIContent(field.Name, tooltipText);
+                    Vector2 labelSize = _styleLabel.CalcSize(gc);
+
+                    Rect listCollapseRec = new Rect(titleRect);
                     Rect listPlusRec = new Rect(titleRect);
-                    Rect listMinusRec = new Rect(listPlusRec);
+                    Rect listMinusRec = new Rect(titleRect);
 
                     if (isList)
                     {
-                        GUIHelper.SplitRect(ref titleRect, ref listPlusRec, (4f / 5f));
-                        GUIHelper.SplitRect(ref listPlusRec, ref listMinusRec, (1f / 2f));
+                        // Pin +/- to fixed width at the right end
+                        float btnWidth = elementHeight;
+                        listMinusRec = new Rect(titleRect.x + titleRect.width - btnWidth,
+                                                titleRect.y, btnWidth, titleRect.height);
+                        listPlusRec  = new Rect(listMinusRec.x - btnWidth,
+                                                titleRect.y, btnWidth, titleRect.height);
+
+                        // Label takes its natural width, capped so the collapse button always has room
+                        titleRect.width = Mathf.Min(labelSize.x, listPlusRec.x - titleRect.x - btnWidth);
+
+                        // Collapse button is half the gap width, centered in it
+                        float gapLeft  = titleRect.x + titleRect.width;
+                        float gapWidth = listPlusRec.x - gapLeft;
+                        float colBtnWidth = gapWidth * 0.5f;
+                        listCollapseRec = new Rect(gapLeft + (gapWidth - colBtnWidth) * 0.5f, titleRect.y,
+                                                   colBtnWidth, titleRect.height);
+                    }
+                    else
+                    {
+                        titleRect.width = Mathf.Min(labelSize.x, titleRect.width);
                     }
 
-                    String tooltipText = meta.Tooltip ?? "";
-                    GUIContent gc = new GUIContent(field.Name, tooltipText);
-
-                    Vector2 labelSize = _styleLabel.CalcSize(gc);
-                    titleRect.width = Mathf.Min(labelSize.x, titleRect.width);
                     GUI.Label(titleRect, gc);
 
                     bool removeable = node == null ? false : true;
@@ -1087,6 +1159,13 @@ namespace Utils
                                 {
                                     var itemNodes = node.GetNodes();
 
+                                    bool isExpanded = IsListExpanded(configNode, field, meta.StartsCollapsed);
+                                    if (GUI.Button(listCollapseRec, isExpanded ? "Click to collapse list" : "Click to expand list"))
+                                    {
+                                        isExpanded = !isExpanded;
+                                        SetListExpanded(configNode, field, isExpanded);
+                                    }
+
                                     if (GUI.Button(listPlusRec, "+"))
                                     {
                                         node.AddNode("Item");
@@ -1102,43 +1181,46 @@ namespace Utils
                                         }
                                     }
 
-                                    var itemList = subObj as IList;
-
-                                    var innerType = GetCachedGenericArg(field.FieldType);
-
-                                    while (itemList.Count < itemNodes.Length)
+                                    if (isExpanded)
                                     {
-                                        itemList.Add(Activator.CreateInstance(innerType));
-                                    }
+                                        var itemList = subObj as IList;
 
-                                    while (itemList.Count > itemNodes.Length)
-                                    {
-                                        itemList.RemoveAt(itemList.Count - 1);
-                                    }
+                                        var innerType = GetCachedGenericArg(field.FieldType);
 
-                                    for (int i = 0; i < itemList.Count; i++)
-                                    {
-                                        var itemNode = itemNodes[i];
-
-                                        HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
-
-                                        if (i < itemList.Count - 1)
+                                        while (itemList.Count < itemNodes.Length)
                                         {
-                                            Rect separatorPlacement = new Rect(boxPlacement);
-                                            separatorPlacement.y += 2f * spacingOffset;
-                                            separatorPlacement.height = 1f / elementHeight;
+                                            itemList.Add(Activator.CreateInstance(innerType));
+                                        }
 
-                                            Rect separatorRect = GUIHelper.GetRect(boxPlacementBase, ref separatorPlacement);
-                                            separatorRect.x += 10f;
-                                            separatorRect.width -= 20f;
-                                            separatorRect.height = 1f;
+                                        while (itemList.Count > itemNodes.Length)
+                                        {
+                                            itemList.RemoveAt(itemList.Count - 1);
+                                        }
 
-                                            Color previousColor = GUI.color;
-                                            GUI.color = new Color(1f, 1f, 1f, 0.35f);
-                                            GUI.DrawTexture(separatorRect, GetSeparatorTexture());
-                                            GUI.color = previousColor;
+                                        for (int i = 0; i < itemList.Count; i++)
+                                        {
+                                            var itemNode = itemNodes[i];
 
-                                            boxPlacement.y += 4 * spacingOffset;
+                                            HandleGUI(itemList[i], null, itemNode, boxPlacementBase, ref boxPlacement);
+
+                                            if (i < itemList.Count - 1)
+                                            {
+                                                Rect separatorPlacement = new Rect(boxPlacement);
+                                                separatorPlacement.y += 2f * spacingOffset;
+                                                separatorPlacement.height = 1f / elementHeight;
+
+                                                Rect separatorRect = GUIHelper.GetRect(boxPlacementBase, ref separatorPlacement);
+                                                separatorRect.x += 10f;
+                                                separatorRect.width -= 20f;
+                                                separatorRect.height = 1f;
+
+                                                Color previousColor = GUI.color;
+                                                GUI.color = new Color(1f, 1f, 1f, 0.35f);
+                                                GUI.DrawTexture(separatorRect, GetSeparatorTexture());
+                                                GUI.color = previousColor;
+
+                                                boxPlacement.y += 4 * spacingOffset;
+                                            }
                                         }
                                     }
                                 }

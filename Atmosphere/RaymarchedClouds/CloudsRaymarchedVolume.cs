@@ -130,19 +130,19 @@ namespace Atmosphere
 
         float volumetricLayerScaledFade = 1.0f;
 
-        [ConfigItem]
+        [ConfigItem, CollapsedList]
         List<CloudType> cloudTypes = new List<CloudType> { };
 
         public List<CloudType> CloudTypes { get { return cloudTypes; } }
 
         CloudsRaymarchedVolume shadowCasterLayerRaymarchedVolume = null;
 
-        [ConfigItem, Optional]
+        [ConfigItem, Optional, CollapsedList]
         List<PainterTile> painterTiles = null;
 
         public List<PainterTile> PainterTiles { get { return painterTiles; } }
 
-        [ConfigItem, Optional]
+        [ConfigItem, Optional, CollapsedList]
         List<PainterTileMask> painterTileMasks = null;
 
         public List<PainterTileMask> PainterTileMasks { get { return painterTileMasks; } }
