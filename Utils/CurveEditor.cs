@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -26,6 +26,8 @@ namespace Utils
         private class EditorState
         {
             public Texture2D CurveTex;
+            public Texture2D GridTex;           // cached grid-lines texture
+            public AnimationCurve CachedCurve;  // rebuilt only when node hash changes
             public int DirtyHash;
             public int SelectedKey = -1;
             public bool DraggingKey;
@@ -56,6 +58,9 @@ namespace Utils
             }
         }
 
+        // Cached axis label style — avoids allocating a new GUIStyle every repaint.
+        private static GUIStyle _axisLabelStyle;
+
         public static void DrawCurveEditor(Rect rect, ConfigNode subNode)
         {
             if (subNode == null) return;
@@ -66,8 +71,12 @@ namespace Utils
                 _states[subNode] = state;
             }
 
-            var curve = BuildCurve(subNode);
+            // Compute hash first; only rebuild the AnimationCurve when the node actually changed.
+            // Previously BuildCurve ran unconditionally every frame (string splits, float parses, AddKey calls).
             int hash = ComputeHash(subNode);
+            if (state.CachedCurve == null || hash != state.DirtyHash)
+                state.CachedCurve = BuildCurve(subNode);
+            var curve = state.CachedCurve;
 
             if (!state.ViewInitialized)
             {
@@ -92,18 +101,24 @@ namespace Utils
             // toolbar
             DrawToolbar(toolbarRect, subNode, curve, state);
 
-            // grid + axis labels
-            DrawGrid(curveArea, state);
-            DrawAxisLabels(curveArea, state, labelPadX, labelPadB);
-
-            // curve texture
+            // Rebuild grid and curve textures when view or data changes.
+            // Previously DrawGrid ran every frame and called DrawLine for each grid line;
+            // DrawLine itself looped calling GUI.DrawTexture ~dist/2 times per line,
+            // adding up to ~2000+ GUI calls per frame for the grid alone.
             if (state.CurveTex == null || hash != state.DirtyHash || state.ViewDirty)
             {
-                state.CurveTex = RenderCurveTexture(curve, state);
+                state.GridTex   = RenderGridTexture(state);
+                state.CurveTex  = RenderCurveTexture(curve, state);
                 state.DirtyHash = hash;
                 state.ViewDirty = false;
             }
+
+            // Two draw calls replace the per-frame flood of tiny GUI.DrawTexture calls.
+            GUI.DrawTexture(curveArea, state.GridTex);
             GUI.DrawTexture(curveArea, state.CurveTex);
+
+            // axis labels (text only — no line drawing)
+            DrawAxisLabels(curveArea, state, labelPadX, labelPadB);
 
             // keyframe handles + tangents
             DrawHandles(curveArea, subNode, curve, state);
@@ -149,37 +164,58 @@ namespace Utils
             }
         }
 
-        private static void DrawGrid(Rect area, EditorState s)
+        // Renders grid lines into a texture that is the same size as the curve texture.
+        // Only called when the view range or data changes — replaces the old DrawGrid method
+        // which called DrawLine (itself a loop of GUI.DrawTexture calls) every single frame.
+        private static Texture2D RenderGridTexture(EditorState s)
         {
+            var tex = new Texture2D(CURVE_TEX_WIDTH, CURVE_TEX_HEIGHT, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            var pixels = new Color[CURVE_TEX_WIDTH * CURVE_TEX_HEIGHT];
+            // zero-initialized = transparent
+
             float spanT = s.RangeMaxT - s.RangeMinT;
             float spanV = s.RangeMaxV - s.RangeMinV;
-            if (spanT <= 0f || spanV <= 0f) return;
 
-            float stepT = NiceStep(spanT, 6);
-            float stepV = NiceStep(spanV, 5);
+            if (spanT > 0f && spanV > 0f)
+            {
+                float stepT = NiceStep(spanT, 6);
+                float stepV = NiceStep(spanV, 5);
 
-            // vertical lines (time axis)
-            float t0 = Mathf.Ceil(s.RangeMinT / stepT) * stepT;
-            for (float t = t0; t <= s.RangeMaxT; t += stepT)
-            {
-                float nx = (t - s.RangeMinT) / spanT;
-                float px = area.x + nx * area.width;
-                bool major = Mathf.Abs(t) < stepT * 0.01f;
-                DrawLine(new Vector2(px, area.y),
-                         new Vector2(px, area.yMax),
-                         major ? GridColorMajor : GridColor);
+                // vertical lines (time axis)
+                float t0 = Mathf.Ceil(s.RangeMinT / stepT) * stepT;
+                for (float t = t0; t <= s.RangeMaxT; t += stepT)
+                {
+                    int x = Mathf.Clamp(
+                        Mathf.RoundToInt((t - s.RangeMinT) / spanT * (CURVE_TEX_WIDTH - 1)),
+                        0, CURVE_TEX_WIDTH - 1);
+                    bool major = Mathf.Abs(t) < stepT * 0.01f;
+                    Color c = major ? GridColorMajor : GridColor;
+                    for (int y = 0; y < CURVE_TEX_HEIGHT; y++)
+                        pixels[y * CURVE_TEX_WIDTH + x] = c;
+                }
+
+                // horizontal lines (value axis)
+                float v0 = Mathf.Ceil(s.RangeMinV / stepV) * stepV;
+                for (float v = v0; v <= s.RangeMaxV; v += stepV)
+                {
+                    int y = Mathf.Clamp(
+                        Mathf.RoundToInt((1f - (v - s.RangeMinV) / spanV) * (CURVE_TEX_HEIGHT - 1)),
+                        0, CURVE_TEX_HEIGHT - 1);
+                    bool major = Mathf.Abs(v) < stepV * 0.01f;
+                    Color c = major ? GridColorMajor : GridColor;
+                    for (int x = 0; x < CURVE_TEX_WIDTH; x++)
+                        pixels[y * CURVE_TEX_WIDTH + x] = c;
+                }
             }
-            // horizontal lines (value axis)
-            float v0 = Mathf.Ceil(s.RangeMinV / stepV) * stepV;
-            for (float v = v0; v <= s.RangeMaxV; v += stepV)
-            {
-                float ny = 1f - (v - s.RangeMinV) / spanV;
-                float py = area.y + ny * area.height;
-                bool major = Mathf.Abs(v) < stepV * 0.01f;
-                DrawLine(new Vector2(area.x, py),
-                         new Vector2(area.xMax, py),
-                         major ? GridColorMajor : GridColor);
-            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return tex;
         }
 
         private static void DrawAxisLabels(Rect area, EditorState s, float padX, float padB)
@@ -188,35 +224,37 @@ namespace Utils
             float spanV = s.RangeMaxV - s.RangeMinV;
             if (spanT <= 0f || spanV <= 0f) return;
 
-            var labelStyle = new GUIStyle(GUI.skin.label)
+            // Initialise once; avoids allocating a new GUIStyle object every repaint.
+            if (_axisLabelStyle == null)
             {
-                fontSize = 9,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = AxisLabelColor }
-            };
+                _axisLabelStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 9,
+                    normal = { textColor = AxisLabelColor }
+                };
+            }
 
             float stepT = NiceStep(spanT, 6);
             float stepV = NiceStep(spanV, 5);
 
             // X-axis
+            _axisLabelStyle.alignment = TextAnchor.MiddleCenter;
             float t0 = Mathf.Ceil(s.RangeMinT / stepT) * stepT;
             for (float t = t0; t <= s.RangeMaxT; t += stepT)
             {
                 float nx = (t - s.RangeMinT) / spanT;
                 float px = area.x + nx * area.width;
-                Rect lr = new Rect(px - 20f, area.yMax + 1f, 40f, padB);
-                GUI.Label(lr, t.ToString("G4"), labelStyle);
+                GUI.Label(new Rect(px - 20f, area.yMax + 1f, 40f, padB), t.ToString("G4"), _axisLabelStyle);
             }
 
             // Y-axis
-            labelStyle.alignment = TextAnchor.MiddleRight;
+            _axisLabelStyle.alignment = TextAnchor.MiddleRight;
             float v0 = Mathf.Ceil(s.RangeMinV / stepV) * stepV;
             for (float v = v0; v <= s.RangeMaxV; v += stepV)
             {
                 float ny = 1f - (v - s.RangeMinV) / spanV;
                 float py = area.y + ny * area.height;
-                Rect lr = new Rect(area.x - padX, py - 8f, padX - 3f, 16f);
-                GUI.Label(lr, v.ToString("G4"), labelStyle);
+                GUI.Label(new Rect(area.x - padX, py - 8f, padX - 3f, 16f), v.ToString("G4"), _axisLabelStyle);
             }
         }
 
