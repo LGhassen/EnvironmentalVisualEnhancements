@@ -33,6 +33,10 @@ namespace Utils
             public bool DraggingOutTan;
             public float RangeMinT, RangeMaxT;
             public float RangeMinV, RangeMaxV;
+            public bool ViewInitialized;
+            public bool PanningView;
+            public Vector2 PanLastMousePos;
+            public bool ViewDirty;
         }
         private static readonly Dictionary<ConfigNode, EditorState> _states =
             new Dictionary<ConfigNode, EditorState>();
@@ -65,7 +69,11 @@ namespace Utils
             var curve = BuildCurve(subNode);
             int hash = ComputeHash(subNode);
 
-            ComputeRanges(curve, state);
+            if (!state.ViewInitialized)
+            {
+                ComputeRanges(curve, state);
+                state.ViewInitialized = true;
+            }
 
             float toolbarH = 20f;
             float labelPadX = 36f;   // space for Y-axis labels
@@ -89,10 +97,11 @@ namespace Utils
             DrawAxisLabels(curveArea, state, labelPadX, labelPadB);
 
             // curve texture
-            if (state.CurveTex == null || hash != state.DirtyHash)
+            if (state.CurveTex == null || hash != state.DirtyHash || state.ViewDirty)
             {
                 state.CurveTex = RenderCurveTexture(curve, state);
                 state.DirtyHash = hash;
+                state.ViewDirty = false;
             }
             GUI.DrawTexture(curveArea, state.CurveTex);
 
@@ -136,7 +145,7 @@ namespace Utils
             else
             {
                 GUI.Label(new Rect(x, r.y, r.width - (x - r.x), r.height),
-                    "Click curve to add key  |  Drag handles  |  Right-click to delete");
+                    "Click to add | Drag handles | Right-click delete | Middle-clidk pan | Scroll zoom");
             }
         }
 
@@ -311,58 +320,69 @@ namespace Utils
             // mouse interaction on the curve area
             if (e.type == EventType.MouseDown && area.Contains(e.mousePosition))
             {
-                // check if clicking near a keyframe
-                int closest = -1;
-                float closestDist = HANDLE_RADIUS + 4f;
-                for (int i = 0; i < curve.length; i++)
+                if (e.button == 2)
                 {
-                    Vector2 pos = KeyToPixel(curve[i].time, curve[i].value, area, state);
-                    float d = Vector2.Distance(e.mousePosition, pos);
-                    if (d < closestDist)
-                    {
-                        closestDist = d;
-                        closest = i;
-                    }
-                }
-
-                if (e.button == 0)
-                {
-                    if (closest >= 0)
-                    {
-                        state.SelectedKey = closest;
-                        state.DraggingKey = true;
-                        GUIUtility.hotControl = controlID;
-                        e.Use();
-                    }
-                    else
-                    {
-                        // click on empty area => add a new key
-                        float t, v;
-                        PixelToKey(e.mousePosition, area, state, out t, out v);
-                        AddKey(node, t, v);
-                        // rebuild and select the new key
-                        curve = BuildCurve(node);
-                        // find the key we just inserted
-                        for (int i = 0; i < curve.length; i++)
-                        {
-                            if (Mathf.Abs(curve[i].time - t) < 0.0001f)
-                            {
-                                state.SelectedKey = i;
-                                break;
-                            }
-                        }
-                        state.DraggingKey = true;
-                        GUIUtility.hotControl = controlID;
-                        e.Use();
-                    }
-                }
-                else if (e.button == 1 && closest >= 0)
-                {
-                    // right-click => delete key
-                    RemoveKey(node, closest);
-                    if (state.SelectedKey == closest) state.SelectedKey = -1;
-                    else if (state.SelectedKey > closest) state.SelectedKey--;
+                    // middle mouse => start panning
+                    state.PanningView = true;
+                    state.PanLastMousePos = e.mousePosition;
+                    GUIUtility.hotControl = controlID;
                     e.Use();
+                }
+                else
+                {
+                    // check if clicking near a keyframe
+                    int closest = -1;
+                    float closestDist = HANDLE_RADIUS + 4f;
+                    for (int i = 0; i < curve.length; i++)
+                    {
+                        Vector2 pos = KeyToPixel(curve[i].time, curve[i].value, area, state);
+                        float d = Vector2.Distance(e.mousePosition, pos);
+                        if (d < closestDist)
+                        {
+                            closestDist = d;
+                            closest = i;
+                        }
+                    }
+
+                    if (e.button == 0)
+                    {
+                        if (closest >= 0)
+                        {
+                            state.SelectedKey = closest;
+                            state.DraggingKey = true;
+                            GUIUtility.hotControl = controlID;
+                            e.Use();
+                        }
+                        else
+                        {
+                            // click on empty area => add a new key
+                            float t, v;
+                            PixelToKey(e.mousePosition, area, state, out t, out v);
+                            AddKey(node, t, v);
+                            // rebuild and select the new key
+                            curve = BuildCurve(node);
+                            // find the key we just inserted
+                            for (int i = 0; i < curve.length; i++)
+                            {
+                                if (Mathf.Abs(curve[i].time - t) < 0.0001f)
+                                {
+                                    state.SelectedKey = i;
+                                    break;
+                                }
+                            }
+                            state.DraggingKey = true;
+                            GUIUtility.hotControl = controlID;
+                            e.Use();
+                        }
+                    }
+                    else if (e.button == 1 && closest >= 0)
+                    {
+                        // right-click => delete key
+                        RemoveKey(node, closest);
+                        if (state.SelectedKey == closest) state.SelectedKey = -1;
+                        else if (state.SelectedKey > closest) state.SelectedKey--;
+                        e.Use();
+                    }
                 }
             }
             else if (e.type == EventType.MouseDrag && state.DraggingKey &&
@@ -371,6 +391,20 @@ namespace Utils
                 float t, v;
                 PixelToKey(e.mousePosition, area, state, out t, out v);
                 MoveKey(node, curve, state.SelectedKey, t, v);
+                e.Use();
+            }
+            else if (e.type == EventType.MouseDrag && state.PanningView)
+            {
+                Vector2 delta = e.mousePosition - state.PanLastMousePos;
+                state.PanLastMousePos = e.mousePosition;
+                // dragging right/down moves the curve in that direction (grab-and-drag)
+                float deltaT = -delta.x * spanT / area.width;
+                float deltaV =  delta.y * spanV / area.height;
+                state.RangeMinT += deltaT;
+                state.RangeMaxT += deltaT;
+                state.RangeMinV += deltaV;
+                state.RangeMaxV += deltaV;
+                state.ViewDirty = true;
                 e.Use();
             }
             else if (e.type == EventType.MouseUp)
@@ -384,6 +418,28 @@ namespace Utils
                         GUIUtility.hotControl = 0;
                     e.Use();
                 }
+                else if (state.PanningView)
+                {
+                    state.PanningView = false;
+                    if (GUIUtility.hotControl == controlID)
+                        GUIUtility.hotControl = 0;
+                    e.Use();
+                }
+            }
+
+            // scroll wheel zoom (zooms toward the mouse cursor position)
+            if (e.type == EventType.ScrollWheel && area.Contains(e.mousePosition))
+            {
+                float zoomFactor = 1f + e.delta.y * 0.1f;
+                zoomFactor = Mathf.Clamp(zoomFactor, 0.05f, 20f);
+                float mouseT, mouseV;
+                PixelToKey(e.mousePosition, area, state, out mouseT, out mouseV);
+                state.RangeMinT = mouseT - (mouseT - state.RangeMinT) * zoomFactor;
+                state.RangeMaxT = mouseT + (state.RangeMaxT - mouseT) * zoomFactor;
+                state.RangeMinV = mouseV - (mouseV - state.RangeMinV) * zoomFactor;
+                state.RangeMaxV = mouseV + (state.RangeMaxV - mouseV) * zoomFactor;
+                state.ViewDirty = true;
+                e.Use();
             }
         }
 
