@@ -295,26 +295,34 @@ namespace Utils
                 var kf = curve[i];
                 Vector2 pos = KeyToPixel(kf.time, kf.value, area, state);
                 bool selected = (i == state.SelectedKey);
+                bool posVisible = area.Contains(pos);
 
                 // tangent handles (only for selected key)
                 if (selected)
                 {
                     // in-tangent
                     Vector2 inEnd = TangentEndPoint(pos, kf.inTangent, -1f, area, state);
-                    DrawLine(pos, inEnd, TangentColor);
-                    DrawDisc(inEnd, HANDLE_RADIUS - 1f, TangentColor);
+                    if (posVisible && area.Contains(inEnd))
+                    {
+                        DrawLine(pos, inEnd, TangentColor);
+                        DrawDisc(inEnd, HANDLE_RADIUS - 1f, TangentColor);
+                    }
 
                     // out-tangent
                     Vector2 outEnd = TangentEndPoint(pos, kf.outTangent, 1f, area, state);
-                    DrawLine(pos, outEnd, TangentColor);
-                    DrawDisc(outEnd, HANDLE_RADIUS - 1f, TangentColor);
+                    if (posVisible && area.Contains(outEnd))
+                    {
+                        DrawLine(pos, outEnd, TangentColor);
+                        DrawDisc(outEnd, HANDLE_RADIUS - 1f, TangentColor);
+                    }
 
-                    // tangent dragging
+                    // tangent dragging (always process, regardless of visibility)
                     HandleTangentDrag(inEnd, outEnd, area, node, curve, i, state, e);
                 }
 
                 // keyframe disc
-                DrawDisc(pos, HANDLE_RADIUS, selected ? HandleSelected : HandleColor);
+                if (posVisible)
+                    DrawDisc(pos, HANDLE_RADIUS, selected ? HandleSelected : HandleColor);
             }
 
             // mouse interaction on the curve area
