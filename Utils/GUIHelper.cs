@@ -711,6 +711,11 @@ namespace Utils
         // (i.e. the CloudType item node, not the curve sub-node itself).
         public static event Action<ConfigNode> OnFloatCurveNodeChanged;
 
+        // Maps a FloatCurve sub-node to its "last-applied" snapshot ConfigNode so
+        // the Reset button can restore it.  Registered/unregistered by the live object.
+        public static readonly Dictionary<ConfigNode, ConfigNode> FloatCurveResetNodes =
+            new Dictionary<ConfigNode, ConfigNode>();
+
         private static bool GetShowKeys(ConfigNode node)
         {
             bool v;
@@ -822,10 +827,29 @@ namespace Utils
                     }
                 }
 
-                // "Show Keys" / "Hide Keys" button, 1 line
+                // "Reset" (optional) + "Show Keys / Hide Keys" button row, 1 line
                 placement.height = 1;
                 Rect btnRect = GUIHelper.GetRect(placementBase, ref placement);
                 bool showKeys = GetShowKeys(subNode);
+
+                ConfigNode resetSnapshot;
+                if (FloatCurveResetNodes.TryGetValue(subNode, out resetSnapshot))
+                {
+                    // Split: Reset on the left (35%), Show/Hide Keys on the right (65%)
+                    Rect resetRect = new Rect(btnRect);
+                    SplitRect(ref resetRect, ref btnRect, 0.35f);
+                    if (GUI.Button(resetRect, "Reset"))
+                    {
+                        subNode.ClearValues();
+                        foreach (string v in resetSnapshot.GetValuesStartsWith("key"))
+                            subNode.AddValue("key", v);
+                        if (showKeys)
+                            floatCurveTemporaryValues[subNode] = NodeKeysToText(subNode);
+                        floatCurveLastHash[subNode] = ComputeNodeValueHash(subNode);
+                        OnFloatCurveNodeChanged?.Invoke(config);
+                    }
+                }
+
                 if (GUI.Button(btnRect, showKeys ? "Hide Keys" : "Show Keys"))
                 {
                     showKeys = !showKeys;
@@ -918,7 +942,6 @@ namespace Utils
                 if (newValue != defaultValue && value != newValue)
                 {
                     config.SetValue(field.Name, newValue, true);
-
                 }
                 else if (newValue == defaultValue && config.HasValue(field.Name))
                 {

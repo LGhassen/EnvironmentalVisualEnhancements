@@ -366,6 +366,47 @@ namespace Atmosphere
             }
         }
 
+        // Snapshots every curve sub-node at Apply() time so the GUI can offer a Reset.
+        private void RegisterCurveResetSnapshots()
+        {
+            if (storedConfigNode == null) return;
+            ConfigNode cloudTypesNode = storedConfigNode.GetNode("cloudTypes");
+            if (cloudTypesNode == null) return;
+
+            foreach (ConfigNode itemNode in cloudTypesNode.GetNodes())
+            {
+                SnapshotCurveSubNode(itemNode, "coverageCurve");
+                SnapshotCurveSubNode(itemNode, "densityCurve");
+            }
+        }
+
+        private void SnapshotCurveSubNode(ConfigNode itemNode, string curveName)
+        {
+            ConfigNode curveNode = itemNode.GetNode(curveName);
+            if (curveNode == null) return;
+
+            ConfigNode snapshot = new ConfigNode(curveName);
+            foreach (string v in curveNode.GetValuesStartsWith("key"))
+                snapshot.AddValue("key", v);
+            GUIHelper.FloatCurveResetNodes[curveNode] = snapshot;
+        }
+
+        private void UnregisterCurveResetSnapshots()
+        {
+            if (storedConfigNode == null) return;
+            ConfigNode cloudTypesNode = storedConfigNode.GetNode("cloudTypes");
+            if (cloudTypesNode == null) return;
+
+            foreach (ConfigNode itemNode in cloudTypesNode.GetNodes())
+            {
+                ConfigNode coverage = itemNode.GetNode("coverageCurve");
+                if (coverage != null) GUIHelper.FloatCurveResetNodes.Remove(coverage);
+
+                ConfigNode density = itemNode.GetNode("densityCurve");
+                if (density != null) GUIHelper.FloatCurveResetNodes.Remove(density);
+            }
+        }
+
         // Checks whether changedParentNode is one of this volume's cloudType item nodes.
         private bool OwnsCloudTypeNode(ConfigNode changedParentNode)
         {
@@ -496,6 +537,7 @@ namespace Atmosphere
             reflectionProbeRaymarchedCloudMaterial.EnableKeyword(reflectionProbeNoiseKeywords);
 
             GUIHelper.OnFloatCurveNodeChanged += OnGuiFloatCurveChanged;
+            RegisterCurveResetSnapshots();
         }
 
         public void ApplyShaderParams()
@@ -1054,6 +1096,7 @@ namespace Atmosphere
         public void Remove()
         {
             GUIHelper.OnFloatCurveNodeChanged -= OnGuiFloatCurveChanged;
+            UnregisterCurveResetSnapshots();
 
             if (volumeHolder != null)
             {
