@@ -343,6 +343,13 @@ namespace Atmosphere
             {
                 camera.AddCommandBuffer(CameraEvent.AfterForwardOpaque, forwardRenderingCommandBuffer);
             }
+
+            var currentP = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(camera), false);
+            var currentV = VRUtils.GetViewMatrixForCamera(camera);
+            var currentVP = currentP * currentV;
+
+            blendScreenSpaceShadowsMaterial.SetMatrix(ShaderProperties.GPUCameraToWorld_PROPERTY, Tools.GetGPUCameraToWorldMatrix(camera.cameraToWorldMatrix));
+            blendScreenSpaceShadowsMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentVP);
         }
 
         public void OnPostRender()

@@ -719,7 +719,14 @@ namespace Atmosphere
         private void OnPreRender()
         {
             if (mat != null && cam != null)
-                mat.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, cam.cameraToWorldMatrix);
+            {
+                var currentP = GL.GetGPUProjectionMatrix(VRUtils.GetNonJitteredProjectionMatrixForCamera(cam), false);
+                var currentV = VRUtils.GetViewMatrixForCamera(cam);
+                var currentVP = currentP * currentV;
+
+                mat.SetMatrix(ShaderProperties.GPUCameraToWorld_PROPERTY, Tools.GetGPUCameraToWorldMatrix(cam.cameraToWorldMatrix));
+                mat.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentVP);
+            }
         }
 
         void OnPostRender()

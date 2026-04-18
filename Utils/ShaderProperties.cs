@@ -104,6 +104,9 @@ namespace Utils
         public static int CameraToWorld_PROPERTY { get { return CameraToWorld; } }
         private static int CameraToWorld;
 
+        public static int GPUCameraToWorld_PROPERTY { get { return GPUCameraToWorld; } }
+        private static int GPUCameraToWorld;
+
         public static int reprojectionUVOffset_PROPERTY { get { return reprojectionUVOffset; } }
         private static int reprojectionUVOffset;
 
@@ -511,6 +514,7 @@ namespace Utils
             reprojectionXfactor = Shader.PropertyToID("reprojectionXfactor");
             reprojectionYfactor = Shader.PropertyToID("reprojectionYfactor");
             CameraToWorld = Shader.PropertyToID("CameraToWorld");
+            GPUCameraToWorld = Shader.PropertyToID("GPUCameraToWorld");
             reprojectionUVOffset = Shader.PropertyToID("reprojectionUVOffset");
             currentVP = Shader.PropertyToID("currentVP");
             previousVP = Shader.PropertyToID("previousVP");

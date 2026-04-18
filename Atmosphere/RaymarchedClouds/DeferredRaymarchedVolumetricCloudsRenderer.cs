@@ -761,6 +761,7 @@ namespace Atmosphere
                     cloudMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
 
                     cloudMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+                    cloudMaterial.SetMatrix(ShaderProperties.GPUCameraToWorld_PROPERTY, Tools.GetGPUCameraToWorldMatrix(targetCamera.cameraToWorldMatrix));
                     cloudMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
 
                     cloudMaterial.SetFloat(ShaderProperties.outerLayerRadius_PROPERTY, outerCloudsRadius);
@@ -853,7 +854,9 @@ namespace Atmosphere
 
             // Dilate motion vectors and approximate missing ones from global layer distances
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.GPUCameraToWorld_PROPERTY, Tools.GetGPUCameraToWorldMatrix(targetCamera.cameraToWorldMatrix));
             reconstructCloudsMaterial.SetMatrix(ShaderProperties.previousVP_PROPERTY, prevP * prevV);
+            reconstructCloudsMaterial.SetMatrix(ShaderProperties.currentVP_PROPERTY, currentVP);
 
             int motionVectorApproximationIterations = 4;
 

@@ -215,5 +215,15 @@ namespace Utils
             }
             return deferredInstalled.Value;
         }
+
+
+        // camera.cameraToWorldMatrix follows the OpenGL convention, where the camera looks down its -Z
+        // axis in view space, the unity_CameraToWorld we obtain in shaders directly uses Unity's
+        // transform convention, where the camera's forward is +Z (matching transform.forward)
+        public static Matrix4x4 GetGPUCameraToWorldMatrix(Matrix4x4 cameraToWorldMatrix)
+        {
+            cameraToWorldMatrix.SetColumn(2, -cameraToWorldMatrix.GetColumn(2));
+            return cameraToWorldMatrix;
+        }
     }
 }
