@@ -12,6 +12,13 @@ namespace Utils
 
     }
 
+    public class GUISlider : Attribute
+    {
+        public float Min { get; }
+        public float Max { get; }
+        public GUISlider(float min, float max) { Min = min; Max = max; }
+    }
+
     public class ConfigName : Attribute
     {
         string name;
@@ -30,6 +37,9 @@ namespace Utils
         public bool IsOptional;
         public string Tooltip;
         public bool StartsCollapsed;
+        public bool IsSlider;
+        public float SliderMin;
+        public float SliderMax;
     }
 
     public static class GUIHelper
@@ -76,6 +86,7 @@ namespace Utils
                         tip = ((TooltipAttribute)Attribute.GetCustomAttribute(
                             f, typeof(TooltipAttribute))).tooltip;
                     }
+                    var slider = (GUISlider)Attribute.GetCustomAttribute(f, typeof(GUISlider));
                     metas[i] = new FieldMeta
                     {
                         Field = f,
@@ -83,6 +94,9 @@ namespace Utils
                         IsOptional = Attribute.IsDefined(f, typeof(Optional)),
                         Tooltip = tip,
                         StartsCollapsed = Attribute.IsDefined(f, typeof(CollapsedList)),
+                        IsSlider = slider != null,
+                        SliderMin = slider != null ? slider.Min : 0f,
+                        SliderMax = slider != null ? slider.Max : 1f,
                     };
                 }
                 _configFieldCache[t] = metas;
@@ -927,7 +941,27 @@ namespace Utils
                 GUI.Label(labelRect, gc);
 
                 string newValue = value;
-                if (field.FieldType.IsEnum)
+                if (meta.IsSlider && field.FieldType == typeof(float))
+                {
+                    float floatValue;
+                    if (!float.TryParse(value, out floatValue))
+                        floatValue = meta.SliderMin;
+
+                    Rect sliderRect = new Rect(fieldRect);
+                    sliderRect.width -= 40f;
+                    Rect percentRect = new Rect(fieldRect);
+                    percentRect.x = sliderRect.x + sliderRect.width + 4f;
+                    percentRect.width = 36f;
+
+                    float sliderResult = GUI.HorizontalSlider(sliderRect, floatValue, meta.SliderMin, meta.SliderMax);
+                    float percent = (meta.SliderMax - meta.SliderMin) > 0f
+                        ? (sliderResult - meta.SliderMin) / (meta.SliderMax - meta.SliderMin) * 100f
+                        : 0f;
+                    GUI.Label(percentRect, string.Format("{0:0}%", percent));
+
+                    newValue = sliderResult.ToString("G8");
+                }
+                else if (field.FieldType.IsEnum)
                 {
                     newValue = ComboBox(fieldRect, value, GetCachedEnumNames(field.FieldType));
                 }

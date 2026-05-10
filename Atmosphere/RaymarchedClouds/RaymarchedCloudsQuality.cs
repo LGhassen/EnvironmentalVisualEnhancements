@@ -23,6 +23,12 @@ namespace Atmosphere
     [ConfigName("name")]
     public class RaymarchedCloudsQuality : IEVEObject
     {
+        [ConfigItem, GUISlider(0f, 1f)]
+        float ambientVolume = 1f;
+
+        [ConfigItem, GUISlider(0f, 1f)]
+        float lightningVolume = 1f;
+
         [ConfigItem]
         TemporalUpscaling temporalUpscaling = TemporalUpscaling.x9;
 
@@ -46,6 +52,9 @@ namespace Atmosphere
         internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 
         internal LightVolumeSettings LightVolumeSettings { get => lightVolumeSettings; }
+
+        internal float AmbientVolume { get => ambientVolume; }
+        internal float LightningVolume { get => lightningVolume; }
 
         public void LoadConfigNode(ConfigNode node)
         {

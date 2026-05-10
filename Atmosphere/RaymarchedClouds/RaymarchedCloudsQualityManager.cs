@@ -1,5 +1,6 @@
 ﻿using EVEManager;
 using System;
+using UnityEngine;
 
 namespace Atmosphere
 {
@@ -18,6 +19,17 @@ namespace Atmosphere
         static float screenShotModeDenoisingIterations = 8f;
 
         static LightVolumeSettings lightVolumeSettings = new LightVolumeSettings();
+
+        static float ambientVolume = 1f;
+        static float lightningVolume = 1f;
+
+        // KSP's built-in volume sliders default to 0.5. Double each and clamp individually so that
+        // at default KSP settings the effective multiplier is 1.0 and these sounds aren't quieter
+        // than before, while each KSP slider still reaches full mute at 0.
+        static float KSPVolume => Mathf.Clamp01(GameSettings.MASTER_VOLUME * 2f) * Mathf.Clamp01(GameSettings.AMBIENCE_VOLUME * 2f);
+
+        internal static float EffectiveAmbientVolume => KSPVolume * ambientVolume;
+        internal static float EffectiveLightningVolume => KSPVolume * lightningVolume;
 
         public override ObjectType objectType { get { return ObjectType.STATIC; } }
         public override String configName { get { return "EVE_RAYMARCHED_CLOUDS_QUALITY"; } }
@@ -77,6 +89,9 @@ namespace Atmosphere
                 screenShotModeDenoisingIterations = ObjectList[0].ScreenShotModeDenoisingIterations;
 
                 lightVolumeSettings = ObjectList[0].LightVolumeSettings;
+
+                ambientVolume = ObjectList[0].AmbientVolume;
+                lightningVolume = ObjectList[0].LightningVolume;
 
                 DeferredRaymarchedVolumetricCloudsRenderer.ReinitAll();
 

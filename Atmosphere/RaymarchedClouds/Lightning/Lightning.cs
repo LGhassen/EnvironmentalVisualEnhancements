@@ -306,6 +306,7 @@ namespace Atmosphere
                             
                             audioSource.rolloffMode = AudioRolloffMode.Linear;
                             audioSource.spatialBlend = 1f;
+                            audioSource.volume = RaymarchedCloudsQualityManager.EffectiveLightningVolume;
                             audioSource.minDistance = lightningConfigObject.SoundMinDistance;
                             audioSource.maxDistance = lightningConfigObject.SoundMaxDistance;
 

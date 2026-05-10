@@ -80,12 +80,12 @@ namespace Atmosphere
             }
             else
             {
-                smoothVolumeChange(audioSource, coverage * (ivaPlaying ? 0.8f : 1f));
+                smoothVolumeChange(audioSource, coverage * (ivaPlaying ? 0.8f : 1f) * RaymarchedCloudsQualityManager.EffectiveAmbientVolume);
                 audioSource.UnPause();
 
                 if (ivaAudioSource != null && ivaPlaying)
                 {
-                    smoothVolumeChange(ivaAudioSource, coverage);
+                    smoothVolumeChange(ivaAudioSource, coverage * RaymarchedCloudsQualityManager.EffectiveAmbientVolume);
                     ivaAudioSource.UnPause();
                 }
             }
