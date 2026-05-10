@@ -13,7 +13,7 @@ namespace Atmosphere
         public override GameScenes SceneLoad { get { return GameScenes.MAINMENU; } }
         public override int LoadOrder { get { return 110; } }
 
-        public override int DisplayOrder { get { return 91; } }
+        public override int DisplayOrder { get { return 30; } }
 
         public override String ToString() { return this.GetType().Name; }
         

@@ -13,7 +13,7 @@ namespace Atmosphere
         public override ObjectType objectType { get { return ObjectType.BODY | ObjectType.MULTIPLE; } }
         public override String configName { get{return "EVE_CLOUDS";} }
 
-        public override int DisplayOrder { get { return 90; } }
+        public override int DisplayOrder { get { return 20; } }
 
         public static EventVoid onApply;
 

@@ -9,6 +9,7 @@ namespace Atmosphere
         public override ObjectType objectType { get { return ObjectType.STATIC | ObjectType.MULTIPLE; } }
         public override String configName { get { return "EVE_PARTICLE_FIELD_CONFIG"; } }
         public override int LoadOrder { get { return 20; } }
+        public override int DisplayOrder { get { return 50; } }
 
         public static ParticleFieldConfig GetConfig(string configName)
         {

@@ -9,6 +9,7 @@ namespace Atmosphere
         public override ObjectType objectType { get { return ObjectType.STATIC | ObjectType.MULTIPLE; } }
         public override String configName { get { return "EVE_DROPLETS_CONFIG"; } }
         public override int LoadOrder { get { return 20; } }
+        public override int DisplayOrder { get { return 70; } }
 
         public static DropletsConfig GetConfig(string configName)
         {

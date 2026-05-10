@@ -15,6 +15,7 @@ namespace Atmosphere
         public override ObjectType objectType { get { return ObjectType.BODY; } }
         public override String configName { get { return "EVE_WET_SURFACES_CONFIG"; } }
         public override int LoadOrder { get { return 20; } }
+        public override int DisplayOrder { get { return 60; } }
 
         private static WetSurfacesRenderer wetSurfacesRenderingManager;
 

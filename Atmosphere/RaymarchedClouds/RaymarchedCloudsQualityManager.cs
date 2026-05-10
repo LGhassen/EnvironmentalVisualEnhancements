@@ -10,7 +10,7 @@ namespace Atmosphere
 
         public override int LoadOrder { get { return 120; } }
 
-        public override int DisplayOrder { get { return 92; } }
+        public override int DisplayOrder { get { return 10; } }
 
         static bool nonTiling3DNoise = true;
 
