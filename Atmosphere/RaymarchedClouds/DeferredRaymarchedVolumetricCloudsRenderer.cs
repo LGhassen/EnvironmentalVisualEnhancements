@@ -95,6 +95,23 @@ namespace Atmosphere
         // these are indexed by [flip]
         private FlipFlop<RenderTexture> newRaysRT, newMotionVectorsRT, lightningOcclusionRT, maxDepthRT;
 
+        // Cached RenderTargetIdentifier arrays. These were previously re-allocated EVERY frame (per
+        // camera) in OnPreRender/HandleRenderingCommands, which is pure per-frame GC pressure - the
+        // identifiers only actually change when the render textures themselves are recreated, so they
+        // are rebuilt in InitRenderTextures (rays MRT arrays) or lazily per eye on first use after a
+        // texture rebuild (history MRT arrays - lazy because in non-VR mode the right-eye RTs are null
+        // and must never be touched).
+        private RenderTargetIdentifier[] flipRaysRenderTexturesCached, flopRaysRenderTexturesCached;
+        private readonly RenderTargetIdentifier[][] historyIdentifiersFlip = new RenderTargetIdentifier[2][];
+        private readonly RenderTargetIdentifier[][] historyIdentifiersFlop = new RenderTargetIdentifier[2][];
+        private readonly int[] historyIdentifiersVersion = new int[2] { -1, -1 };
+        private int rtVersion = 0;
+
+        // Cached comparison delegate for the in-place intersection sort (avoids the per-frame
+        // allocations of the previous LINQ OrderBy().ToList()).
+        private static readonly System.Comparison<raymarchedLayerIntersection> compareIntersectionDistances =
+            (x, y) => x.distance.CompareTo(y.distance);
+
         bool useFlipScreenBuffer = true;
         Material reconstructCloudsMaterial;
 
@@ -291,6 +308,12 @@ namespace Atmosphere
             maxDepthRT = RenderTextureUtils.CreateFlipFlopRT(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, FilterMode.Bilinear);
 
             lightningOcclusionRT = RenderTextureUtils.CreateFlipFlopRT(lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
+
+            // Rebuild the cached rays MRT identifier arrays; invalidate the per-eye history identifier
+            // caches (rebuilt lazily on next use so the null right-eye RTs of non-VR mode are never read).
+            flipRaysRenderTexturesCached = new RenderTargetIdentifier[] { new RenderTargetIdentifier(newRaysRT[true]), new RenderTargetIdentifier(newMotionVectorsRT[true]), new RenderTargetIdentifier(maxDepthRT[true]) };
+            flopRaysRenderTexturesCached = new RenderTargetIdentifier[] { new RenderTargetIdentifier(newRaysRT[false]), new RenderTargetIdentifier(newMotionVectorsRT[false]), new RenderTargetIdentifier(maxDepthRT[false]) };
+            rtVersion++;
         }
 
         private void SetReprojectionFactors(bool screenshotMode = false)
@@ -451,14 +474,15 @@ namespace Atmosphere
                 DeferredRaymarchedRendererToScreenMaterial.SetFloat(ShaderProperties.useCombinedOpenGLDistanceBuffer_PROPERTY, useCombinedOpenGLDistanceBuffer ? 1f : 0f);
                 DeferredRaymarchedRendererToScreen.depthOcclusionMaterial.SetMatrix(ShaderProperties.CameraToWorld_PROPERTY, targetCamera.cameraToWorldMatrix);
 
-                // now sort our intersections front to back
-                intersections = intersections.OrderBy(x => x.distance).ToList();
+                // now sort our intersections front to back, in place (was a LINQ OrderBy().ToList(),
+                // which allocated every frame)
+                intersections.Sort(compareIntersectionDistances);
 
                 bool isRightEye = targetCamera.stereoActiveEye == Camera.MonoOrStereoscopicEye.Right;
 
                 // now we have our intersections, flip flop render where each layer reads what the previous one left as input)
-                RenderTargetIdentifier[] flipRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[true]), new RenderTargetIdentifier(newMotionVectorsRT[true]), new RenderTargetIdentifier(maxDepthRT[true]) };
-                RenderTargetIdentifier[] flopRaysRenderTextures = { new RenderTargetIdentifier(newRaysRT[false]), new RenderTargetIdentifier(newMotionVectorsRT[false]), new RenderTargetIdentifier(maxDepthRT[false]) };
+                RenderTargetIdentifier[] flipRaysRenderTextures = flipRaysRenderTexturesCached;
+                RenderTargetIdentifier[] flopRaysRenderTextures = flopRaysRenderTexturesCached;
                 var commandBuffer = this.commandBuffer[isRightEye];
                 commandBuffer.Clear();
 
@@ -593,9 +617,16 @@ namespace Atmosphere
             }
 
             //reconstruct full frame from history and new rays texture
-            RenderTargetIdentifier[] flipIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
-            RenderTargetIdentifier[] flopIdentifiers = { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
-            RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? flipIdentifiers : flopIdentifiers;
+            // cached per eye, rebuilt lazily after every InitRenderTextures (was two array allocations
+            // per camera per frame)
+            int eyeIndex = isRightEye ? 1 : 0;
+            if (historyIdentifiersVersion[eyeIndex] != rtVersion)
+            {
+                historyIdentifiersFlip[eyeIndex] = new RenderTargetIdentifier[] { new RenderTargetIdentifier(historyRT[isRightEye][true]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][true]) };
+                historyIdentifiersFlop[eyeIndex] = new RenderTargetIdentifier[] { new RenderTargetIdentifier(historyRT[isRightEye][false]), new RenderTargetIdentifier(historyMotionVectorsRT[isRightEye][false]) };
+                historyIdentifiersVersion[eyeIndex] = rtVersion;
+            }
+            RenderTargetIdentifier[] targetIdentifiers = useFlipScreenBuffer ? historyIdentifiersFlip[eyeIndex] : historyIdentifiersFlop[eyeIndex];
 
             commandBuffer.SetRenderTarget(targetIdentifiers, historyRT[isRightEye][true].depthBuffer);
 
