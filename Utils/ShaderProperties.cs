@@ -263,6 +263,18 @@ namespace Utils
         public static int lightVolumeDimensions_PROPERTY { get { return lightVolumeDimensions; } }
         private static int lightVolumeDimensions;
 
+        public static int combinedLightVolumeDimensions_PROPERTY { get { return combinedLightVolumeDimensions; } }
+        private static int combinedLightVolumeDimensions;
+
+        public static int invCombinedLightVolumeDimensions_PROPERTY { get { return invCombinedLightVolumeDimensions; } }
+        private static int invCombinedLightVolumeDimensions;
+
+        public static int lightVolumeZClamp_PROPERTY { get { return lightVolumeZClamp; } }
+        private static int lightVolumeZClamp;
+
+        public static int ambientVolumeZClamp_PROPERTY { get { return ambientVolumeZClamp; } }
+        private static int ambientVolumeZClamp;
+
         public static int paraboloidPosition_PROPERTY { get { return paraboloidPosition; } }
         private static int paraboloidPosition;
 
@@ -295,24 +307,6 @@ namespace Utils
 
         public static int ambientLightVolume_PROPERTY { get { return ambientLightVolume; } }
         private static int ambientLightVolume;
-
-        public static int scattererLightVolumeDimensions_PROPERTY { get { return scattererLightVolumeDimensions; } }
-        private static int scattererLightVolumeDimensions;
-
-        public static int scattererParaboloidPosition_PROPERTY { get { return scattererParaboloidPosition; } }
-        private static int scattererParaboloidPosition;
-
-        public static int scattererWorldToParaboloid_PROPERTY { get { return scattererWorldToParaboloid; } }
-        private static int scattererWorldToParaboloid;
-
-        public static int scattererInnerLightVolumeRadius_PROPERTY { get { return scattererInnerLightVolumeRadius; } }
-        private static int scattererInnerLightVolumeRadius;
-
-        public static int scattererOuterLightVolumeRadius_PROPERTY { get { return scattererOuterLightVolumeRadius; } }
-        private static int scattererOuterLightVolumeRadius;
-
-        public static int scattererDirectLightVolume_PROPERTY { get { return scattererDirectLightVolume; } }
-        private static int scattererDirectLightVolume;
 
         public static int worldToPreviousParaboloid_PROPERTY { get { return worldToPreviousParaboloid; } }
         private static int worldToPreviousParaboloid;
@@ -569,6 +563,10 @@ namespace Utils
             reprojectionCurrentPixel = Shader.PropertyToID("reprojectionCurrentPixel");
 
             lightVolumeDimensions = Shader.PropertyToID("lightVolumeDimensions");
+            combinedLightVolumeDimensions = Shader.PropertyToID("combinedLightVolumeDimensions");
+            invCombinedLightVolumeDimensions = Shader.PropertyToID("invCombinedLightVolumeDimensions");
+            lightVolumeZClamp = Shader.PropertyToID("lightVolumeZClamp");
+            ambientVolumeZClamp = Shader.PropertyToID("ambientVolumeZClamp");
             paraboloidPosition = Shader.PropertyToID("paraboloidPosition");
             paraboloidToWorld = Shader.PropertyToID("paraboloidToWorld");
             worldToParaboloid = Shader.PropertyToID("worldToParaboloid");
@@ -580,12 +578,6 @@ namespace Utils
             lightVolume = Shader.PropertyToID("lightVolume");
             directLightVolume = Shader.PropertyToID("directLightVolume");
             ambientLightVolume = Shader.PropertyToID("ambientLightVolume");
-            scattererLightVolumeDimensions = Shader.PropertyToID("scattererLightVolumeDimensions");
-            scattererParaboloidPosition = Shader.PropertyToID("scattererParaboloidPosition");
-            scattererWorldToParaboloid = Shader.PropertyToID("scattererWorldToParaboloid");
-            scattererInnerLightVolumeRadius = Shader.PropertyToID("scattererInnerLightVolumeRadius");
-            scattererOuterLightVolumeRadius = Shader.PropertyToID("scattererOuterLightVolumeRadius");
-            scattererDirectLightVolume = Shader.PropertyToID("scattererDirectLightVolume");
             worldToPreviousParaboloid = Shader.PropertyToID("worldToPreviousParaboloid");
             previousParaboloidPosition = Shader.PropertyToID("previousParaboloidPosition");
             previousInnerLightVolumeRadius = Shader.PropertyToID("previousInnerLightVolumeRadius");
