@@ -113,7 +113,7 @@ namespace Atmosphere
                 DeferredRendererToScreen.SetRenderTexture(targetRT);
 
                 //downscale depth
-                cb.Blit(null, downscaledDepthRT, downscaleDepthMaterial);
+                cb.Blit(null, downscaledDepthRT, downscaleDepthMaterial, 0);
                 cb.SetGlobalTexture("EVEDownscaledDepth", downscaledDepthRT);
                 DeferredRendererToScreen.SetDepthTexture(downscaledDepthRT);
 
