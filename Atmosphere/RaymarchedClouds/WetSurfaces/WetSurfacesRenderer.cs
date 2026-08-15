@@ -310,7 +310,17 @@ namespace Atmosphere
         static Vector3d tangentFrameBitangent = new Vector3d(0, 0, 0);
         static Vector3d tangentFrameNormal = new Vector3d(0, 0, 0);
         static Vector3d tangentFrameOrigin = new Vector3d(0, 0, 0);
-        static Vector3d cumulatedTangentFrameOffset = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameTextureUVOffset = new Vector3d(0, 0, 0);
+        static Vector3d tangentFrameStochasticUVOffset = new Vector3d(0, 0, 0);
+        const double puddleStochasticLatticePeriod = 128.0;
+
+        private static Vector3d WrapUVOffset(Vector3d offset, double period)
+        {
+            return new Vector3d(
+                offset.x - Math.Floor(offset.x / period) * period,
+                offset.y - Math.Floor(offset.y / period) * period,
+                offset.z - Math.Floor(offset.z / period) * period);
+        }
 
         private void UpdateRendering(float deltaTime, WetSurfacesConfig wetSurfacesConfig)
         {
@@ -375,20 +385,25 @@ namespace Atmosphere
                 frameOffset = Vector2d.zero;
             }
 
-            cumulatedTangentFrameOffset += frameOffset;
-
             tangentFrameOrigin = currentFrameOrigin;
 
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameTangent_PROPERTY, (Vector3)tangentFrameTangent);
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameBitangent_PROPERTY, (Vector3)tangentFrameBitangent);
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameOrigin_PROPERTY, (Vector3)tangentFrameOrigin);
 
-            var puddleTextureUVOffsets = cumulatedTangentFrameOffset / wetSurfacesConfig.PuddleTextureScale;
+            var frameUVOffset = new Vector3d(frameOffset.x, frameOffset.y, 0.0) / wetSurfacesConfig.PuddleTextureScale;
+            tangentFrameTextureUVOffset = WrapUVOffset(tangentFrameTextureUVOffset + frameUVOffset, 1.0);
+            tangentFrameStochasticUVOffset = WrapUVOffset(tangentFrameStochasticUVOffset + frameUVOffset, puddleStochasticLatticePeriod);
 
             wetEffectMaterial.SetVector(ShaderProperties.tangentFrameUVOffset_PROPERTY, new Vector3(
-                                                        (float)(puddleTextureUVOffsets.x - Math.Truncate(puddleTextureUVOffsets.x)),
-                                                        (float)(puddleTextureUVOffsets.y - Math.Truncate(puddleTextureUVOffsets.y)),
-                                                        (float)(puddleTextureUVOffsets.z - Math.Truncate(puddleTextureUVOffsets.z))));
+                                                        (float)tangentFrameTextureUVOffset.x,
+                                                        (float)tangentFrameTextureUVOffset.y,
+                                                        (float)tangentFrameTextureUVOffset.z));
+
+            wetEffectMaterial.SetVector(ShaderProperties.tangentFrameStochasticUVOffset_PROPERTY, new Vector3(
+                                                        (float)tangentFrameStochasticUVOffset.x,
+                                                        (float)tangentFrameStochasticUVOffset.y,
+                                                        (float)tangentFrameStochasticUVOffset.z));
         }
 
 

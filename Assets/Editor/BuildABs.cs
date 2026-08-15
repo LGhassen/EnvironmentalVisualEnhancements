@@ -12,7 +12,7 @@ class BuildABs {
         // Put the bundles in a folder called "ABs" within the
         // Assets folder.
         var outDir = "C:/Steam/steamapps/common/Kerbal Space Program/GameData/EnvironmentalVisualEnhancements";
-        var outDir2 = "C:/gh/scattererGithub/EVE/EnvironmentalVisualEnhancements/ContentEVE/GameData/EnvironmentalVisualEnhancements";
+        var outDir2 = "D:/gh/scattererGithub/EVE/EnvironmentalVisualEnhancements/ContentEVE/GameData/EnvironmentalVisualEnhancements";
         //        var opts = BuildAssetBundleOptions.DeterministicAssetBundle
         //            | BuildAssetBundleOptions.ForceRebuildAssetBundle;
 
