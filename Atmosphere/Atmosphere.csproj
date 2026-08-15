@@ -216,9 +216,11 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup />
+  <Import Project="..\PortablePdb.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy  $(TargetFileName) "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
+xcopy "$(TargetDir)$(TargetName).pdb" "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
 </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

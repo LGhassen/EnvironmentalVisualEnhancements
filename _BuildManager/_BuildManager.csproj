@@ -160,6 +160,7 @@
       <Name>Utils</Name>
     </ProjectReference>
   </ItemGroup>
+  <Import Project="..\PortablePdb.props" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="PostBuildMacros">
     <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
@@ -175,6 +176,7 @@
       PostBuildMacros;
     </PostBuildEventDependsOn>
     <PostBuildEvent>xcopy  $(TargetFileName) "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
+xcopy "$(TargetDir)$(TargetName).pdb" "$(SolutionDir)ContentEVE\GameData\EnvironmentalVisualEnhancements\Plugins\" /eyir
 echo "Copying to KSP install (set in LocalSetup.csproj)..."
 
 xcopy "$(SolutionDir)ContentEVE\GameData" "$(KSPDir)\GameData" /eyir
