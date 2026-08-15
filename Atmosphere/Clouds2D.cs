@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Reflection;
+using PQSManager;
 using ShaderLoader;
 using UnityEngine;
 using Utils;
@@ -52,6 +53,7 @@ namespace Atmosphere
         Tools.Layer scaledLayer = Tools.Layer.Scaled;
         Light Sunlight;
         bool isScaled = false;
+        bool allowMapViewParting = false;
 
         float flowLoopTime = 0f;
         Matrix4x4 mainRotationMatrix = Matrix4x4.identity;
@@ -195,6 +197,7 @@ namespace Atmosphere
             CloudsManager.Log("Applying 2D clouds...");
             Remove();
             this.celestialBody = celestialBody;
+            allowMapViewParting = PQSManagerClass.HasRealPQS(celestialBody);
             this.scaledCelestialTransform = scaledCelestialTransform;
             if (arc == 360) {
                 HalfSphere hp = new HalfSphere(radius, ref cloudMaterial, CloudShader);
@@ -426,7 +429,7 @@ namespace Atmosphere
         {
             int mapViewParting = 0; Vector3 scaledIntersect = default;
 
-            if (MapView.MapIsEnabled &&
+            if (allowMapViewParting && MapView.MapIsEnabled &&
                 (scaledCameraPos - scaledCelestialTransform.position).magnitude < 4.0f * scaledPlanetRadius)
             {
                 Vector3 rayDirection = GetCursorRayDirection(ScaledCamera.Instance.cam);
