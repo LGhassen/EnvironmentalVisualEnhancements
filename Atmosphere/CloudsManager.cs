@@ -1,4 +1,5 @@
 ﻿using EVEManager;
+using PQSManager;
 using System;
 using UnityEngine;
 using Utils;
@@ -64,7 +65,12 @@ namespace Atmosphere
         public override void Update()
         {
             base.Update();
-            
+
+            foreach (CelestialBodyCloudsHandler handler in celestialBodyCloudsHandlers)
+            {
+                handler.UpdateMapViewFade();
+            }
+
             // update only one body per frame for max scalability
             var celestialBodyCloudsHandlersCount = celestialBodyCloudsHandlers.Count;
             if (celestialBodyCloudsHandlersCount > 0)
@@ -131,10 +137,20 @@ namespace Atmosphere
         Transform scaledTransform;
         GameObject mainMenuGO;
         List<ConfigNode> configNodes;
+        List<CloudsObject> cloudsObjects = new List<CloudsObject>();
         bool isLoaded;
         bool hasRaymarchedVolumetrics;
         double loadDistance, unloadDistance;
         bool inMainMenu = false;
+
+        const float mapViewFadeOutRadiusMultiplier = 2.5f;
+        const float mapViewFadeInRadiusMultiplier = 3.5f;
+        const float mapViewFadeDuration = 1.0f;
+
+        bool allowMapViewFade;
+        float mapViewFade = 1.0f;
+        float mapViewFadeTarget = 1.0f;
+        float lastMapViewFadeUpdateTime = -1.0f;
 
         static Camera mainMenuCamera = null;
 
@@ -147,9 +163,56 @@ namespace Atmosphere
             configNodes = cn;
             isLoaded = false;
             hasRaymarchedVolumetrics = false;
+            allowMapViewFade = PQSManagerClass.HasRealPQS(celestialBody);
 
             loadDistance   = 2000.0 * celestialBody.Radius;
             unloadDistance = 4000.0 * celestialBody.Radius;
+        }
+
+        public void UpdateMapViewFade()
+        {
+            float realTime = Time.realtimeSinceStartup;
+            float elapsedTime = lastMapViewFadeUpdateTime < 0.0f
+                ? 0.0f
+                : realTime - lastMapViewFadeUpdateTime;
+            lastMapViewFadeUpdateTime = realTime;
+
+            if (!RaymarchedCloudsQualityManager.MapViewCloudFade ||
+                !allowMapViewFade ||
+                !MapView.MapIsEnabled)
+            {
+                mapViewFade = 1.0f;
+                mapViewFadeTarget = 1.0f;
+            }
+            else
+            {
+                float scaledPlanetRadius = (float)celestialBody.Radius / ScaledSpace.ScaleFactor;
+                float distanceInRadii =
+                    Vector3.Distance(ScaledCamera.Instance.cam.transform.position, scaledTransform.position) /
+                    scaledPlanetRadius;
+
+                if (distanceInRadii <= mapViewFadeOutRadiusMultiplier)
+                {
+                    mapViewFadeTarget = 0.0f;
+                }
+                else if (distanceInRadii >= mapViewFadeInRadiusMultiplier)
+                {
+                    mapViewFadeTarget = 1.0f;
+                }
+
+                mapViewFade = Mathf.MoveTowards(
+                    mapViewFade,
+                    mapViewFadeTarget,
+                    elapsedTime / mapViewFadeDuration);
+            }
+
+            foreach (CloudsObject cloudsObject in cloudsObjects)
+            {
+                if (cloudsObject.Layer2D != null)
+                {
+                    cloudsObject.Layer2D.SetMapViewFade(mapViewFade);
+                }
+            }
         }
 
         public void AddConfigNode(ConfigNode cn)
@@ -255,14 +318,16 @@ namespace Atmosphere
             go.transform.parent = Tools.GetCelestialBody(node.GetValue(ConfigHelper.BODY_FIELD)).bodyTransform;
             newObject.LoadConfigNode(node);
             objectList.Add(newObject);
+            cloudsObjects.Add(newObject);
             newObject.Apply();
+            newObject.Layer2D?.SetMapViewFade(mapViewFade);
         }
 
         void UnloadBody(List<CloudsObject> objectList)
         {
             CloudsManager.Log("Unloading body " + celestialBody.name);
 
-            foreach (CloudsObject obj in objectList.Where(x=>x.Body == celestialBody.name).ToList())
+            foreach (CloudsObject obj in cloudsObjects)
             {
                 obj.Remove();
                 GameObject go = obj.gameObject;
@@ -273,6 +338,7 @@ namespace Atmosphere
 
                 objectList.Remove(obj);
             }
+            cloudsObjects.Clear();
 
             isLoaded = false;
 

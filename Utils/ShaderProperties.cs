@@ -460,11 +460,8 @@ namespace Utils
         public static int tangentFrameStochasticUVOffset_PROPERTY { get { return tangentFrameStochasticUVOffset; } }
         private static int tangentFrameStochasticUVOffset;
 
-        public static int mapViewParting_PROPERTY { get { return mapViewParting; } }
-        private static int mapViewParting;
-
-        public static int scaledMouseCloudIntersect_PROPERTY { get { return scaledMouseCloudIntersect; } }
-        private static int scaledMouseCloudIntersect;
+        public static int mapViewFade_PROPERTY { get { return mapViewFade; } }
+        private static int mapViewFade;
 
         private void Awake()
         {
@@ -639,8 +636,7 @@ namespace Utils
             tangentFrameUVOffset = Shader.PropertyToID("tangentFrameUVOffset");
             tangentFrameStochasticUVOffset = Shader.PropertyToID("tangentFrameStochasticUVOffset");
 
-            mapViewParting = Shader.PropertyToID("mapViewParting");
-            scaledMouseCloudIntersect = Shader.PropertyToID("scaledMouseCloudIntersect");
+            mapViewFade = Shader.PropertyToID("mapViewFade");
         }
     }
 }

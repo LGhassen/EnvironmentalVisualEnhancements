@@ -38,6 +38,9 @@ namespace Atmosphere
         [ConfigItem]
         bool renderCloudsInReflectionProbes = true;
 
+        [ConfigItem, UnityEngine.Tooltip("Fade 2D cloud layers and their shadows when approaching planets in map view.")]
+        bool mapViewCloudFade = true;
+
         [ConfigItem]
         float screenshotModeDenoisingIterations = 8f;
 
@@ -48,6 +51,8 @@ namespace Atmosphere
         internal bool NonTiling3DNoise { get => nonTiling3DNoise; }
 
         internal bool RenderCloudsInReflectionProbes { get => renderCloudsInReflectionProbes; }
+
+        internal bool MapViewCloudFade { get => mapViewCloudFade; }
 
         internal float ScreenShotModeDenoisingIterations { get => screenshotModeDenoisingIterations; }
 

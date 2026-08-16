@@ -65,7 +65,6 @@ Shader "EVE/Cloud" {
 #endif
 				#include "alphaMap.cginc"
 				#include "cubeMap.cginc"
-				#include "noiseSimplex.cginc"
 
 				CUBEMAP_DEF_1(_MainTex)
 				CUBEMAP_DEF_1(_BumpMap)
@@ -99,8 +98,7 @@ Shader "EVE/Cloud" {
 				float cloudTimeFadeDensity;
 				float cloudTimeFadeCoverage;
 
-				int mapViewParting;
-				float3 scaledMouseCloudIntersect;
+				float mapViewFade;
 
 				struct appdata_t {
 					float4 vertex : POSITION;
@@ -255,27 +253,7 @@ Shader "EVE/Cloud" {
 					OUT.depth = (1.0 - depthWithOffset * _ZBufferParams.w) / (depthWithOffset * _ZBufferParams.z);
 #endif
 
-					if (mapViewParting > 0.0)
-					{
-						float scaledPlanetRadius = _OceanRadius / 6000.0;
-						float invScaledPlanetRadius = 1.0 / scaledPlanetRadius;
-
-						float3 worldPosition = IN.worldVert.xyz;
-						float3 relativePosition = worldPosition - _PlanetOrigin;
-
-						float mouseDistance = distance(scaledMouseCloudIntersect, worldPosition);
-						float camDistance   = distance(_WorldSpaceCameraPos, worldPosition);
-
-						float fade = 1.0 - saturate(min(mouseDistance, camDistance) * (invScaledPlanetRadius * 2.0) - 0.5);
-
-						if (fade > 0.0)
-						{
-							float3 noisePosition = relativePosition * invScaledPlanetRadius * 20.0;
-							float noiseValue = snoise(noisePosition) * 0.5 + 0.5;
-
-							OUT.color.a *= step(fade, noiseValue);
-						}
-					}
+					OUT.color.a *= mapViewFade;
 
 
 					return OUT;

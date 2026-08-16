@@ -39,7 +39,6 @@
 
 			#include "alphaMap.cginc"
 			#include "cubeMap.cginc"
-			#include "noiseSimplex.cginc"
 
 			CUBEMAP_DEF_1(_MainTex)
 
@@ -63,8 +62,7 @@
 			float3 _PlanetOrigin;
 			uniform float4x4 unity_Projector;
 
-			int mapViewParting;
-			float3 scaledMouseCloudIntersect;
+			float mapViewFade;
 
 			struct appdata_t {
 				float4 vertex : POSITION;
@@ -148,20 +146,7 @@
 				color.rgb = lerp(1, color.rgb, _ShadowFactor*color.a);
 
 
-				if (mapViewParting > 0.0)
-				{
-					float scaledPlanetRadius = _PlanetRadius;
-					float invScaledPlanetRadius = 1.0 / scaledPlanetRadius;
-
-					float mouseDistance = distance(scaledMouseCloudIntersect, IN.worldPos.xyz);
-					float camDistance   = distance(_WorldSpaceCameraPos, IN.worldPos.xyz);
-
-					float fade = 1.0 - saturate(min(mouseDistance, camDistance) * (invScaledPlanetRadius * 4.0) - 0.5);
-					color.rgb = lerp(color.rgb, 1.0.xxx, fade);
-				}
-
-
-				return lerp(1, color, shadowCheck*cloudTimeFadeDensity);
+				return lerp(1, color, shadowCheck*cloudTimeFadeDensity*mapViewFade);
 			}
 
 			ENDCG
