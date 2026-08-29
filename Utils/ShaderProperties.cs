@@ -94,6 +94,12 @@ namespace Utils
 
         public static int paddedReconstructedTextureResolution_PROPERTY { get { return paddedReconstructedTextureResolution; } }
         private static int paddedReconstructedTextureResolution;
+
+        public static int newRaysRenderResolution_PROPERTY { get { return newRaysRenderResolution; } }
+        private static int newRaysRenderResolution;
+
+        public static int invNewRaysRenderResolution_PROPERTY { get { return invNewRaysRenderResolution; } }
+        private static int invNewRaysRenderResolution;
         
         public static int reprojectionXfactor_PROPERTY { get { return reprojectionXfactor; } }
         private static int reprojectionXfactor;
@@ -109,6 +115,15 @@ namespace Utils
 
         public static int reprojectionUVOffset_PROPERTY { get { return reprojectionUVOffset; } }
         private static int reprojectionUVOffset;
+
+        public static int useRayPlacement_PROPERTY { get { return useRayPlacement; } }
+        private static int useRayPlacement;
+
+        public static int rayPlacementIndex_PROPERTY { get { return rayPlacementIndex; } }
+        private static int rayPlacementIndex;
+
+        public static int rayPlacementTentativeIndex_PROPERTY { get { return rayPlacementTentativeIndex; } }
+        private static int rayPlacementTentativeIndex;
 
         public static int currentVP_PROPERTY { get { return currentVP; } }
         private static int currentVP;
@@ -505,11 +520,16 @@ namespace Utils
             reconstructedTextureResolution = Shader.PropertyToID("reconstructedTextureResolution");
             invReconstructedTextureResolution = Shader.PropertyToID("invReconstructedTextureResolution");
             paddedReconstructedTextureResolution = Shader.PropertyToID("paddedReconstructedTextureResolution");
+            newRaysRenderResolution = Shader.PropertyToID("newRaysRenderResolution");
+            invNewRaysRenderResolution = Shader.PropertyToID("invNewRaysRenderResolution");
             reprojectionXfactor = Shader.PropertyToID("reprojectionXfactor");
             reprojectionYfactor = Shader.PropertyToID("reprojectionYfactor");
             CameraToWorld = Shader.PropertyToID("CameraToWorld");
             GPUCameraToWorld = Shader.PropertyToID("GPUCameraToWorld");
             reprojectionUVOffset = Shader.PropertyToID("reprojectionUVOffset");
+            useRayPlacement = Shader.PropertyToID("useRayPlacement");
+            rayPlacementIndex = Shader.PropertyToID("rayPlacementIndex");
+            rayPlacementTentativeIndex = Shader.PropertyToID("rayPlacementTentativeIndex");
             currentVP = Shader.PropertyToID("currentVP");
             previousVP = Shader.PropertyToID("previousVP");
             isFirstLayerRendered = Shader.PropertyToID("isFirstLayerRendered");

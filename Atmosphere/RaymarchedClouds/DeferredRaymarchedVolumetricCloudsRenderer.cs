@@ -134,13 +134,14 @@ namespace Atmosphere
 
         private RenderTexture unpackedNewRaysRT, unpackedMotionVectorsRT, unpackedWeightedDepth; // Unpacked Textures used to speed up reconstruction which does lots of lookups
         private RenderTexture motionVectorsScratchRT, depthScratchRT; // Additional RT to flip-flop between this and the unpackedMotionVectorsRT for dilating motion vectors
+        private RenderTexture rayPlacementTentativeRT, rayPlacementIndexRT;
         private bool packedTexturesDebugMode = false;
 
         // These are simple flip flop textures
         private HistoryManager<RenderTexture> lightningOcclusionRT;
 
         bool useFlipUpscalingBuffer = true;
-        Material reconstructCloudsMaterial, unpackRaysMaterial;
+        Material reconstructCloudsMaterial, unpackRaysMaterial, placeCloudRaysMaterial;
 
         // Matrices of previous frame, can be different per VR eye or per cubemap face
         private HistoryManager<Matrix4x4> previousV;
@@ -204,6 +205,19 @@ namespace Atmosphere
             }
         }
 
+        private static Shader placeCloudRaysShader = null;
+        private static Shader PlaceCloudRaysShader
+        {
+            get
+            {
+                if (placeCloudRaysShader == null)
+                {
+                    placeCloudRaysShader = ShaderLoaderClass.FindShader("EVE/PlaceCloudRays");
+                }
+                return placeCloudRaysShader;
+            }
+        }
+
         public bool MainFlightCamera { get => mainFlightCamera; set => mainFlightCamera = value; }
 
         private bool useCombinedOpenGLDistanceBuffer = false;
@@ -240,6 +254,7 @@ namespace Atmosphere
 
             reconstructCloudsMaterial = new Material(ReconstructionShader);
             unpackRaysMaterial = new Material(UnpackRaysShader);
+            placeCloudRaysMaterial = new Material(PlaceCloudRaysShader);
 
             reconstructCloudsMaterial.SetVector("reconstructedTextureResolution", new Vector2(screenWidth, screenHeight));
             reconstructCloudsMaterial.SetVector("invReconstructedTextureResolution", new Vector2(1.0f / (float)screenWidth, 1.0f / (float)screenHeight));
@@ -252,6 +267,8 @@ namespace Atmosphere
 
             reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
             reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
+
+            UpdateRayPlacementMaterialParams();
 
             reconstructCloudsMaterial.SetFloat("screenshotModeIterations", screenshotModeIterations);
 
@@ -304,6 +321,8 @@ namespace Atmosphere
                 RenderTextureUtils.ResizeRT(unpackedWeightedDepth, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(motionVectorsScratchRT, newRaysRenderWidth, newRaysRenderHeight);
                 RenderTextureUtils.ResizeRT(depthScratchRT, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeRT(rayPlacementTentativeRT, newRaysRenderWidth, newRaysRenderHeight);
+                RenderTextureUtils.ResizeRT(rayPlacementIndexRT, newRaysRenderWidth, newRaysRenderHeight);
                 
                 RenderTextureUtils.ResizeRTHistoryManager(historyRT, screenWidth, screenHeight);
                 RenderTextureUtils.ResizeRTHistoryManager(historyMotionVectorsRT, screenWidth, screenHeight);
@@ -321,6 +340,8 @@ namespace Atmosphere
 
                 reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
                 reconstructCloudsMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
+
+                UpdateRayPlacementMaterialParams();
             }
         }
 
@@ -375,7 +396,26 @@ namespace Atmosphere
             motionVectorsScratchRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RGHalf, false, FilterMode.Point);
             depthScratchRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight, RenderTextureFormat.RHalf, false, FilterMode.Point);
 
+            RenderTextureFormat rayPlacementFormat = RenderTextureFormat.R8;
+            rayPlacementTentativeRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight,
+                rayPlacementFormat, false, FilterMode.Point, TextureDimension.Tex2D, 0, false, TextureWrapMode.Clamp);
+            rayPlacementIndexRT = RenderTextureUtils.CreateRenderTexture(newRaysRenderWidth, newRaysRenderHeight,
+                rayPlacementFormat, false, FilterMode.Point, TextureDimension.Tex2D, 0, false, TextureWrapMode.Clamp);
+
             lightningOcclusionRT = RenderTextureUtils.CreateRTHistoryManager(true, false, false, lightningOcclusionResolution * Lightning.MaxConcurrent, lightningOcclusionResolution, RenderTextureFormat.R8, FilterMode.Bilinear);
+        }
+
+        private void UpdateRayPlacementMaterialParams()
+        {
+            placeCloudRaysMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
+            placeCloudRaysMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY,
+                new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
+            placeCloudRaysMaterial.SetVector(ShaderProperties.newRaysRenderResolution_PROPERTY,
+                new Vector2(newRaysRenderWidth, newRaysRenderHeight));
+            placeCloudRaysMaterial.SetVector(ShaderProperties.invNewRaysRenderResolution_PROPERTY,
+                new Vector2(1.0f / newRaysRenderWidth, 1.0f / newRaysRenderHeight));
+            placeCloudRaysMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
+            placeCloudRaysMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
         }
 
         private void SetReprojectionFactors(bool screenshotMode = false)
@@ -727,6 +767,8 @@ namespace Atmosphere
 
             var currentVP = currentP * currentV;
 
+            PlaceRays(commandBuffer, meshRenderer);
+
             foreach (var intersection in intersections)
             {
                 List<CloudsRaymarchedVolume> overlapLayers = intersection.overlapInterval.volumes;
@@ -756,6 +798,8 @@ namespace Atmosphere
                     cloudMaterial.SetVector(ShaderProperties.reconstructedTextureResolution_PROPERTY, new Vector2(screenWidth, screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.invReconstructedTextureResolution_PROPERTY, new Vector2(1.0f / screenWidth, 1.0f / screenHeight));
                     cloudMaterial.SetVector(ShaderProperties.paddedReconstructedTextureResolution_PROPERTY, new Vector2(paddedScreenWidth, paddedScreenHeight));
+                    cloudMaterial.SetVector(ShaderProperties.newRaysRenderResolution_PROPERTY, new Vector2(newRaysRenderWidth, newRaysRenderHeight));
+                    cloudMaterial.SetVector(ShaderProperties.invNewRaysRenderResolution_PROPERTY, new Vector2(1.0f / newRaysRenderWidth, 1.0f / newRaysRenderHeight));
 
                     cloudMaterial.SetInt(ShaderProperties.reprojectionXfactor_PROPERTY, reprojectionXfactor);
                     cloudMaterial.SetInt(ShaderProperties.reprojectionYfactor_PROPERTY, reprojectionYfactor);
@@ -928,6 +972,24 @@ namespace Atmosphere
             commandBuffer.SetGlobalTexture(ShaderProperties.lightningOcclusion_PROPERTY, lightningOcclusionRT[!useLightningFlipRaysBuffer, false, 0]);
         }
 
+        private void PlaceRays(CommandBuffer commandBuffer, MeshRenderer meshRenderer)
+        {
+            bool useRayPlacement = reprojectionXfactor * reprojectionYfactor > 1 && !cloudsScreenshotModeEnabled;
+            commandBuffer.SetGlobalFloat(ShaderProperties.useRayPlacement_PROPERTY, useRayPlacement ? 1.0f : 0.0f);
+
+            if (!useRayPlacement)
+                return;
+
+            commandBuffer.SetRenderTarget(rayPlacementTentativeRT);
+            commandBuffer.DrawRenderer(meshRenderer, placeCloudRaysMaterial, 0, 0);
+
+            commandBuffer.SetGlobalTexture(ShaderProperties.rayPlacementTentativeIndex_PROPERTY, rayPlacementTentativeRT);
+            commandBuffer.SetRenderTarget(rayPlacementIndexRT);
+            commandBuffer.DrawRenderer(meshRenderer, placeCloudRaysMaterial, 0, 1);
+
+            commandBuffer.SetGlobalTexture(ShaderProperties.rayPlacementIndex_PROPERTY, rayPlacementIndexRT);
+        }
+
         private void HandleUnstableMasks()
         {
             if (CloudsPainter.UnstableMaskPosition.w == 0.0 && painterUnstableMaskInUse)
@@ -993,6 +1055,7 @@ namespace Atmosphere
 
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
             reconstructCloudsMaterial.SetVector(ShaderProperties.reprojectionUVOffset_PROPERTY, uvOffset);
+            placeCloudRaysMaterial.SetVector(ShaderProperties.reprojectionCurrentPixel_PROPERTY, currentPixel);
         }
 
         void OnPostRender()
@@ -1086,6 +1149,12 @@ namespace Atmosphere
 
             if (unpackedWeightedDepth)
                 unpackedWeightedDepth.Release();
+
+            if (rayPlacementTentativeRT)
+                rayPlacementTentativeRT.Release();
+
+            if (rayPlacementIndexRT)
+                rayPlacementIndexRT.Release();
         }
 
         public void OnDestroy()
